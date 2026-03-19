@@ -21,6 +21,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set log level based on VERBOSE / LOG_LEVEL.
+	logLevel := slog.LevelInfo
+	if cfg.Verbose {
+		logLevel = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
 	ctx := context.Background()
 
 	// Connect to Postgres
