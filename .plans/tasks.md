@@ -45,13 +45,15 @@
 - [x] Crypto helpers wrapping Amnesia for secret payloads
 - [x] End-to-end test: set → get → list → delete → run all passing
 
-### Amnesia WASM
-- [x] Create wasm/main.go bridge exporting all Amnesia functions
-- [x] wasm/go.mod with amnesia dependency, added to go.work
-- [x] Compiles with standard Go (verified)
-- [x] TinyGo build target in Makefile (`make wasm`)
-- [x] TinyGo 0.40.1 + Go 1.25 SDK — compiles to 339KB .wasm
-- [ ] Test WASM in Node.js environment
+### Amnesia TypeScript (replaces WASM approach)
+- [x] WASM approach attempted — blocked by TinyGo goroutine + FIPS140 issues
+- [x] Decision: TS implementation using Web Crypto API + argon2-browser
+- [ ] Create packages/amnesia-ts with same API surface as Go Amnesia
+- [ ] Shared test vectors (JSON) between Go and TS — parity enforced in CI
+- [ ] Argon2id via argon2-browser (or hash-wasm)
+- [ ] AES-256-GCM via Web Crypto API
+- [ ] HMAC-SHA256 via Web Crypto API
+- [ ] X25519 via tweetnacl or noble-curves
 
 ## Done
 
