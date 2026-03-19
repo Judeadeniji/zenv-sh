@@ -245,7 +245,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
         name_hashes: nameHashes.map((n) => n.hash),
         project_id: this.projectId,
         environment: this.environment,
-      } as any,
+      },
     });
 
     if (error) {
@@ -254,10 +254,10 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       );
     }
 
-    const rows = (data as any[]) ?? [];
+    const rows = (data) ?? [];
     const rowMap = new Map<string, any>();
     for (const row of rows) {
-      rowMap.set(row.name_hash, row);
+      rowMap.set(row.name_hash!, row);
     }
 
     // Decrypt each
@@ -340,10 +340,10 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       throw new Error(`[zEnv] Secret '${name}' not found`);
     }
 
-    const row = data as any;
+    const row = data;
     const plaintext = await decrypt(
-      base64ToBytes(row.ciphertext),
-      base64ToBytes(row.nonce),
+      base64ToBytes(row.ciphertext!),
+      base64ToBytes(row.nonce!),
       dek,
     );
 
