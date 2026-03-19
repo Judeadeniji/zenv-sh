@@ -1,91 +1,81 @@
 /**
  * Asymmetric crypto — mirrors Go amnesia/asymmetric.go
  *
- * X25519 key exchange + AES-256-GCM for encrypting payloads to a public key.
- * Uses @noble/curves for X25519 (same curve as Go's crypto/ecdh).
+ * Uses NaCl box (X25519 + XSalsa20-Poly1305) via tweetnacl.
+ * This matches Go's golang.org/x/crypto/nacl/box exactly.
+ *
+ * Wire format: [24-byte nonce][32-byte ephemeral public key][sealed box]
  */
-import { x25519 } from "@noble/curves/ed25519";
-import { encrypt, decrypt } from "./symmetric.ts";
-import { generateKey } from "./random.ts";
+import nacl from "tweetnacl";
 
 /**
- * Generate an X25519 keypair.
+ * Generate an X25519 keypair (NaCl box keypair).
  * Returns 32-byte public key and 32-byte private key.
  */
 export function generateKeypair(): {
   publicKey: Uint8Array;
   privateKey: Uint8Array;
 } {
-  const privateKey = generateKey(); // 32 random bytes
-  const publicKey = x25519.getPublicKey(privateKey);
-  return { publicKey, privateKey };
+  const kp = nacl.box.keyPair();
+  return {
+    publicKey: kp.publicKey,
+    privateKey: kp.secretKey,
+  };
 }
 
 /**
- * Encrypt a payload for a recipient's public key.
+ * Encrypt a payload for a recipient's public key using NaCl box.
  *
- * Protocol (matches Go implementation):
- * 1. Generate ephemeral X25519 keypair
- * 2. ECDH: shared secret = X25519(ephemeral private, recipient public)
- * 3. Derive AES key from shared secret via SHA-256
- * 4. AES-256-GCM encrypt payload with derived key
- * 5. Return: ephemeral public key (32) + nonce (12) + ciphertext
+ * Protocol (matches Go amnesia/asymmetric.go exactly):
+ * 1. Generate ephemeral NaCl box keypair
+ * 2. Generate random 24-byte nonce
+ * 3. NaCl box.Seal(payload, nonce, recipientPub, ephemeralPriv)
+ * 4. Return: nonce (24) + ephemeral public key (32) + sealed box
  */
-export async function wrapWithPublicKey(
+export function wrapWithPublicKey(
   payload: Uint8Array,
   recipientPublicKey: Uint8Array,
-): Promise<Uint8Array> {
+): Uint8Array {
   // Ephemeral keypair
-  const ephemeralPrivate = generateKey();
-  const ephemeralPublic = x25519.getPublicKey(ephemeralPrivate);
+  const ephemeral = nacl.box.keyPair();
 
-  // ECDH shared secret
-  const sharedSecret = x25519.getSharedSecret(
-    ephemeralPrivate,
-    recipientPublicKey,
-  );
+  // Random 24-byte nonce
+  const nonce = nacl.randomBytes(24);
 
-  // Derive AES key via SHA-256
-  const aesKey = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", sharedSecret),
-  );
+  // Seal
+  const sealed = nacl.box(payload, nonce, recipientPublicKey, ephemeral.secretKey);
 
-  // Encrypt
-  const { ciphertext, nonce } = await encrypt(payload, aesKey);
-
-  // Pack: ephemeralPublic (32) + nonce (12) + ciphertext
-  const out = new Uint8Array(32 + 12 + ciphertext.length);
-  out.set(ephemeralPublic, 0);
-  out.set(nonce, 32);
-  out.set(ciphertext, 44);
+  // Pack: nonce (24) + ephemeral public key (32) + sealed box
+  const out = new Uint8Array(24 + 32 + sealed.length);
+  out.set(nonce, 0);
+  out.set(ephemeral.publicKey, 24);
+  out.set(sealed, 56);
   return out;
 }
 
 /**
  * Decrypt a payload encrypted with wrapWithPublicKey.
  *
- * Unpacks: ephemeral public key (32) + nonce (12) + ciphertext
- * Then reverses the ECDH + AES-256-GCM.
+ * Unpacks: nonce (24) + ephemeral public key (32) + sealed box
+ * Then NaCl box.Open reverses the seal.
  */
-export async function unwrapWithPrivateKey(
+export function unwrapWithPrivateKey(
   packed: Uint8Array,
   recipientPrivateKey: Uint8Array,
-): Promise<Uint8Array> {
-  const ephemeralPublic = packed.slice(0, 32);
-  const nonce = packed.slice(32, 44);
-  const ciphertext = packed.slice(44);
+): Uint8Array {
+  const minSize = 24 + 32 + nacl.box.overheadLength;
+  if (packed.length < minSize) {
+    throw new Error("amnesia: asymmetric decryption failed");
+  }
 
-  // ECDH shared secret
-  const sharedSecret = x25519.getSharedSecret(
-    recipientPrivateKey,
-    ephemeralPublic,
-  );
+  const nonce = packed.slice(0, 24);
+  const ephemeralPublic = packed.slice(24, 56);
+  const sealed = packed.slice(56);
 
-  // Derive AES key via SHA-256
-  const aesKey = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", sharedSecret),
-  );
+  const plaintext = nacl.box.open(sealed, nonce, ephemeralPublic, recipientPrivateKey);
+  if (plaintext === null) {
+    throw new Error("amnesia: asymmetric decryption failed");
+  }
 
-  // Decrypt
-  return decrypt(ciphertext, nonce, aesKey);
+  return plaintext;
 }

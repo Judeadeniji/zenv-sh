@@ -179,21 +179,19 @@ describe("asymmetric", () => {
     const { publicKey, privateKey } = generateKeypair();
     const payload = new TextEncoder().encode("shared-secret-for-team");
 
-    const packed = await wrapWithPublicKey(payload, publicKey);
-    expect(packed.length).toBeGreaterThan(44); // 32 + 12 + ciphertext
+    const packed = wrapWithPublicKey(payload, publicKey);
+    expect((await packed).length).toBeGreaterThan(56); // 24 nonce + 32 ephPub + sealed
 
-    const decrypted = await unwrapWithPrivateKey(packed, privateKey);
-    expect(new TextDecoder().decode(decrypted)).toBe("shared-secret-for-team");
+    const decrypted = unwrapWithPrivateKey(await packed, privateKey);
+    expect(new TextDecoder().decode(await decrypted)).toBe("shared-secret-for-team");
   });
 
-  test("wrong private key fails", async () => {
+  test("wrong private key fails", () => {
     const alice = generateKeypair();
     const bob = generateKeypair();
     const payload = new TextEncoder().encode("for-alice-only");
 
-    const packed = await wrapWithPublicKey(payload, alice.publicKey);
-    await expect(
-      unwrapWithPrivateKey(packed, bob.privateKey),
-    ).rejects.toThrow();
+    const packed = wrapWithPublicKey(payload, alice.publicKey);
+    expect(async () => unwrapWithPrivateKey(await packed, bob.privateKey)).toThrow();
   });
 });

@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@noble/curves": "^1.8.0",
     "hash-wasm": "^4.11.0",
-    "@noble/curves": "^1.8.0"
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/bun": "latest",

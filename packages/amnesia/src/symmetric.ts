@@ -5,12 +5,16 @@
  * Nonces are 12 bytes (96 bits), generated fresh per operation.
  */
 import { generateNonce } from "./random.ts";
+import { toBuffer } from "./util.ts";
 
 async function importKey(key: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, [
-    "encrypt",
-    "decrypt",
-  ]);
+  return crypto.subtle.importKey(
+    "raw",
+    toBuffer(key),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"],
+  );
 }
 
 /**
@@ -25,9 +29,9 @@ export async function encrypt(
   const cryptoKey = await importKey(key);
 
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: nonce },
+    { name: "AES-GCM", iv: toBuffer(nonce) },
     cryptoKey,
-    plaintext,
+    toBuffer(plaintext),
   );
 
   return {
@@ -48,9 +52,9 @@ export async function decrypt(
   const cryptoKey = await importKey(key);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: nonce },
+    { name: "AES-GCM", iv: toBuffer(nonce) },
     cryptoKey,
-    ciphertext,
+    toBuffer(ciphertext),
   );
 
   return new Uint8Array(decrypted);
