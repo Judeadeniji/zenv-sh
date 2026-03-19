@@ -76,20 +76,13 @@ func generateKey() {
 	writeResult(amnesia.GenerateKey())
 }
 
-//export deriveKeys
-func deriveKeys(vaultKeyPtr uintptr, vaultKeyLen int, saltPtr uintptr, saltLen int, keyTypePtr uintptr, keyTypeLen int) {
-	vaultKey := string(readBytes(vaultKeyPtr, vaultKeyLen))
-	salt := readBytes(saltPtr, saltLen)
-	keyType := amnesia.KeyType(string(readBytes(keyTypePtr, keyTypeLen)))
-
-	kek, authKey := amnesia.DeriveKeys(vaultKey, salt, keyType)
-
-	// Return kek (32 bytes) + authKey (32 bytes) = 64 bytes concatenated.
-	out := make([]byte, 64)
-	copy(out[:32], kek)
-	copy(out[32:], authKey)
-	writeResult(out)
-}
+// NOTE: deriveKeys (Argon2id) is NOT exported to WASM.
+// Argon2id uses goroutines internally which TinyGo's WASM target does not support.
+// The TypeScript SDK must use a JS-side Argon2id implementation (e.g. argon2-browser
+// or hash-wasm) for key derivation, then pass the derived KEK to the WASM functions
+// for encrypt/decrypt/wrap/unwrap operations.
+//
+// This is a deliberate split: Argon2id in JS, everything else in Amnesia WASM.
 
 //export encrypt
 func encrypt(plaintextPtr uintptr, plaintextLen int, keyPtr uintptr, keyLen int) {
@@ -163,11 +156,8 @@ func hashName(namePtr uintptr, nameLen int, hmacKeyPtr uintptr, hmacKeyLen int) 
 	writeResult(amnesia.HashName(name, hmacKey))
 }
 
-//export hashAuthKey
-func hashAuthKey(authKeyPtr uintptr, authKeyLen int) {
-	authKey := readBytes(authKeyPtr, authKeyLen)
-	writeResult(amnesia.HashAuthKey(authKey))
-}
+// NOTE: hashAuthKey is NOT exported to WASM.
+// It uses Argon2id internally. The SDK handles Auth Key hashing in JS.
 
 //export generateKeypair
 func generateKeypair() {
