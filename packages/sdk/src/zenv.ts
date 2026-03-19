@@ -21,6 +21,7 @@ import {
   hashName,
 } from "@zenv/amnesia";
 import { createApiClient, type ApiClient } from "./client.ts";
+import { extractKeys, validateValues, type InferSchema } from "./schema.ts";
 
 export interface ZEnvConfig {
   /** Service token — authenticates with the API. */
@@ -136,12 +137,10 @@ export class ZEnv {
       );
     }
 
-    const projectSalt = base64ToBytes(
-      (data as { project_salt: string }).project_salt,
-    );
-    const wrappedProjectDEK = base64ToBytes(
-      (data as { wrapped_project_dek: string }).wrapped_project_dek,
-    );
+    const { project_salt, wrapped_project_dek } = data;
+
+    const projectSalt = base64ToBytes(project_salt!,);
+    const wrappedProjectDEK = base64ToBytes(wrapped_project_dek!,);
 
     // 2. Derive Project KEK from ZENV_VAULT_KEY + project salt
     const { kek: projectKEK } = await deriveKeys(
@@ -168,22 +167,47 @@ export class ZEnv {
   /**
    * Load all secrets defined in a schema.
    *
-   * The schema keys are the secret names. The SDK:
-   * 1. Hashes each name with HMAC-SHA256
-   * 2. Bulk fetches ciphertext from the API
-   * 3. Decrypts each locally with Amnesia
-   * 4. Returns a typed object matching the schema
+   * Accepts any Standard Schema compliant validator (Zod, Valibot, ArkType)
+   * or a plain object where keys are the secret names.
+   *
+   * The SDK:
+   * 1. Extracts key names from the schema (fetch manifest)
+   * 2. Hashes each name with HMAC-SHA256
+   * 3. Bulk fetches ciphertext from the API
+   * 4. Decrypts each locally with Amnesia
+   * 5. Validates + transforms values via schema
+   * 6. Reports all errors at once — not one-at-a-time
+   *
+   * @example
+   * // With Zod
+   * const secrets = await vault.load(z.object({
+   *   STRIPE_API_KEY: z.string().min(1),
+   *   DATABASE_URL: z.string().url(),
+   *   PORT: z.string().transform(Number),
+   * }));
+   * secrets.PORT // number
+   *
+   * @example
+   * // Plain object (no validation, keys only)
+   * const secrets = await vault.load({
+   *   STRIPE_API_KEY: {},
+   *   DATABASE_URL: {},
+   * });
+   * secrets.STRIPE_API_KEY // string
    */
-  async load<T extends Record<string, unknown>>(
-    schema: Record<string, unknown>,
-  ): Promise<T> {
+  async load<S extends Record<string, unknown>>(
+    schema: S,
+  ): Promise<InferSchema<S>> {
     const { dek, hmacKey } = await this.initCrypto();
-    const keys = Object.keys(schema);
+    const keys = extractKeys(schema);
 
     if (keys.length === 0) {
       throw new Error(
         "[zEnv] Schema has no keys. Define the secrets your app needs:\n" +
-          '  await vault.load({ STRIPE_API_KEY: {}, DATABASE_URL: {} })',
+          "  // With Zod:\n" +
+          "  await vault.load(z.object({ STRIPE_API_KEY: z.string() }))\n" +
+          "  // Or plain object:\n" +
+          "  await vault.load({ STRIPE_API_KEY: {} })",
       );
     }
 
@@ -218,13 +242,13 @@ export class ZEnv {
     }
 
     // Decrypt each
-    const result: Record<string, string> = {};
-    const errors: string[] = [];
+    const decrypted: Record<string, string> = {};
+    const fetchErrors: string[] = [];
 
     for (const { name, hash } of nameHashes) {
       const row = rowMap.get(hash);
       if (!row) {
-        errors.push(`  ${name} — secret not found in '${this.environment}'`);
+        fetchErrors.push(`  ${name} — secret not found in '${this.environment}'`);
         continue;
       }
 
@@ -235,17 +259,33 @@ export class ZEnv {
       );
 
       const item = JSON.parse(new TextDecoder().decode(plaintext));
-      result[name] = item.value;
+      decrypted[name] = item.value;
     }
 
-    if (errors.length > 0) {
+    if (fetchErrors.length > 0) {
       throw new Error(
-        `[zEnv] Startup validation failed:\n${errors.join("\n")}\n\n` +
+        `[zEnv] Startup validation failed:\n${fetchErrors.join("\n")}\n\n` +
           "Application did not start. Fix the above and retry.",
       );
     }
 
-    return result as T;
+    // Validate + transform via schema
+    const { result, errors: validationErrors } = await validateValues(
+      schema,
+      decrypted,
+    );
+
+    if (validationErrors.length > 0) {
+      const lines = validationErrors.map(
+        (e) => `  ${e.key} — ${e.message}`,
+      );
+      throw new Error(
+        `[zEnv] Startup validation failed:\n${lines.join("\n")}\n\n` +
+          "Application did not start. Fix the above and retry.",
+      );
+    }
+
+    return result as InferSchema<S>;
   }
 
   /** Fetch a single secret by name. */
