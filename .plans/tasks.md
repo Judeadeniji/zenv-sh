@@ -46,9 +46,11 @@
 - [x] End-to-end test: set → get → list → delete → run all passing
 
 ### Amnesia WASM
-- [ ] Create wasm/main.go bridge exporting Amnesia functions
-- [ ] TinyGo build target in Makefile
-- [ ] Verify output <500KB
+- [x] Create wasm/main.go bridge exporting all Amnesia functions
+- [x] wasm/go.mod with amnesia dependency, added to go.work
+- [x] Compiles with standard Go (verified)
+- [x] TinyGo build target in Makefile (`make wasm`)
+- [ ] Install TinyGo and compile to .wasm — verify output <500KB
 - [ ] Test WASM in Node.js environment
 
 ## Done
