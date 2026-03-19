@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean dev-up dev-down migrate jet-gen
+.PHONY: all build test lint clean dev-up dev-down migrate jet-gen swagger sdk-types
 
 BIN := ./bin
 DATABASE_URL ?= postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
@@ -52,6 +52,15 @@ migrate-down:
 # --- Go-Jet codegen ---
 jet-gen:
 	~/go/bin/jet -dsn="$(DATABASE_URL)" -schema=public -path=./api/internal/store/gen
+
+# --- OpenAPI / Swagger ---
+swagger:
+	~/go/bin/swag init -g api/cmd/zenv-api/main.go -o api/docs --parseDependency --parseInternal
+
+# --- Generate TypeScript types from OpenAPI spec ---
+sdk-types: swagger
+	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
+	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
 
 # --- Smoke tests (requires API running + Postgres + Redis) ---
 smoke: build

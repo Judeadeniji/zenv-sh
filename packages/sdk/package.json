@@ -1,0 +1,21 @@
+{
+  "name": "@zenv/sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zenv/amnesia": "workspace:*",
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5"
+  }
+}

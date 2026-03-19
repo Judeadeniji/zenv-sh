@@ -48,13 +48,27 @@
 ### Amnesia TypeScript (pure TS reimplementation)
 - [x] WASM approach dropped — TinyGo version conflicts, goroutine limitations
 - [x] Decision: pure TS implementation using Web Crypto API + hash-wasm
-- [ ] Scaffold packages/amnesia as TypeScript package
-- [ ] AES-256-GCM encrypt/decrypt/wrap/unwrap via Web Crypto API
-- [ ] Argon2id key derivation via hash-wasm
-- [ ] HMAC-SHA256 name hashing via Web Crypto API
-- [ ] X25519 asymmetric ops via @noble/curves
-- [ ] GenerateSalt/GenerateNonce/GenerateKey via crypto.getRandomValues
-- [ ] Shared test vectors (JSON) — Go generates, TS validates, CI enforces parity
+- [x] Scaffold packages/amnesia as TypeScript package
+- [x] AES-256-GCM encrypt/decrypt/wrap/unwrap via Web Crypto API
+- [x] Argon2id key derivation via hash-wasm
+- [x] HMAC-SHA256 name hashing via Web Crypto API
+- [x] X25519 asymmetric ops via tweetnacl (NaCl box — matches Go nacl/box)
+- [x] GenerateSalt/GenerateNonce/GenerateKey via crypto.getRandomValues
+- [x] Shared test vectors (JSON) — Go generates, TS validates, 30/30 passing
+- [x] Cross-language parity: DeriveKeys, AES-256-GCM, HMAC-SHA256, HashAuthKey
+
+### @zenv/sdk — TypeScript SDK
+- [ ] Scaffold packages/sdk
+- [ ] API client (typed fetch wrapper for zEnv API)
+- [ ] Schema-driven load() — extract keys, batch fetch, decrypt via amnesia, validate
+- [ ] get(), set(), rotate(), delete(), rollback()
+- [ ] Browser ban — hard error if window is defined
+- [ ] Standard Schema support (Zod, Valibot, ArkType)
+
+### OAuth (identity layer)
+- [ ] GitHub OAuth callback handler
+- [ ] Google OAuth callback handler
+- [ ] `zenv login` — browser OAuth flow + token storage
 
 ## Done
 
