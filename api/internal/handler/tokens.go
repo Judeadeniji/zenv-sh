@@ -51,6 +51,16 @@ type CreateTokenResponse struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
+//	@Summary		Create service token
+//	@Description	Generate a scoped service token. Plaintext shown once, SHA-256 hashed before storage.
+//	@Tags			tokens
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		CreateTokenRequest	true	"Token config"
+//	@Success		201		{object}	CreateTokenResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/tokens [post]
 func (h *TokensHandler) Create(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -168,6 +178,14 @@ func (h *TokensHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // --- Revoke ---
 
+//	@Summary		Revoke service token
+//	@Description	Marks a service token as revoked. Immediate effect.
+//	@Tags			tokens
+//	@Param			tokenID	path	string	true	"Token UUID"
+//	@Success		200
+//	@Failure		400	{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/tokens/{tokenID} [delete]
 func (h *TokensHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	tokenID, err := uuid.Parse(chi.URLParam(r, "tokenID"))
 	if err != nil {
@@ -219,6 +237,14 @@ type ListTokensResponse struct {
 	Tokens []TokenListItem `json:"tokens"`
 }
 
+//	@Summary		List service tokens
+//	@Description	List all tokens for a project. Never exposes token hash or plaintext.
+//	@Tags			tokens
+//	@Produce		json
+//	@Param			project_id	query		string	true	"Project ID"
+//	@Success		200			{object}	ListTokensResponse
+//	@Security		SessionAuth
+//	@Router			/tokens [get]
 func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := r.URL.Query().Get("project_id")
 	if projectIDStr == "" {

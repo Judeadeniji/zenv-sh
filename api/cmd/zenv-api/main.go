@@ -14,6 +14,18 @@ import (
 	"github.com/Judeadeniji/zenv-sh/api/internal/store"
 )
 
+//	@title			zEnv API
+//	@version		0.1.0
+//	@description	Zero-knowledge secret manager API. Stores and retrieves ciphertext. Never decrypts.
+//	@host			api.zenv.sh
+//	@BasePath		/v1
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Service token: "Bearer svc_..."
+//	@securityDefinitions.apikey	SessionAuth
+//	@in							cookie
+//	@name						session_id
 func main() {
 	cfg, err := config.Load()
 	if err != nil {

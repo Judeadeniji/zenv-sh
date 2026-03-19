@@ -49,6 +49,17 @@ type SecretResponse struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
+//	@Summary		Create secret
+//	@Description	Store an encrypted vault item. Server stores opaque ciphertext only.
+//	@Tags			secrets
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		CreateSecretRequest	true	"Encrypted secret"
+//	@Success		201		{object}	SecretResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets [post]
 func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Auth is enforced by middleware (session or token) before this handler runs.
 	var req CreateSecretRequest
@@ -137,6 +148,17 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // --- Get single secret by name_hash ---
 
+//	@Summary		Get secret
+//	@Description	Retrieve a single encrypted secret by name hash.
+//	@Tags			secrets
+//	@Produce		json
+//	@Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64)"
+//	@Param			project_id	query		string	true	"Project ID"
+//	@Param			environment	query		string	true	"Environment (development/staging/production)"
+//	@Success		200			{object}	SecretResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/{nameHash} [get]
 func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -180,6 +202,15 @@ type BulkFetchResponse struct {
 	Secrets []SecretResponse `json:"secrets"`
 }
 
+//	@Summary		Bulk fetch secrets
+//	@Description	Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+//	@Tags			secrets
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		BulkFetchRequest	true	"Name hashes to fetch"
+//	@Success		200		{array}		SecretResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/bulk [post]
 func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 	var req BulkFetchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -239,6 +270,17 @@ type UpdateSecretRequest struct {
 	Nonce      string `json:"nonce"`       // base64
 }
 
+//	@Summary		Update secret
+//	@Description	Update ciphertext and nonce. Version auto-incremented.
+//	@Tags			secrets
+//	@Accept			json
+//	@Produce		json
+//	@Param			nameHash	path		string				true	"HMAC-SHA256 name hash"
+//	@Param			body		body		UpdateSecretRequest	true	"New ciphertext"
+//	@Success		200			{object}	SecretResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/{nameHash} [put]
 func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -321,6 +363,16 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // --- Delete ---
 
+//	@Summary		Delete secret
+//	@Description	Remove a secret from the vault.
+//	@Tags			secrets
+//	@Param			nameHash	path	string	true	"HMAC-SHA256 name hash"
+//	@Param			project_id	query	string	true	"Project ID"
+//	@Param			environment	query	string	true	"Environment"
+//	@Success		200
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/{nameHash} [delete]
 func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -371,6 +423,15 @@ type SecretListItem struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
+//	@Summary		List secrets
+//	@Description	List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+//	@Tags			secrets
+//	@Produce		json
+//	@Param			project_id	query		string	true	"Project ID"
+//	@Param			environment	query		string	true	"Environment"
+//	@Success		200			{object}	ListSecretsResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets [get]
 func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {

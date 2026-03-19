@@ -47,6 +47,17 @@ type SignupResponse struct {
 
 // Signup creates a new account with all crypto material from the client.
 // The server stores only ciphertext and hashes — it cannot derive KEK or unwrap the DEK.
+//
+//	@Summary		Create account
+//	@Description	Register with client-generated crypto material. Server stores ciphertext only.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		SignupRequest	true	"Crypto material from client"
+//	@Success		201		{object}	SignupResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Router			/auth/signup [post]
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -170,6 +181,16 @@ type DevLoginResponse struct {
 
 // DevLogin creates a session for an existing user by email.
 // Development only — in production this is handled by OAuth callback.
+//
+//	@Summary		Dev login (temporary)
+//	@Description	Create session by email. Development only — replaced by OAuth in production.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		DevLoginRequest	true	"Email to login"
+//	@Success		200		{object}	DevLoginResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Router			/auth/login [post]
 func (h *AuthHandler) DevLogin(w http.ResponseWriter, r *http.Request) {
 	var req DevLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -221,6 +242,17 @@ type UnlockResponse struct {
 
 // Unlock verifies the Vault Key (via Auth Key hash) and returns the Wrapped DEK.
 // Requires an active session (identity layer must pass first).
+//
+//	@Summary		Unlock vault
+//	@Description	Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair on success.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		UnlockRequest	true	"Auth Key hash (base64)"
+//	@Success		200		{object}	UnlockResponse
+//	@Failure		403		{object}	ErrorResponse	"Wrong Vault Key"
+//	@Security		SessionAuth
+//	@Router			/auth/unlock [post]
 func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -287,6 +319,13 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 // --- Logout ---
 
+//	@Summary		Logout
+//	@Description	Destroy session and clear cookie.
+//	@Tags			auth
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Security		SessionAuth
+//	@Router			/auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess != nil {
@@ -294,6 +333,11 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	middleware.ClearSessionCookie(w)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
+}
+
+// ErrorResponse is returned on all error responses.
+type ErrorResponse struct {
+	Error string `json:"error"`
 }
 
 // --- Helpers ---
