@@ -39,7 +39,7 @@
 - [x] `zenv secrets list` — show hashed names + version + updated_at (never values)
 - [x] `zenv secrets delete KEY` — remove from server
 - [x] `zenv run -- COMMAND` — bulk fetch, decrypt all, inject as env vars, exec child
-- [ ] `zenv check` — validate required secrets exist (CI use case)
+- [x] `zenv check KEY [KEY...]` — bulk verify secrets exist, exit 1 if any missing (CI use case)
 - [x] Project context resolution — .zenv file walk-up, ZENV_* env vars, --project/--env flags
 - [x] HTTP client for SDK API endpoints
 - [x] Crypto helpers wrapping Amnesia for secret payloads
