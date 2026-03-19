@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean dev-up dev-down migrate jet-gen swagger sdk-types
+.PHONY: all build test lint clean dev-up dev-down migrate jet-gen swagger sdk-types auth-dev auth-build migrate-auth
 
 BIN := ./bin
 DATABASE_URL ?= postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
@@ -61,6 +61,16 @@ swagger:
 sdk-types: swagger
 	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
 	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
+
+# --- Auth server (Better Auth) ---
+auth-dev:
+	pnpm -C apps/auth run dev
+
+auth-build:
+	pnpm -C apps/auth run build
+
+migrate-auth:
+	pnpm -C apps/auth run db:migrate
 
 # --- Smoke tests (requires API running + Postgres + Redis) ---
 smoke: build

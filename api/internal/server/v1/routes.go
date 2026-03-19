@@ -6,15 +6,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/config"
 	"github.com/Judeadeniji/zenv-sh/api/internal/handler"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 )
 
 // Routes mounts all /v1 endpoints onto the given router.
-func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
+func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, cfg *config.Config) {
 	sm := middleware.NewSessionManager(rdb)
+	ba := middleware.NewBetterAuthSession(db, rdb)
 	ta := middleware.NewTokenAuth(db)
-	auth := handler.NewAuthHandler(db, sm)
+	auth := handler.NewAuthHandler(db, sm, ba)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
@@ -23,10 +25,12 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	// Public — no session required
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/signup", auth.Signup)
-		r.Post("/login", auth.DevLogin) // dev only — replaced by OAuth later
+		if cfg.DevMode {
+			r.Post("/login", auth.DevLogin)
+		}
 	})
 
-	// Require identity layer (session exists)
+	// Legacy session routes (dev mode / CLI-initiated sessions)
 	r.Group(func(r chi.Router) {
 		r.Use(sm.RequireSession)
 
@@ -34,10 +38,19 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Post("/auth/logout", auth.Logout)
 	})
 
-	// Dashboard routes — require both identity + vault unlock (human access)
+	// Better Auth session routes — identity verified via BA cookie
 	r.Group(func(r chi.Router) {
-		r.Use(sm.RequireSession)
-		r.Use(sm.RequireVaultUnlocked)
+		r.Use(ba.RequireSession)
+
+		r.Get("/auth/me", auth.Me)
+		r.Post("/auth/setup-vault", auth.SetupVault)
+		r.Post("/auth/unlock", auth.Unlock)
+	})
+
+	// Dashboard routes — require BA session + vault unlock
+	r.Group(func(r chi.Router) {
+		r.Use(ba.RequireSession)
+		r.Use(ba.RequireVaultUnlocked)
 
 		r.Route("/secrets", func(r chi.Router) {
 			r.Post("/", secrets.Create)

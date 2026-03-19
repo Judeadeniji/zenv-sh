@@ -60,7 +60,7 @@ func main() {
 	defer rdb.Close()
 	slog.Debug("redis connected")
 
-	router := server.New(db, rdb)
+	router := server.New(db, rdb, cfg)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

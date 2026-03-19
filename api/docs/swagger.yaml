@@ -1,5 +1,13 @@
 basePath: /v1
 definitions:
+  api_internal_handler.AddMemberRequest:
+    properties:
+      role:
+        description: admin, senior_dev, dev, contractor, ci_bot
+        type: string
+      user_id:
+        type: string
+    type: object
   api_internal_handler.BulkFetchRequest:
     properties:
       environment:
@@ -10,6 +18,11 @@ definitions:
           type: string
         type: array
       project_id:
+        type: string
+    type: object
+  api_internal_handler.CreateOrgRequest:
+    properties:
+      name:
         type: string
     type: object
   api_internal_handler.CreateProjectRequest:
@@ -102,6 +115,20 @@ definitions:
       error:
         type: string
     type: object
+  api_internal_handler.ListMembersResponse:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/api_internal_handler.MemberResponse'
+        type: array
+    type: object
+  api_internal_handler.ListOrgsResponse:
+    properties:
+      organizations:
+        items:
+          $ref: '#/definitions/api_internal_handler.OrgResponse'
+        type: array
+    type: object
   api_internal_handler.ListProjectsResponse:
     properties:
       projects:
@@ -123,6 +150,46 @@ definitions:
           $ref: '#/definitions/api_internal_handler.TokenListItem'
         type: array
     type: object
+  api_internal_handler.MeResponse:
+    properties:
+      ba_user_id:
+        type: string
+      email:
+        type: string
+      salt:
+        description: base64
+        type: string
+      vault_key_type:
+        type: string
+      vault_setup_complete:
+        type: boolean
+      vault_unlocked:
+        type: boolean
+    type: object
+  api_internal_handler.MemberResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      joined_at:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: string
+    type: object
+  api_internal_handler.OrgResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: string
+    type: object
   api_internal_handler.ProjectCryptoResponse:
     properties:
       project_salt:
@@ -142,6 +209,11 @@ definitions:
         type: string
       organization_id:
         type: string
+    type: object
+  api_internal_handler.RollbackRequest:
+    properties:
+      version:
+        type: integer
     type: object
   api_internal_handler.SecretListItem:
     properties:
@@ -176,6 +248,34 @@ definitions:
         type: string
       version:
         type: integer
+    type: object
+  api_internal_handler.SetupVaultRequest:
+    properties:
+      auth_key_hash:
+        description: base64
+        type: string
+      public_key:
+        description: base64
+        type: string
+      salt:
+        description: base64
+        type: string
+      vault_key_type:
+        description: '"pin" or "passphrase"'
+        type: string
+      wrapped_dek:
+        description: base64
+        type: string
+      wrapped_private_key:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.SetupVaultResponse:
+    properties:
+      user_id:
+        type: string
+      vault_setup_complete:
+        type: boolean
     type: object
   api_internal_handler.SignupRequest:
     properties:
@@ -253,6 +353,22 @@ definitions:
         description: base64
         type: string
     type: object
+  api_internal_handler.VersionItem:
+    properties:
+      created_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  api_internal_handler.VersionsResponse:
+    properties:
+      current_version:
+        type: integer
+      versions:
+        items:
+          $ref: '#/definitions/api_internal_handler.VersionItem'
+        type: array
+    type: object
 host: api.zenv.sh
 info:
   contact: {}
@@ -303,6 +419,54 @@ paths:
       security:
       - SessionAuth: []
       summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns BA identity, vault setup status, and vault lock state.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.MeResponse'
+      security:
+      - SessionAuth: []
+      summary: Get auth state
+      tags:
+      - auth
+  /auth/setup-vault:
+    post:
+      consumes:
+      - application/json
+      description: Store client-generated crypto material and link to Better Auth
+        identity.
+      parameters:
+      - description: Crypto material from client
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.SetupVaultRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.SetupVaultResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Setup vault
       tags:
       - auth
   /auth/signup:
@@ -365,6 +529,175 @@ paths:
       summary: Unlock vault
       tags:
       - auth
+  /orgs:
+    get:
+      description: List all organizations the current user is a member of.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListOrgsResponse'
+      security:
+      - SessionAuth: []
+      summary: List organizations
+      tags:
+      - organizations
+    post:
+      consumes:
+      - application/json
+      description: Create an organization. The creating user becomes the owner and
+        is added as an admin member.
+      parameters:
+      - description: Organization name
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateOrgRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.OrgResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Create organization
+      tags:
+      - organizations
+  /orgs/{orgID}:
+    get:
+      description: Get a single organization by ID.
+      parameters:
+      - description: Organization UUID
+        in: path
+        name: orgID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.OrgResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get organization
+      tags:
+      - organizations
+  /orgs/{orgID}/members:
+    get:
+      description: List all members of an organization with their roles.
+      parameters:
+      - description: Organization UUID
+        in: path
+        name: orgID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListMembersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: List organization members
+      tags:
+      - organizations
+    post:
+      consumes:
+      - application/json
+      description: Add a user to an organization with a specified role.
+      parameters:
+      - description: Organization UUID
+        in: path
+        name: orgID
+        required: true
+        type: string
+      - description: User and role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.AddMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.MemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Add organization member
+      tags:
+      - organizations
+  /orgs/{orgID}/members/{memberID}:
+    delete:
+      description: Remove a member from an organization.
+      parameters:
+      - description: Organization UUID
+        in: path
+        name: orgID
+        required: true
+        type: string
+      - description: Member UUID
+        in: path
+        name: memberID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Remove organization member
+      tags:
+      - organizations
   /projects:
     get:
       description: List all projects in an organization.
@@ -633,6 +966,86 @@ paths:
       security:
       - BearerAuth: []
       summary: Update secret
+      tags:
+      - secrets
+  /sdk/secrets/{nameHash}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Revert a secret to a previous version. The current version is archived
+        first.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      - description: Target version
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.RollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rollback secret
+      tags:
+      - secrets
+  /sdk/secrets/{nameHash}/versions:
+    get:
+      description: Show version history for a secret. Returns version numbers and
+        timestamps.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.VersionsResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List secret versions
       tags:
       - secrets
   /sdk/secrets/bulk:

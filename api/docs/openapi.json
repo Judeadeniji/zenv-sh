@@ -18,7 +18,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.DevLoginRequest"
+                                "$ref": "#/components/schemas/DevLoginRequest"
                             }
                         }
                     },
@@ -31,7 +31,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.DevLoginResponse"
+                                    "$ref": "#/components/schemas/DevLoginResponse"
                                 }
                             }
                         }
@@ -41,7 +41,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -78,18 +78,49 @@
                 }
             }
         },
-        "/auth/signup": {
-            "post": {
-                "description": "Register with client-generated crypto material. Server stores ciphertext only.",
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns BA identity, vault setup status, and vault lock state.",
                 "tags": [
                     "auth"
                 ],
-                "summary": "Create account",
+                "summary": "Get auth state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/setup-vault": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Store client-generated crypto material and link to Better Auth identity.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Setup vault",
                 "requestBody": {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.SignupRequest"
+                                "$ref": "#/components/schemas/SetupVaultRequest"
                             }
                         }
                     },
@@ -102,7 +133,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.SignupResponse"
+                                    "$ref": "#/components/schemas/SetupVaultResponse"
                                 }
                             }
                         }
@@ -112,7 +143,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -122,7 +153,59 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/signup": {
+            "post": {
+                "description": "Register with client-generated crypto material. Server stores ciphertext only.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Create account",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignupRequest"
+                            }
+                        }
+                    },
+                    "description": "Crypto material from client",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SignupResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -146,7 +229,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.UnlockRequest"
+                                "$ref": "#/components/schemas/UnlockRequest"
                             }
                         }
                     },
@@ -159,7 +242,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.UnlockResponse"
+                                    "$ref": "#/components/schemas/UnlockResponse"
                                 }
                             }
                         }
@@ -169,7 +252,317 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orgs": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "List all organizations the current user is a member of.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "List organizations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ListOrgsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Create an organization. The creating user becomes the owner and is added as an admin member.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "Create organization",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrgRequest"
+                            }
+                        }
+                    },
+                    "description": "Organization name",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrgResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orgs/{orgID}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Get a single organization by ID.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "Get organization",
+                "parameters": [
+                    {
+                        "description": "Organization UUID",
+                        "name": "orgID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrgResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orgs/{orgID}/members": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "List all members of an organization with their roles.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "List organization members",
+                "parameters": [
+                    {
+                        "description": "Organization UUID",
+                        "name": "orgID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ListMembersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Add a user to an organization with a specified role.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "Add organization member",
+                "parameters": [
+                    {
+                        "description": "Organization UUID",
+                        "name": "orgID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddMemberRequest"
+                            }
+                        }
+                    },
+                    "description": "User and role",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MemberResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orgs/{orgID}/members/{memberID}": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Remove a member from an organization.",
+                "tags": [
+                    "organizations"
+                ],
+                "summary": "Remove organization member",
+                "parameters": [
+                    {
+                        "description": "Organization UUID",
+                        "name": "orgID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Member UUID",
+                        "name": "memberID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -206,7 +599,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ListProjectsResponse"
+                                    "$ref": "#/components/schemas/ListProjectsResponse"
                                 }
                             }
                         }
@@ -228,7 +621,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.CreateProjectRequest"
+                                "$ref": "#/components/schemas/CreateProjectRequest"
                             }
                         }
                     },
@@ -241,7 +634,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                                    "$ref": "#/components/schemas/ProjectResponse"
                                 }
                             }
                         }
@@ -251,7 +644,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -261,7 +654,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -298,7 +691,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                                    "$ref": "#/components/schemas/ProjectResponse"
                                 }
                             }
                         }
@@ -308,7 +701,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -345,7 +738,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ProjectCryptoResponse"
+                                    "$ref": "#/components/schemas/ProjectCryptoResponse"
                                 }
                             }
                         }
@@ -355,7 +748,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -401,7 +794,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ListSecretsResponse"
+                                    "$ref": "#/components/schemas/ListSecretsResponse"
                                 }
                             }
                         }
@@ -423,7 +816,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.CreateSecretRequest"
+                                "$ref": "#/components/schemas/CreateSecretRequest"
                             }
                         }
                     },
@@ -436,7 +829,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                    "$ref": "#/components/schemas/SecretResponse"
                                 }
                             }
                         }
@@ -446,7 +839,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -456,7 +849,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -480,7 +873,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.BulkFetchRequest"
+                                "$ref": "#/components/schemas/BulkFetchRequest"
                             }
                         }
                     },
@@ -495,7 +888,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                        "$ref": "#/components/schemas/SecretResponse"
                                     }
                                 }
                             }
@@ -551,7 +944,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                    "$ref": "#/components/schemas/SecretResponse"
                                 }
                             }
                         }
@@ -561,7 +954,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -612,7 +1005,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.UpdateSecretRequest"
+                                "$ref": "#/components/schemas/UpdateSecretRequest"
                             }
                         }
                     },
@@ -625,7 +1018,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                    "$ref": "#/components/schemas/SecretResponse"
                                 }
                             }
                         }
@@ -635,7 +1028,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -691,7 +1084,148 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sdk/secrets/{nameHash}/rollback": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Rollback secret",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RollbackRequest"
+                            }
+                        }
+                    },
+                    "description": "Target version",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sdk/secrets/{nameHash}/versions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "List secret versions",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VersionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -728,7 +1262,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ListTokensResponse"
+                                    "$ref": "#/components/schemas/ListTokensResponse"
                                 }
                             }
                         }
@@ -750,7 +1284,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.CreateTokenRequest"
+                                "$ref": "#/components/schemas/CreateTokenRequest"
                             }
                         }
                     },
@@ -763,7 +1297,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.CreateTokenResponse"
+                                    "$ref": "#/components/schemas/CreateTokenResponse"
                                 }
                             }
                         }
@@ -773,7 +1307,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -813,7 +1347,7 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -842,7 +1376,19 @@
             }
         },
         "schemas": {
-            "api_internal_handler.BulkFetchRequest": {
+            "AddMemberRequest": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "description": "admin, senior_dev, dev, contractor, ci_bot",
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "BulkFetchRequest": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -860,7 +1406,15 @@
                     }
                 }
             },
-            "api_internal_handler.CreateProjectRequest": {
+            "CreateOrgRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            },
+            "CreateProjectRequest": {
                 "type": "object",
                 "properties": {
                     "name": {
@@ -883,7 +1437,7 @@
                     }
                 }
             },
-            "api_internal_handler.CreateSecretRequest": {
+            "CreateSecretRequest": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -906,7 +1460,7 @@
                     }
                 }
             },
-            "api_internal_handler.CreateTokenRequest": {
+            "CreateTokenRequest": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -929,7 +1483,7 @@
                     }
                 }
             },
-            "api_internal_handler.CreateTokenResponse": {
+            "CreateTokenResponse": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -959,7 +1513,7 @@
                     }
                 }
             },
-            "api_internal_handler.DevLoginRequest": {
+            "DevLoginRequest": {
                 "type": "object",
                 "properties": {
                     "email": {
@@ -967,7 +1521,7 @@
                     }
                 }
             },
-            "api_internal_handler.DevLoginResponse": {
+            "DevLoginResponse": {
                 "type": "object",
                 "properties": {
                     "salt": {
@@ -985,7 +1539,7 @@
                     }
                 }
             },
-            "api_internal_handler.ErrorResponse": {
+            "ErrorResponse": {
                 "type": "object",
                 "properties": {
                     "error": {
@@ -993,40 +1547,123 @@
                     }
                 }
             },
-            "api_internal_handler.ListProjectsResponse": {
+            "ListMembersResponse": {
+                "type": "object",
+                "properties": {
+                    "members": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberResponse"
+                        }
+                    }
+                }
+            },
+            "ListOrgsResponse": {
+                "type": "object",
+                "properties": {
+                    "organizations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrgResponse"
+                        }
+                    }
+                }
+            },
+            "ListProjectsResponse": {
                 "type": "object",
                 "properties": {
                     "projects": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                            "$ref": "#/components/schemas/ProjectResponse"
                         }
                     }
                 }
             },
-            "api_internal_handler.ListSecretsResponse": {
+            "ListSecretsResponse": {
                 "type": "object",
                 "properties": {
                     "secrets": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/api_internal_handler.SecretListItem"
+                            "$ref": "#/components/schemas/SecretListItem"
                         }
                     }
                 }
             },
-            "api_internal_handler.ListTokensResponse": {
+            "ListTokensResponse": {
                 "type": "object",
                 "properties": {
                     "tokens": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/api_internal_handler.TokenListItem"
+                            "$ref": "#/components/schemas/TokenListItem"
                         }
                     }
                 }
             },
-            "api_internal_handler.ProjectCryptoResponse": {
+            "MeResponse": {
+                "type": "object",
+                "properties": {
+                    "ba_user_id": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "salt": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "vault_key_type": {
+                        "type": "string"
+                    },
+                    "vault_setup_complete": {
+                        "type": "boolean"
+                    },
+                    "vault_unlocked": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "MemberResponse": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "joined_at": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "OrgResponse": {
+                "type": "object",
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "owner_id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ProjectCryptoResponse": {
                 "type": "object",
                 "properties": {
                     "project_salt": {
@@ -1039,7 +1676,7 @@
                     }
                 }
             },
-            "api_internal_handler.ProjectResponse": {
+            "ProjectResponse": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1056,7 +1693,15 @@
                     }
                 }
             },
-            "api_internal_handler.SecretListItem": {
+            "RollbackRequest": {
+                "type": "object",
+                "properties": {
+                    "version": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "SecretListItem": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -1076,7 +1721,7 @@
                     }
                 }
             },
-            "api_internal_handler.SecretResponse": {
+            "SecretResponse": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -1108,7 +1753,47 @@
                     }
                 }
             },
-            "api_internal_handler.SignupRequest": {
+            "SetupVaultRequest": {
+                "type": "object",
+                "properties": {
+                    "auth_key_hash": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "public_key": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "salt": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "vault_key_type": {
+                        "description": "\"pin\" or \"passphrase\"",
+                        "type": "string"
+                    },
+                    "wrapped_dek": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "wrapped_private_key": {
+                        "description": "base64",
+                        "type": "string"
+                    }
+                }
+            },
+            "SetupVaultResponse": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string"
+                    },
+                    "vault_setup_complete": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "SignupRequest": {
                 "type": "object",
                 "properties": {
                     "auth_key_hash": {
@@ -1140,7 +1825,7 @@
                     }
                 }
             },
-            "api_internal_handler.SignupResponse": {
+            "SignupResponse": {
                 "type": "object",
                 "properties": {
                     "session_id": {
@@ -1151,7 +1836,7 @@
                     }
                 }
             },
-            "api_internal_handler.TokenListItem": {
+            "TokenListItem": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1180,7 +1865,7 @@
                     }
                 }
             },
-            "api_internal_handler.UnlockRequest": {
+            "UnlockRequest": {
                 "type": "object",
                 "properties": {
                     "auth_key_hash": {
@@ -1189,7 +1874,7 @@
                     }
                 }
             },
-            "api_internal_handler.UnlockResponse": {
+            "UnlockResponse": {
                 "type": "object",
                 "properties": {
                     "public_key": {
@@ -1206,7 +1891,7 @@
                     }
                 }
             },
-            "api_internal_handler.UpdateSecretRequest": {
+            "UpdateSecretRequest": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -1216,6 +1901,31 @@
                     "nonce": {
                         "description": "base64",
                         "type": "string"
+                    }
+                }
+            },
+            "VersionItem": {
+                "type": "object",
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "VersionsResponse": {
+                "type": "object",
+                "properties": {
+                    "current_version": {
+                        "type": "integer"
+                    },
+                    "versions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VersionItem"
+                        }
                     }
                 }
             }

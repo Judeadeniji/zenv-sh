@@ -12,6 +12,8 @@ type Config struct {
 	RedisURL    string
 	HMACKey     string // Server-side HMAC key for secret name hashing
 	Verbose     bool   // Enable debug-level logging (request logs, etc.)
+	DevMode     bool   // Enable dev-only endpoints (DevLogin)
+	CORSOrigins string // Comma-separated allowed CORS origins
 }
 
 // Load reads configuration from environment variables.
@@ -19,12 +21,16 @@ type Config struct {
 func Load() (*Config, error) {
 	verbose := os.Getenv("VERBOSE") == "1" || os.Getenv("VERBOSE") == "true" || os.Getenv("LOG_LEVEL") == "debug"
 
+	devMode := os.Getenv("ZENV_DEV_MODE") == "1" || os.Getenv("ZENV_DEV_MODE") == "true"
+
 	c := &Config{
 		Port:        envOr("PORT", "8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    envOr("REDIS_URL", "redis://localhost:6379/0"),
 		HMACKey:     os.Getenv("HMAC_KEY"),
 		Verbose:     verbose,
+		DevMode:     devMode,
+		CORSOrigins: os.Getenv("CORS_ORIGINS"),
 	}
 
 	if c.DatabaseURL == "" {
