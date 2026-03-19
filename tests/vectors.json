@@ -1,0 +1,55 @@
+{
+  "deriveKeys": [
+    {
+      "vaultKey": "test-passphrase",
+      "salt": "0102030405060708091011121314151617181920212223242526272829303132",
+      "keyType": "passphrase",
+      "kek": "9ff983388f9aad1618183dfb524f8896fdb25e19ede54fd0033c2a1959437fd9",
+      "authKey": "4740de0e4b182633176958e93a3ef4beed877c3205ff95fac09c8dc79ae189eb"
+    },
+    {
+      "vaultKey": "another-key",
+      "salt": "aabbccddee112233445566778899001122334455667788990011223344556677",
+      "keyType": "passphrase",
+      "kek": "c781db01800400821b6f4a41f4bc85253dbd2ade18f2bb029d1c009297e47826",
+      "authKey": "8aadcc09480602d9084d3bc2efa0f87673d8e02b6fa892b012f5bae0620445d9"
+    }
+  ],
+  "symmetric": [
+    {
+      "plaintext": "68656c6c6f207a656e76207a65726f2d6b6e6f776c65646765",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce": "000102030405060708090a0b",
+      "ciphertext": "2f67ba77aac5b87ee337b7f1d49b1740e8b8e8439c1e3b1b5d2543fe0faf63df3023054432450b45c8"
+    },
+    {
+      "plaintext": "7b226e616d65223a2244425f55524c222c2276616c7565223a22706f7374677265733a2f2f6c6f63616c686f73742f6d796462227d",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce": "aabbccddeeff001122334455",
+      "ciphertext": "1ced3cd108a7a3fdaa846a9c4fba6dd99826d158958a56b602c22591968f1d7d5b07f8d3d5641712fd39fa95b10fb4750c838d414df5e834e05637463c786b2fe6f275d75a"
+    }
+  ],
+  "hashName": [
+    {
+      "name": "DATABASE_URL",
+      "hmacKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "hash": "2cffafc25d15ed65123e14dd56b6410b4cf72fe65044b6f1de6d675c84605c4e"
+    },
+    {
+      "name": "API_KEY",
+      "hmacKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "hash": "67973f631ad3235f3e3c47ec51112257b1edcad8dc68117a4a88c56f4e01c990"
+    },
+    {
+      "name": "JWT_SECRET",
+      "hmacKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "hash": "1c73c3967235444df96199258fc07ad356b5e9924e5c521e23ead4212e203941"
+    }
+  ],
+  "hashAuthKey": [
+    {
+      "authKey": "deadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabe",
+      "hash": "b1ebd8c8d2b1cadd9cd7fd43464a6ce68638edd6d9d0d8f2c6d5c546f147adb2"
+    }
+  ]
+}
