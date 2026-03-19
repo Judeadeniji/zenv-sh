@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log/slog"
@@ -11,11 +12,16 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 	v1 "github.com/Judeadeniji/zenv-sh/api/internal/server/v1"
 )
 
 // New creates the chi router with global middleware and versioned route groups.
 func New(db *sql.DB, rdb *redis.Client) *chi.Mux {
+	// Audit log writer — LPUSH to Redis, background worker flushes to Postgres.
+	al := audit.New(db, rdb)
+	al.Start(context.Background())
+
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -30,6 +36,7 @@ func New(db *sql.DB, rdb *redis.Client) *chi.Mux {
 
 	// API versions
 	r.Route("/v1", func(r chi.Router) {
+		r.Use(al.Middleware) // Audit every /v1 request
 		v1.Routes(r, db, rdb)
 	})
 
