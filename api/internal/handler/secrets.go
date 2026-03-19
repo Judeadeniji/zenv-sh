@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
@@ -51,12 +50,7 @@ type SecretResponse struct {
 }
 
 func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
-	sess := middleware.GetSession(r.Context())
-	if sess == nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
-		return
-	}
-
+	// Auth is enforced by middleware (session or token) before this handler runs.
 	var req CreateSecretRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})

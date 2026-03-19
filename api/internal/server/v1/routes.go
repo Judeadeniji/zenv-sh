@@ -13,8 +13,10 @@ import (
 // Routes mounts all /v1 endpoints onto the given router.
 func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	sm := middleware.NewSessionManager(rdb)
+	ta := middleware.NewTokenAuth(db)
 	auth := handler.NewAuthHandler(db, sm)
 	secrets := handler.NewSecretsHandler(db)
+	tokens := handler.NewTokensHandler(db)
 
 	// Public — no session required
 	r.Route("/auth", func(r chi.Router) {
@@ -30,7 +32,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Post("/auth/logout", auth.Logout)
 	})
 
-	// Require both identity + vault unlock
+	// Dashboard routes — require both identity + vault unlock (human access)
 	r.Group(func(r chi.Router) {
 		r.Use(sm.RequireSession)
 		r.Use(sm.RequireVaultUnlocked)
@@ -45,11 +47,32 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		})
 
 		r.Route("/tokens", func(r chi.Router) {
-			// TODO: create, revoke
+			r.Post("/", tokens.Create)
+			r.Get("/", tokens.List)
+			r.Delete("/{tokenID}", tokens.Revoke)
 		})
 
 		r.Route("/projects", func(r chi.Router) {
 			// TODO: CRUD
+		})
+	})
+
+	// SDK/CLI routes — authenticate via service token (machine access)
+	r.Route("/sdk", func(r chi.Router) {
+		r.Use(ta.Authenticate)
+
+		// Read operations
+		r.Post("/secrets/bulk", secrets.BulkFetch)
+		r.Get("/secrets", secrets.List)
+		r.Get("/secrets/{nameHash}", secrets.Get)
+
+		// Write operations — require read_write permission
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireWrite)
+
+			r.Post("/secrets", secrets.Create)
+			r.Put("/secrets/{nameHash}", secrets.Update)
+			r.Delete("/secrets/{nameHash}", secrets.Delete)
 		})
 	})
 }
