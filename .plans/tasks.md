@@ -50,7 +50,7 @@
 - [x] wasm/go.mod with amnesia dependency, added to go.work
 - [x] Compiles with standard Go (verified)
 - [x] TinyGo build target in Makefile (`make wasm`)
-- [ ] Install TinyGo and compile to .wasm — verify output <500KB
+- [x] TinyGo 0.40.1 + Go 1.25 SDK — compiles to 339KB .wasm
 - [ ] Test WASM in Node.js environment
 
 ## Done
