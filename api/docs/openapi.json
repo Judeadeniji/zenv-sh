@@ -588,6 +588,24 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "requestBody": {

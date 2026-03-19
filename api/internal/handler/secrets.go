@@ -276,6 +276,8 @@ type UpdateSecretRequest struct {
 //	@Accept			json
 //	@Produce		json
 //	@Param			nameHash	path		string				true	"HMAC-SHA256 name hash"
+//	@Param			project_id	query		string				true	"Project ID"
+//	@Param			environment	query		string				true	"Environment"
 //	@Param			body		body		UpdateSecretRequest	true	"New ciphertext"
 //	@Success		200			{object}	SecretResponse
 //	@Failure		404			{object}	ErrorResponse

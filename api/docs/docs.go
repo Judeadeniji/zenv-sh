@@ -548,6 +548,20 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
                         "description": "New ciphertext",
                         "name": "body",
                         "in": "body",

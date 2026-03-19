@@ -591,7 +591,12 @@ export interface paths {
          */
         put: {
             parameters: {
-                query?: never;
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
                 header?: never;
                 path: {
                     /** @description HMAC-SHA256 name hash */
