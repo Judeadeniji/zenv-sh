@@ -18,6 +18,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
+	orgs := handler.NewOrgsHandler(db)
 
 	// Public — no session required
 	r.Route("/auth", func(r chi.Router) {
@@ -59,6 +60,15 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 			r.Post("/", projects.Create)
 			r.Get("/", projects.List)
 			r.Get("/{projectID}", projects.Get)
+		})
+
+		r.Route("/orgs", func(r chi.Router) {
+			r.Post("/", orgs.Create)
+			r.Get("/", orgs.List)
+			r.Get("/{orgID}", orgs.Get)
+			r.Get("/{orgID}/members", orgs.ListMembers)
+			r.Post("/{orgID}/members", orgs.AddMember)
+			r.Delete("/{orgID}/members/{memberID}", orgs.RemoveMember)
 		})
 	})
 
