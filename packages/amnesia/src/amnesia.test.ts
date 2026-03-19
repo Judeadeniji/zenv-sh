@@ -78,7 +78,7 @@ describe("symmetric", () => {
     const plaintext = new TextEncoder().encode("secret");
 
     const { ciphertext, nonce } = await encrypt(plaintext, key);
-    ciphertext[0] ^= 0xff; // flip bits
+    ciphertext[0]! ^= 0xff; // flip bits
     await expect(decrypt(ciphertext, nonce, key)).rejects.toThrow();
   });
 });
