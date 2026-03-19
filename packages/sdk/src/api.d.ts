@@ -213,6 +213,196 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List projects
+         * @description List all projects in an organization.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Organization ID */
+                    organization_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ListProjectsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create project
+         * @description Create a project with client-generated crypto material. Project Vault Key shown once at creation, never stored on server.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Project config + crypto material */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.CreateProjectRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project
+         * @description Get a single project by ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sdk/projects/{projectID}/crypto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project crypto
+         * @description Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectCryptoResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sdk/secrets": {
         parameters: {
             query?: never;
@@ -619,6 +809,16 @@ export interface components {
             name_hashes?: string[];
             project_id?: string;
         };
+        "api_internal_handler.CreateProjectRequest": {
+            name?: string;
+            organization_id?: string;
+            /** @description base64 — generated client-side */
+            project_salt?: string;
+            /** @description base64 — Project DEK wrapped with Project KEK */
+            wrapped_project_dek?: string;
+            /** @description base64 — Project Vault Key wrapped with user's public key */
+            wrapped_project_vault_key?: string;
+        };
         "api_internal_handler.CreateSecretRequest": {
             /** @description base64 AES-256-GCM encrypted item JSON */
             ciphertext?: string;
@@ -663,11 +863,26 @@ export interface components {
         "api_internal_handler.ErrorResponse": {
             error?: string;
         };
+        "api_internal_handler.ListProjectsResponse": {
+            projects?: components["schemas"]["api_internal_handler.ProjectResponse"][];
+        };
         "api_internal_handler.ListSecretsResponse": {
             secrets?: components["schemas"]["api_internal_handler.SecretListItem"][];
         };
         "api_internal_handler.ListTokensResponse": {
             tokens?: components["schemas"]["api_internal_handler.TokenListItem"][];
+        };
+        "api_internal_handler.ProjectCryptoResponse": {
+            /** @description base64 */
+            project_salt?: string;
+            /** @description base64 */
+            wrapped_project_dek?: string;
+        };
+        "api_internal_handler.ProjectResponse": {
+            created_at?: string;
+            id?: string;
+            name?: string;
+            organization_id?: string;
         };
         "api_internal_handler.SecretListItem": {
             environment?: string;

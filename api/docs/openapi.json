@@ -177,6 +177,192 @@
                 }
             }
         },
+        "/projects": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "List all projects in an organization.",
+                "tags": [
+                    "projects"
+                ],
+                "summary": "List projects",
+                "parameters": [
+                    {
+                        "description": "Organization ID",
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ListProjectsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Create a project with client-generated crypto material. Project Vault Key shown once at creation, never stored on server.",
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Create project",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/api_internal_handler.CreateProjectRequest"
+                            }
+                        }
+                    },
+                    "description": "Project config + crypto material",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Get a single project by ID.",
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project",
+                "parameters": [
+                    {
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sdk/projects/{projectID}/crypto": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.",
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project crypto",
+                "parameters": [
+                    {
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectCryptoResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sdk/secrets": {
             "get": {
                 "security": [
@@ -656,6 +842,29 @@
                     }
                 }
             },
+            "api_internal_handler.CreateProjectRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "organization_id": {
+                        "type": "string"
+                    },
+                    "project_salt": {
+                        "description": "base64 — generated client-side",
+                        "type": "string"
+                    },
+                    "wrapped_project_dek": {
+                        "description": "base64 — Project DEK wrapped with Project KEK",
+                        "type": "string"
+                    },
+                    "wrapped_project_vault_key": {
+                        "description": "base64 — Project Vault Key wrapped with user's public key",
+                        "type": "string"
+                    }
+                }
+            },
             "api_internal_handler.CreateSecretRequest": {
                 "type": "object",
                 "properties": {
@@ -766,6 +975,17 @@
                     }
                 }
             },
+            "api_internal_handler.ListProjectsResponse": {
+                "type": "object",
+                "properties": {
+                    "projects": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
+                        }
+                    }
+                }
+            },
             "api_internal_handler.ListSecretsResponse": {
                 "type": "object",
                 "properties": {
@@ -785,6 +1005,36 @@
                         "items": {
                             "$ref": "#/components/schemas/api_internal_handler.TokenListItem"
                         }
+                    }
+                }
+            },
+            "api_internal_handler.ProjectCryptoResponse": {
+                "type": "object",
+                "properties": {
+                    "project_salt": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "wrapped_project_dek": {
+                        "description": "base64",
+                        "type": "string"
+                    }
+                }
+            },
+            "api_internal_handler.ProjectResponse": {
+                "type": "object",
+                "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organization_id": {
+                        "type": "string"
                     }
                 }
             },

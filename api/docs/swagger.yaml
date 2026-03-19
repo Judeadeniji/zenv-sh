@@ -12,6 +12,22 @@ definitions:
       project_id:
         type: string
     type: object
+  api_internal_handler.CreateProjectRequest:
+    properties:
+      name:
+        type: string
+      organization_id:
+        type: string
+      project_salt:
+        description: base64 — generated client-side
+        type: string
+      wrapped_project_dek:
+        description: base64 — Project DEK wrapped with Project KEK
+        type: string
+      wrapped_project_vault_key:
+        description: base64 — Project Vault Key wrapped with user's public key
+        type: string
+    type: object
   api_internal_handler.CreateSecretRequest:
     properties:
       ciphertext:
@@ -86,6 +102,13 @@ definitions:
       error:
         type: string
     type: object
+  api_internal_handler.ListProjectsResponse:
+    properties:
+      projects:
+        items:
+          $ref: '#/definitions/api_internal_handler.ProjectResponse'
+        type: array
+    type: object
   api_internal_handler.ListSecretsResponse:
     properties:
       secrets:
@@ -99,6 +122,26 @@ definitions:
         items:
           $ref: '#/definitions/api_internal_handler.TokenListItem'
         type: array
+    type: object
+  api_internal_handler.ProjectCryptoResponse:
+    properties:
+      project_salt:
+        description: base64
+        type: string
+      wrapped_project_dek:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.ProjectResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      organization_id:
+        type: string
     type: object
   api_internal_handler.SecretListItem:
     properties:
@@ -322,6 +365,110 @@ paths:
       summary: Unlock vault
       tags:
       - auth
+  /projects:
+    get:
+      description: List all projects in an organization.
+      parameters:
+      - description: Organization ID
+        in: query
+        name: organization_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListProjectsResponse'
+      security:
+      - SessionAuth: []
+      summary: List projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      description: Create a project with client-generated crypto material. Project
+        Vault Key shown once at creation, never stored on server.
+      parameters:
+      - description: Project config + crypto material
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Create project
+      tags:
+      - projects
+  /projects/{projectID}:
+    get:
+      description: Get a single project by ID.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get project
+      tags:
+      - projects
+  /sdk/projects/{projectID}/crypto:
+    get:
+      description: Returns project salt and wrapped Project DEK. SDK uses this to
+        derive Project KEK and unwrap DEK.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectCryptoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get project crypto
+      tags:
+      - projects
   /sdk/secrets:
     get:
       description: List secret metadata (name hash, version, updated_at). Never returns
