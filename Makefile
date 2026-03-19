@@ -57,6 +57,10 @@ migrate-down:
 jet-gen:
 	~/go/bin/jet -dsn="$(DATABASE_URL)" -schema=public -path=./api/internal/store/gen
 
+# --- Smoke tests (requires API running + Postgres + Redis) ---
+smoke: build
+	./tests/smoke.sh
+
 # --- Clean ---
 clean:
 	rm -rf $(BIN) wasm/amnesia.wasm
