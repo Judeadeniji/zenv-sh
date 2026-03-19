@@ -2,103 +2,122 @@
 
 ## Up Next
 
-### API auth endpoints
-- [ ] OAuth callback handler (GitHub, Google)
-- [x] Session management (Redis-backed) — SessionManager with create/get/update/delete
-- [x] Vault Key verification endpoint — POST /v1/auth/unlock (Auth Key hash comparison, returns wrapped DEK)
-- [x] Account creation flow — POST /v1/auth/signup (stores salt, wrapped DEK, public key, auth_key_hash)
-- [x] Dev login endpoint — POST /v1/auth/login (temporary, returns salt + vault_key_type)
-- [x] Logout endpoint — POST /v1/auth/logout
-- [x] RequireSession middleware (identity layer gate)
-- [x] RequireVaultUnlocked middleware (both layers gate)
-- [x] Smoke test passing: signup → login → unlock (wrong key correctly rejected)
+### OAuth (identity layer)
 
-### API secrets CRUD
-- [x] POST /v1/secrets — store encrypted item (ciphertext + nonce + name_hash)
-- [x] GET /v1/secrets/:nameHash — retrieve single secret with full ciphertext
-- [x] POST /v1/secrets/bulk — bulk fetch by list of name_hashes (schema manifest)
-- [x] GET /v1/secrets — list metadata only (name_hash, version, updated_at — never ciphertext)
-- [x] PUT /v1/secrets/:nameHash — update with version bump, new nonce
-- [x] DELETE /v1/secrets/:nameHash — hard delete
-- [x] All endpoints behind RequireSession + RequireVaultUnlocked middleware
-- [x] Smoke test passing: create → list → get → update (v2) → delete
+- [ ] GitHub OAuth callback handler
+- [ ] Google OAuth callback handler
+- [ ] `zenv login` — browser OAuth flow + token storage
 
-### API service tokens
-- [x] POST /v1/tokens — create scoped token (plaintext shown once, SHA-256 hashed before storage)
-- [x] GET /v1/tokens — list tokens for a project (never exposes hash or plaintext)
-- [x] DELETE /v1/tokens/:tokenID — revoke instantly (sets revoked_at)
-- [x] Token auth middleware — Bearer token → SHA-256 hash lookup, revocation + expiry checks
-- [x] RequireWrite middleware — rejects read-only tokens on write endpoints
-- [x] SDK routes mounted at /v1/sdk/* — same secrets CRUD, token-authenticated
-- [x] Smoke test: create token → SDK create secret → SDK list → revoke → rejected
+### @zenv/vite-plugin — build-time injection
 
-### CLI implementation
+- [ ] Scaffold packages/vite-plugin
+- [ ] Fetch + decrypt at build time via Amnesia TS
+- [ ] Generate virtual `@zenv/secrets` module
+- [ ] Secret leak prevention (server-only TS enforcement, runtime guard, post-build scan)
+
+### Standard Schema support in SDK
+
+- [ ] Accept Zod, Valibot, ArkType schemas in load()
+- [ ] Schema keys as fetch manifest
+- [ ] Validate + transform decrypted values
+
+### CLI remaining
+
 - [ ] `zenv login` — browser OAuth flow + keyring storage
-- [x] `zenv secrets set KEY VALUE` — encrypt via Amnesia, store on API (create or update)
-- [x] `zenv secrets get KEY` — fetch ciphertext, decrypt locally, print value
-- [x] `zenv secrets list` — show hashed names + version + updated_at (never values)
-- [x] `zenv secrets delete KEY` — remove from server
-- [x] `zenv run -- COMMAND` — bulk fetch, decrypt all, inject as env vars, exec child
-- [x] `zenv check KEY [KEY...]` — bulk verify secrets exist, exit 1 if any missing (CI use case)
-- [x] Project context resolution — .zenv file walk-up, ZENV_* env vars, --project/--env flags
-- [x] HTTP client for SDK API endpoints
-- [x] Crypto helpers wrapping Amnesia for secret payloads
-- [x] End-to-end test: set → get → list → delete → run all passing
+- [ ] `zenv tokens create/revoke/list` — wire to real API
+- [ ] `zenv env pull` — write secrets to .env file
+- [ ] `zenv env diff ENV1 ENV2` — compare environments
+
+## Done
+
+### Monorepo scaffold
+
+- [x] go.work with 3 modules (amnesia, api, cli)
+- [x] Makefile, docker-compose.yml, .gitignore, pnpm-workspace.yaml
+- [x] All modules compile from root
+
+### Amnesia crypto engine (Go)
+
+- [x] random.go — GenerateSalt, GenerateNonce, GenerateKey
+- [x] derive.go — DeriveKeys (Argon2id, PIN/passphrase adaptive)
+- [x] symmetric.go — Encrypt/Decrypt/WrapKey/UnwrapKey (AES-256-GCM)
+- [x] hash.go — HashName (HMAC-SHA256), HashAuthKey (Argon2id)
+- [x] asymmetric.go — GenerateKeypair/WrapWithPublicKey/UnwrapWithPrivateKey (X25519 NaCl box)
+- [x] EncryptWithNonce for deterministic test vector generation
+- [x] 31 tests passing
 
 ### Amnesia TypeScript (pure TS reimplementation)
+
 - [x] WASM approach dropped — TinyGo version conflicts, goroutine limitations
-- [x] Decision: pure TS implementation using Web Crypto API + hash-wasm
-- [x] Scaffold packages/amnesia as TypeScript package
 - [x] AES-256-GCM encrypt/decrypt/wrap/unwrap via Web Crypto API
 - [x] Argon2id key derivation via hash-wasm
 - [x] HMAC-SHA256 name hashing via Web Crypto API
 - [x] X25519 asymmetric ops via tweetnacl (NaCl box — matches Go nacl/box)
 - [x] GenerateSalt/GenerateNonce/GenerateKey via crypto.getRandomValues
-- [x] Shared test vectors (JSON) — Go generates, TS validates, 30/30 passing
-- [x] Cross-language parity: DeriveKeys, AES-256-GCM, HMAC-SHA256, HashAuthKey
-
-### @zenv/sdk — TypeScript SDK
-- [ ] Scaffold packages/sdk
-- [ ] API client (typed fetch wrapper for zEnv API)
-- [ ] Schema-driven load() — extract keys, batch fetch, decrypt via amnesia, validate
-- [ ] get(), set(), rotate(), delete(), rollback()
-- [ ] Browser ban — hard error if window is defined
-- [ ] Standard Schema support (Zod, Valibot, ArkType)
-
-### OAuth (identity layer)
-- [ ] GitHub OAuth callback handler
-- [ ] Google OAuth callback handler
-- [ ] `zenv login` — browser OAuth flow + token storage
-
-## Done
-
-### Monorepo scaffold
-- [x] go.work with 3 modules (amnesia, api, cli)
-- [x] Makefile, docker-compose.yml, .gitignore, pnpm-workspace.yaml
-- [x] All modules compile from root
-
-### Amnesia crypto engine
-- [x] random.go — GenerateSalt, GenerateNonce, GenerateKey
-- [x] derive.go — DeriveKeys (Argon2id, PIN/passphrase adaptive)
-- [x] symmetric.go — Encrypt/Decrypt/WrapKey/UnwrapKey (AES-256-GCM)
-- [x] hash.go — HashName (HMAC-SHA256), HashAuthKey (Argon2id)
-- [x] asymmetric.go — GenerateKeypair/WrapWithPublicKey/UnwrapWithPrivateKey (X25519)
-- [x] 31 tests passing
-
-### API skeleton
-- [x] Chi router with health check, graceful shutdown, request logging
-- [x] Config loading from env vars
-- [x] Stub route groups for v1 auth, secrets, tokens, projects
-
-### CLI skeleton
-- [x] Cobra root with global --project/--env flags
-- [x] All subcommands stubbed: login, whoami, secrets, run, tokens, env, check
+- [x] Cross-language parity: shared test vectors (JSON), 30/30 passing
 
 ### Database + store layer
+
 - [x] Initial SQL migration — users, linked_providers, organizations, projects, project_vault_keys, project_key_grants, vault_items, service_tokens, organization_members, audit_logs (monthly partitioned)
 - [x] Docker Compose: Postgres 17 (port 5434) + Redis 7
 - [x] Go-Jet codegen — type-safe models + SQL builders at api/internal/store/gen/
-- [x] pgx connection pool wired into API startup
-- [x] Redis client wired into API startup
-- [x] Smoke test passing: Postgres connected, Redis connected, /health returns 200
-- [x] Makefile targets: make migrate, make jet-gen (with default DATABASE_URL)
+- [x] pgx connection pool + Redis client wired into API startup
+- [x] Makefile targets: make migrate, make jet-gen
+
+### API auth endpoints
+
+- [x] Session management (Redis-backed) — SessionManager with create/get/update/delete
+- [x] Vault Key verification — POST /v1/auth/unlock (Auth Key hash comparison, returns wrapped DEK)
+- [x] Account creation — POST /v1/auth/signup (stores salt, wrapped DEK, public key, auth_key_hash)
+- [x] Dev login — POST /v1/auth/login (temporary, returns salt + vault_key_type)
+- [x] Logout — POST /v1/auth/logout
+- [x] RequireSession + RequireVaultUnlocked middleware
+
+### API secrets CRUD
+
+- [x] POST /v1/secrets — store encrypted item
+- [x] GET /v1/secrets/:nameHash — retrieve single secret
+- [x] POST /v1/secrets/bulk — bulk fetch by name hashes (schema manifest)
+- [x] GET /v1/secrets — list metadata only (never ciphertext)
+- [x] PUT /v1/secrets/:nameHash — update with version bump
+- [x] DELETE /v1/secrets/:nameHash — hard delete
+- [x] SDK routes at /v1/sdk/* — token-authenticated mirror
+
+### API service tokens
+
+- [x] POST /v1/tokens — create scoped token (SHA-256 hashed before storage)
+- [x] GET /v1/tokens — list tokens for a project
+- [x] DELETE /v1/tokens/:tokenID — revoke instantly
+- [x] Token auth middleware — Bearer token hash lookup + revocation/expiry checks
+- [x] RequireWrite middleware — rejects read-only tokens on write endpoints
+
+### API project CRUD + crypto
+
+- [x] POST /v1/projects — create with client-generated crypto (transactional: project + vault key + key grant)
+- [x] GET /v1/projects — list by organization
+- [x] GET /v1/projects/{id} — get single project
+- [x] GET /v1/sdk/projects/{id}/crypto — return salt + wrapped DEK for SDK key derivation
+
+### OpenAPI + typed SDK client
+
+- [x] Swag annotations on all API handlers
+- [x] make swagger — generate Swagger 2.0 spec
+- [x] make sdk-types — convert to OpenAPI 3.0 + generate TypeScript types
+- [x] openapi-fetch client in SDK — fully typed from spec
+
+### @zenv/sdk — TypeScript SDK
+
+- [x] Scaffold packages/sdk with openapi-fetch + openapi-typescript
+- [x] ZEnv class with load(), get(), set(), delete()
+- [x] Browser ban — hard error if window is defined
+- [x] initCrypto() wired to real GET /sdk/projects/{id}/crypto endpoint
+- [x] Full zero-knowledge flow: ZENV_VAULT_KEY → Argon2id → Project KEK → unwrap DEK → encrypt/decrypt
+
+### CLI implementation
+
+- [x] `zenv secrets set/get/list/delete` — full encrypt/decrypt via Amnesia
+- [x] `zenv run -- COMMAND` — inject secrets as env vars, exec child process
+- [x] `zenv check KEY [KEY...]` — CI secret validation
+- [x] Project context resolution — .zenv file walk-up, ZENV_* env vars, --project/--env flags
+- [x] HTTP client for SDK API endpoints
+- [x] Crypto wired to real project crypto endpoint (no more hardcoded salt)
