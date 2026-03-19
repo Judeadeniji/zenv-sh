@@ -53,7 +53,10 @@ Use in CI pipelines to fail fast before deployment:
 				return err
 			}
 
-			_, hmacKey := getDEKAndHMACKey()
+			_, hmacKey, err := getDEKAndHMACKey()
+			if err != nil {
+				return fmt.Errorf("key derivation failed: %w", err)
+			}
 
 			// Build name hashes for all requested keys.
 			hashes := make([]string, 0, len(args))

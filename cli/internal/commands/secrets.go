@@ -38,7 +38,10 @@ func newSecretsGetCmd() *cobra.Command {
 			}
 
 			name := args[0]
-			dek, hmacKey := getDEKAndHMACKey()
+			dek, hmacKey, err := getDEKAndHMACKey()
+			if err != nil {
+				return fmt.Errorf("key derivation failed: %w", err)
+			}
 			nameHash := crypto.NameHashURL(name, hmacKey)
 
 			item, err := api.GetSecret(cfg.Project, cfg.Env, nameHash)
@@ -68,7 +71,10 @@ func newSecretsSetCmd() *cobra.Command {
 			}
 
 			name, value := args[0], args[1]
-			dek, hmacKey := getDEKAndHMACKey()
+			dek, hmacKey, err := getDEKAndHMACKey()
+			if err != nil {
+				return fmt.Errorf("key derivation failed: %w", err)
+			}
 
 			ct, nonce, nameHash, err := crypto.EncryptSecret(name, value, dek, hmacKey)
 			if err != nil {
@@ -137,7 +143,10 @@ func newSecretsDeleteCmd() *cobra.Command {
 			}
 
 			name := args[0]
-			_, hmacKey := getDEKAndHMACKey()
+			_, hmacKey, err := getDEKAndHMACKey()
+			if err != nil {
+				return fmt.Errorf("key derivation failed: %w", err)
+			}
 			nameHash := crypto.NameHashURL(name, hmacKey)
 
 			if err := api.DeleteSecret(cfg.Project, cfg.Env, nameHash); err != nil {

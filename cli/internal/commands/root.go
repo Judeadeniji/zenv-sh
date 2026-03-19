@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -79,11 +80,47 @@ func requireConfig() error {
 
 // getDEKAndHMACKey derives encryption keys from ZENV_VAULT_KEY.
 //
-// Phase 1 simplified flow: Argon2id(ZENV_VAULT_KEY, fixed salt) → DEK + HMAC key.
-//
-// Full flow (TODO): fetch project_salt from API → Argon2id → Project KEK → unwrap Project DEK.
-func getDEKAndHMACKey() (dek, hmacKey []byte) {
-	salt := []byte("zenv-phase1-project-salt-0000000") // 32 bytes, temporary
-	dek, hmacKey = amnesia.DeriveKeys(cfg.VaultKey, salt, amnesia.KeyTypePassphrase)
-	return dek, hmacKey
+// Flow (matches master plan Section 2.4.3):
+// 1. GET /sdk/projects/{id}/crypto → project_salt + wrapped_project_dek
+// 2. Argon2id(ZENV_VAULT_KEY + project_salt) → Project KEK
+// 3. AES-256-GCM unwrap(wrapped_dek, Project KEK) → Project DEK
+// 4. Project DEK used for encrypt/decrypt + as HMAC key for name hashing
+func getDEKAndHMACKey() (dek, hmacKey []byte, err error) {
+	// Fetch project crypto from API
+	pc, err := api.GetProjectCrypto(cfg.Project)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fetch project crypto: %w", err)
+	}
+
+	// Decode base64 fields
+	projectSalt, err := base64Decode(pc.ProjectSalt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decode project_salt: %w", err)
+	}
+	wrappedProjectDEK, err := base64Decode(pc.WrappedProjectDEK)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decode wrapped_project_dek: %w", err)
+	}
+
+	// Derive Project KEK from ZENV_VAULT_KEY + project salt
+	projectKEK, _ := amnesia.DeriveKeys(cfg.VaultKey, projectSalt, amnesia.KeyTypePassphrase)
+
+	// Unwrap Project DEK: first 12 bytes = nonce, rest = ciphertext
+	if len(wrappedProjectDEK) < 13 {
+		return nil, nil, fmt.Errorf("wrapped project DEK too short")
+	}
+	nonce := wrappedProjectDEK[:12]
+	ciphertext := wrappedProjectDEK[12:]
+
+	projectDEK, err := amnesia.UnwrapKey(ciphertext, nonce, projectKEK)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unwrap project DEK (wrong ZENV_VAULT_KEY?): %w", err)
+	}
+
+	// DEK used for encrypt/decrypt, also as HMAC key for name hashing
+	return projectDEK, projectDEK, nil
+}
+
+func base64Decode(s string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s)
 }

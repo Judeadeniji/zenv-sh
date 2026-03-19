@@ -29,7 +29,10 @@ func newRunCmd() *cobra.Command {
 				return err
 			}
 
-			dek, _ := getDEKAndHMACKey()
+			dek, _, err := getDEKAndHMACKey()
+			if err != nil {
+				return fmt.Errorf("key derivation failed: %w", err)
+			}
 
 			// Fetch all secrets for this project+environment.
 			items, err := api.ListSecrets(cfg.Project, cfg.Env)

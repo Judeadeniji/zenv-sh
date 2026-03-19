@@ -248,6 +248,30 @@ func (c *Client) DeleteSecret(projectID, env, nameHash string) error {
 	return nil
 }
 
+// --- Project Crypto ---
+
+type ProjectCrypto struct {
+	ProjectSalt       string `json:"project_salt"`        // base64
+	WrappedProjectDEK string `json:"wrapped_project_dek"` // base64
+}
+
+// GetProjectCrypto fetches the project salt and wrapped DEK for key derivation.
+func (c *Client) GetProjectCrypto(projectID string) (*ProjectCrypto, error) {
+	body, status, err := c.get("/v1/sdk/projects/"+projectID+"/crypto", nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != 200 {
+		return nil, parseError(body, status)
+	}
+
+	var pc ProjectCrypto
+	if err := json.Unmarshal(body, &pc); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+	return &pc, nil
+}
+
 func parseError(body []byte, status int) error {
 	var errResp ErrorResponse
 	if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error != "" {
