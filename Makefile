@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean dev-up dev-down migrate jet-gen wasm
+.PHONY: all build test lint clean dev-up dev-down migrate jet-gen
 
 BIN := ./bin
 DATABASE_URL ?= postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
@@ -26,12 +26,6 @@ test-api:
 
 test-cli:
 	go test -v -count=1 ./cli/...
-
-# --- WASM (requires TinyGo + Go 1.25 SDK at ~/sdk/go1.25.0) ---
-wasm:
-	export GOWORK=off GOROOT=$(HOME)/sdk/go1.25.0 GOTOOLCHAIN=local && \
-		PATH=$(HOME)/sdk/go1.25.0/bin:$(PATH) && \
-		cd wasm && tinygo build -o amnesia.wasm -target wasm -no-debug .
 
 # --- Lint ---
 lint:
@@ -65,4 +59,4 @@ smoke: build
 
 # --- Clean ---
 clean:
-	rm -rf $(BIN) wasm/amnesia.wasm
+	rm -rf $(BIN)

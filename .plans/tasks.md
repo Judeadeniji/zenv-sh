@@ -45,15 +45,16 @@
 - [x] Crypto helpers wrapping Amnesia for secret payloads
 - [x] End-to-end test: set → get → list → delete → run all passing
 
-### Amnesia TypeScript (replaces WASM approach)
-- [x] WASM approach attempted — blocked by TinyGo goroutine + FIPS140 issues
-- [x] Decision: TS implementation using Web Crypto API + argon2-browser
-- [ ] Create packages/amnesia-ts with same API surface as Go Amnesia
-- [ ] Shared test vectors (JSON) between Go and TS — parity enforced in CI
-- [ ] Argon2id via argon2-browser (or hash-wasm)
-- [ ] AES-256-GCM via Web Crypto API
-- [ ] HMAC-SHA256 via Web Crypto API
-- [ ] X25519 via tweetnacl or noble-curves
+### Amnesia TypeScript (pure TS reimplementation)
+- [x] WASM approach dropped — TinyGo version conflicts, goroutine limitations
+- [x] Decision: pure TS implementation using Web Crypto API + hash-wasm
+- [ ] Scaffold packages/amnesia as TypeScript package
+- [ ] AES-256-GCM encrypt/decrypt/wrap/unwrap via Web Crypto API
+- [ ] Argon2id key derivation via hash-wasm
+- [ ] HMAC-SHA256 name hashing via Web Crypto API
+- [ ] X25519 asymmetric ops via @noble/curves
+- [ ] GenerateSalt/GenerateNonce/GenerateKey via crypto.getRandomValues
+- [ ] Shared test vectors (JSON) — Go generates, TS validates, CI enforces parity
 
 ## Done
 
