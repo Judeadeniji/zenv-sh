@@ -43,6 +43,8 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 			r.Post("/bulk", secrets.BulkFetch)
 			r.Get("/", secrets.List)
 			r.Get("/{nameHash}", secrets.Get)
+			r.Get("/{nameHash}/versions", secrets.Versions)
+			r.Post("/{nameHash}/rollback", secrets.Rollback)
 			r.Put("/{nameHash}", secrets.Update)
 			r.Delete("/{nameHash}", secrets.Delete)
 		})
@@ -71,6 +73,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Post("/secrets/bulk", secrets.BulkFetch)
 		r.Get("/secrets", secrets.List)
 		r.Get("/secrets/{nameHash}", secrets.Get)
+		r.Get("/secrets/{nameHash}/versions", secrets.Versions)
 
 		// Write operations — require read_write permission
 		r.Group(func(r chi.Router) {
@@ -78,6 +81,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 
 			r.Post("/secrets", secrets.Create)
 			r.Put("/secrets/{nameHash}", secrets.Update)
+			r.Post("/secrets/{nameHash}/rollback", secrets.Rollback)
 			r.Delete("/secrets/{nameHash}", secrets.Delete)
 		})
 	})

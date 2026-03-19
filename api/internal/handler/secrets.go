@@ -316,6 +316,35 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC()
 
+	// Fetch current version to archive before overwriting.
+	var current model.VaultItems
+	fetchCurrent := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(
+			table.VaultItems.ProjectID.EQ(UUID(projectID)).
+				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
+		)
+	err = fetchCurrent.Query(h.db, &current)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		return
+	}
+
+	// Archive the current version before overwriting.
+	archiveStmt := table.VaultItemVersions.INSERT(
+		table.VaultItemVersions.ItemID,
+		table.VaultItemVersions.Version,
+		table.VaultItemVersions.Ciphertext,
+		table.VaultItemVersions.Nonce,
+		table.VaultItemVersions.CreatedAt,
+	).VALUES(current.ID, current.Version, current.Ciphertext, current.Nonce, now)
+
+	if _, err := archiveStmt.Exec(h.db); err != nil {
+		slog.Error("secrets.update: archive version", "error", err)
+		// Non-fatal — continue with update even if archiving fails.
+	}
+
 	updateStmt := table.VaultItems.UPDATE(
 		table.VaultItems.Ciphertext,
 		table.VaultItems.Nonce,
@@ -327,21 +356,12 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.Version.ADD(Int(1)),
 		TimestampzT(now),
 	).WHERE(
-		table.VaultItems.ProjectID.EQ(UUID(projectID)).
-			AND(table.VaultItems.Environment.EQ(String(env))).
-			AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
+		table.VaultItems.ID.EQ(UUID(current.ID)),
 	)
 
-	result, err := updateStmt.Exec(h.db)
-	if err != nil {
+	if _, err := updateStmt.Exec(h.db); err != nil {
 		slog.Error("secrets.update: exec", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update secret"})
-		return
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
 		return
 	}
 
@@ -349,11 +369,7 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var item model.VaultItems
 	fetchStmt := SELECT(table.VaultItems.AllColumns).
 		FROM(table.VaultItems).
-		WHERE(
-			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(env))).
-				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
-		)
+		WHERE(table.VaultItems.ID.EQ(UUID(current.ID)))
 
 	if err := fetchStmt.Query(h.db, &item); err != nil {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
@@ -471,6 +487,201 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, ListSecretsResponse{Secrets: result})
+}
+
+// --- Versions ---
+
+type VersionItem struct {
+	Version   int    `json:"version"`
+	CreatedAt string `json:"created_at"`
+}
+
+type VersionsResponse struct {
+	Current  int           `json:"current_version"`
+	Versions []VersionItem `json:"versions"`
+}
+
+//	@Summary		List secret versions
+//	@Description	Show version history for a secret. Returns version numbers and timestamps.
+//	@Tags			secrets
+//	@Produce		json
+//	@Param			nameHash	path		string	true	"HMAC-SHA256 name hash"
+//	@Param			project_id	query		string	true	"Project ID"
+//	@Param			environment	query		string	true	"Environment"
+//	@Success		200			{object}	VersionsResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/{nameHash}/versions [get]
+func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
+	projectID, env, err := parseProjectEnv(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	nameHashB64 := chi.URLParam(r, "nameHash")
+	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		return
+	}
+
+	// Get current item.
+	var current model.VaultItems
+	currentStmt := SELECT(table.VaultItems.ID, table.VaultItems.Version).
+		FROM(table.VaultItems).
+		WHERE(
+			table.VaultItems.ProjectID.EQ(UUID(projectID)).
+				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
+		)
+
+	if err := currentStmt.Query(h.db, &current); err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		return
+	}
+
+	// Get archived versions.
+	var archived []model.VaultItemVersions
+	archiveStmt := SELECT(
+		table.VaultItemVersions.Version,
+		table.VaultItemVersions.CreatedAt,
+	).FROM(table.VaultItemVersions).
+		WHERE(table.VaultItemVersions.ItemID.EQ(UUID(current.ID))).
+		ORDER_BY(table.VaultItemVersions.Version.DESC())
+
+	_ = archiveStmt.Query(h.db, &archived)
+
+	versions := make([]VersionItem, 0, len(archived))
+	for _, v := range archived {
+		versions = append(versions, VersionItem{
+			Version:   int(v.Version),
+			CreatedAt: v.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, VersionsResponse{
+		Current:  int(current.Version),
+		Versions: versions,
+	})
+}
+
+// --- Rollback ---
+
+type RollbackRequest struct {
+	Version int `json:"version"`
+}
+
+//	@Summary		Rollback secret
+//	@Description	Revert a secret to a previous version. The current version is archived first.
+//	@Tags			secrets
+//	@Accept			json
+//	@Produce		json
+//	@Param			nameHash	path		string			true	"HMAC-SHA256 name hash"
+//	@Param			project_id	query		string			true	"Project ID"
+//	@Param			environment	query		string			true	"Environment"
+//	@Param			body		body		RollbackRequest	true	"Target version"
+//	@Success		200			{object}	SecretResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/secrets/{nameHash}/rollback [post]
+func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
+	projectID, env, err := parseProjectEnv(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	nameHashB64 := chi.URLParam(r, "nameHash")
+	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		return
+	}
+
+	var req RollbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	// Get current item.
+	var current model.VaultItems
+	currentStmt := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(
+			table.VaultItems.ProjectID.EQ(UUID(projectID)).
+				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
+		)
+
+	if err := currentStmt.Query(h.db, &current); err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		return
+	}
+
+	// Find the target version in archive.
+	var target model.VaultItemVersions
+	targetStmt := SELECT(table.VaultItemVersions.AllColumns).
+		FROM(table.VaultItemVersions).
+		WHERE(
+			table.VaultItemVersions.ItemID.EQ(UUID(current.ID)).
+				AND(table.VaultItemVersions.Version.EQ(Int(int64(req.Version)))),
+		)
+
+	if err := targetStmt.Query(h.db, &target); err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{
+			Error: fmt.Sprintf("version %d not found", req.Version),
+		})
+		return
+	}
+
+	now := time.Now().UTC()
+
+	// Archive current version before rollback.
+	archiveStmt := table.VaultItemVersions.INSERT(
+		table.VaultItemVersions.ItemID,
+		table.VaultItemVersions.Version,
+		table.VaultItemVersions.Ciphertext,
+		table.VaultItemVersions.Nonce,
+		table.VaultItemVersions.CreatedAt,
+	).VALUES(current.ID, current.Version, current.Ciphertext, current.Nonce, now)
+
+	if _, err := archiveStmt.Exec(h.db); err != nil {
+		slog.Error("secrets.rollback: archive current", "error", err)
+	}
+
+	// Overwrite with target version's ciphertext, bump version number.
+	updateStmt := table.VaultItems.UPDATE(
+		table.VaultItems.Ciphertext,
+		table.VaultItems.Nonce,
+		table.VaultItems.Version,
+		table.VaultItems.UpdatedAt,
+	).SET(
+		Bytea(target.Ciphertext),
+		Bytea(target.Nonce),
+		table.VaultItems.Version.ADD(Int(1)),
+		TimestampzT(now),
+	).WHERE(table.VaultItems.ID.EQ(UUID(current.ID)))
+
+	if _, err := updateStmt.Exec(h.db); err != nil {
+		slog.Error("secrets.rollback: update", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rollback failed"})
+		return
+	}
+
+	// Return updated item.
+	var item model.VaultItems
+	fetchStmt := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(table.VaultItems.ID.EQ(UUID(current.ID)))
+
+	if err := fetchStmt.Query(h.db, &item); err != nil {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "rolled back"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toSecretResponse(item))
 }
 
 // --- Helpers ---
