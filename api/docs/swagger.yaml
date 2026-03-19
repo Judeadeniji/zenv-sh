@@ -1,0 +1,588 @@
+basePath: /v1
+definitions:
+  api_internal_handler.BulkFetchRequest:
+    properties:
+      environment:
+        type: string
+      name_hashes:
+        description: base64-encoded HMAC hashes
+        items:
+          type: string
+        type: array
+      project_id:
+        type: string
+    type: object
+  api_internal_handler.CreateSecretRequest:
+    properties:
+      ciphertext:
+        description: base64 AES-256-GCM encrypted item JSON
+        type: string
+      environment:
+        type: string
+      name_hash:
+        description: base64 HMAC-SHA256 of secret name
+        type: string
+      nonce:
+        description: base64 96-bit nonce
+        type: string
+      project_id:
+        type: string
+    type: object
+  api_internal_handler.CreateTokenRequest:
+    properties:
+      environment:
+        description: development | staging | production
+        type: string
+      expires_at:
+        description: optional RFC3339
+        type: string
+      name:
+        type: string
+      permission:
+        description: read | read_write
+        type: string
+      project_id:
+        type: string
+    type: object
+  api_internal_handler.CreateTokenResponse:
+    properties:
+      created_at:
+        type: string
+      environment:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permission:
+        type: string
+      project_id:
+        type: string
+      token:
+        description: shown exactly once — never stored
+        type: string
+    type: object
+  api_internal_handler.DevLoginRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  api_internal_handler.DevLoginResponse:
+    properties:
+      salt:
+        description: base64 — client needs this to re-derive KEK
+        type: string
+      session_id:
+        type: string
+      user_id:
+        type: string
+      vault_key_type:
+        type: string
+    type: object
+  api_internal_handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  api_internal_handler.ListSecretsResponse:
+    properties:
+      secrets:
+        items:
+          $ref: '#/definitions/api_internal_handler.SecretListItem'
+        type: array
+    type: object
+  api_internal_handler.ListTokensResponse:
+    properties:
+      tokens:
+        items:
+          $ref: '#/definitions/api_internal_handler.TokenListItem'
+        type: array
+    type: object
+  api_internal_handler.SecretListItem:
+    properties:
+      environment:
+        type: string
+      id:
+        type: string
+      name_hash:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  api_internal_handler.SecretResponse:
+    properties:
+      ciphertext:
+        type: string
+      created_at:
+        type: string
+      environment:
+        type: string
+      id:
+        type: string
+      name_hash:
+        type: string
+      nonce:
+        type: string
+      project_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  api_internal_handler.SignupRequest:
+    properties:
+      auth_key_hash:
+        description: base64
+        type: string
+      email:
+        type: string
+      public_key:
+        description: base64
+        type: string
+      salt:
+        description: base64
+        type: string
+      vault_key_type:
+        description: '"pin" or "passphrase"'
+        type: string
+      wrapped_dek:
+        description: base64
+        type: string
+      wrapped_private_key:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.SignupResponse:
+    properties:
+      session_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  api_internal_handler.TokenListItem:
+    properties:
+      created_at:
+        type: string
+      environment:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permission:
+        type: string
+      project_id:
+        type: string
+      revoked_at:
+        type: string
+    type: object
+  api_internal_handler.UnlockRequest:
+    properties:
+      auth_key_hash:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.UnlockResponse:
+    properties:
+      public_key:
+        description: base64
+        type: string
+      wrapped_dek:
+        description: base64
+        type: string
+      wrapped_private_key:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.UpdateSecretRequest:
+    properties:
+      ciphertext:
+        description: base64
+        type: string
+      nonce:
+        description: base64
+        type: string
+    type: object
+host: api.zenv.sh
+info:
+  contact: {}
+  description: Zero-knowledge secret manager API. Stores and retrieves ciphertext.
+    Never decrypts.
+  title: zEnv API
+  version: 0.1.0
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Create session by email. Development only — replaced by OAuth in
+        production.
+      parameters:
+      - description: Email to login
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.DevLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.DevLoginResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      summary: Dev login (temporary)
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Destroy session and clear cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Register with client-generated crypto material. Server stores ciphertext
+        only.
+      parameters:
+      - description: Crypto material from client
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.SignupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.SignupResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      summary: Create account
+      tags:
+      - auth
+  /auth/unlock:
+    post:
+      consumes:
+      - application/json
+      description: Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair
+        on success.
+      parameters:
+      - description: Auth Key hash (base64)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.UnlockRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.UnlockResponse'
+        "403":
+          description: Wrong Vault Key
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Unlock vault
+      tags:
+      - auth
+  /sdk/secrets:
+    get:
+      description: List secret metadata (name hash, version, updated_at). Never returns
+        ciphertext.
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListSecretsResponse'
+      security:
+      - BearerAuth: []
+      summary: List secrets
+      tags:
+      - secrets
+    post:
+      consumes:
+      - application/json
+      description: Store an encrypted vault item. Server stores opaque ciphertext
+        only.
+      parameters:
+      - description: Encrypted secret
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateSecretRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create secret
+      tags:
+      - secrets
+  /sdk/secrets/{nameHash}:
+    delete:
+      description: Remove a secret from the vault.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete secret
+      tags:
+      - secrets
+    get:
+      description: Retrieve a single encrypted secret by name hash.
+      parameters:
+      - description: HMAC-SHA256 name hash (base64)
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment (development/staging/production)
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get secret
+      tags:
+      - secrets
+    put:
+      consumes:
+      - application/json
+      description: Update ciphertext and nonce. Version auto-incremented.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: New ciphertext
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.UpdateSecretRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update secret
+      tags:
+      - secrets
+  /sdk/secrets/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Fetch multiple secrets by name hashes. Used by SDK for schema manifest
+        loading.
+      parameters:
+      - description: Name hashes to fetch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.BulkFetchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_internal_handler.SecretResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Bulk fetch secrets
+      tags:
+      - secrets
+  /tokens:
+    get:
+      description: List all tokens for a project. Never exposes token hash or plaintext.
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListTokensResponse'
+      security:
+      - SessionAuth: []
+      summary: List service tokens
+      tags:
+      - tokens
+    post:
+      consumes:
+      - application/json
+      description: Generate a scoped service token. Plaintext shown once, SHA-256
+        hashed before storage.
+      parameters:
+      - description: Token config
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.CreateTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Create service token
+      tags:
+      - tokens
+  /tokens/{tokenID}:
+    delete:
+      description: Marks a service token as revoked. Immediate effect.
+      parameters:
+      - description: Token UUID
+        in: path
+        name: tokenID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Revoke service token
+      tags:
+      - tokens
+securityDefinitions:
+  BearerAuth:
+    description: 'Service token: "Bearer svc_..."'
+    in: header
+    name: Authorization
+    type: apiKey
+  SessionAuth:
+    in: cookie
+    name: session_id
+    type: apiKey
+swagger: "2.0"
