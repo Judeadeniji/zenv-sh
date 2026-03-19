@@ -2,7 +2,12 @@ module github.com/Judeadeniji/zenv-sh/cli
 
 go 1.24
 
-require github.com/spf13/cobra v1.10.2
+require (
+	github.com/Judeadeniji/zenv-sh/amnesia v0.0.0
+	github.com/spf13/cobra v1.10.2
+)
+
+replace github.com/Judeadeniji/zenv-sh/amnesia => ../amnesia
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
