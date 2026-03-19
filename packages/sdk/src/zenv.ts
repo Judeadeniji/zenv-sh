@@ -5,13 +5,18 @@
  * This class owns: API calls, schema validation, typed returns.
  *
  * Usage:
- *   const vault = new ZEnv({
+ *   const vault = zenv({
  *     token: process.env.ZENV_TOKEN,
  *     vaultKey: process.env.ZENV_VAULT_KEY,
  *     projectId: process.env.ZENV_PROJECT_ID,
  *     environment: process.env.NODE_ENV,
+ *     schema: z.object({
+ *       STRIPE_API_KEY: z.string().min(1),
+ *       DATABASE_URL: z.string().url(),
+ *       PORT: z.string().transform(Number),
+ *     }),
  *   });
- *   const secrets = await vault.load({ STRIPE_API_KEY: {}, DATABASE_URL: {} });
+ *   const secrets = await vault.load();
  */
 import {
   deriveKeys,
@@ -23,7 +28,7 @@ import {
 import { createApiClient, type ApiClient } from "./client.ts";
 import { extractKeys, validateValues, type InferSchema } from "./schema.ts";
 
-export interface ZEnvConfig {
+export interface ZEnvConfig<S extends Record<string, unknown> = Record<string, unknown>> {
   /** Service token — authenticates with the API. */
   token: string;
   /** Project Vault Key — derives the encryption key locally. Never sent to server. */
@@ -32,6 +37,18 @@ export interface ZEnvConfig {
   projectId: string;
   /** Environment — development, staging, or production. */
   environment?: string;
+  /** Schema — defines which secrets to fetch and how to validate them. */
+  schema?: S;
+  /**
+   * Strict mode (default: true).
+   * When true with a schema, get() rejects keys not in the schema.
+   */
+  strict?: boolean;
+  /**
+   * Disable schema value validation (default: false).
+   * When true, schema is used as fetch manifest only — values pass through as strings.
+   */
+  disableValidation?: boolean;
   /** API base URL. Defaults to https://api.zenv.sh */
   baseUrl?: string;
 }
@@ -64,14 +81,17 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-export class ZEnv {
+export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
   private client: ApiClient;
   private vaultKey: string;
   private projectId: string;
   private environment: string;
+  private schema: S | undefined;
+  private strict: boolean;
+  private disableValidation: boolean;
   private crypto: CryptoState | null = null;
 
-  constructor(config: ZEnvConfig) {
+  constructor(config: ZEnvConfig<S>) {
     // Browser ban — ZENV_TOKEN and ZENV_VAULT_KEY must never reach the browser.
     if (typeof globalThis.window !== "undefined") {
       throw new Error(
@@ -99,6 +119,12 @@ export class ZEnv {
       );
     }
 
+    if (config.disableValidation) {
+      console.warn(
+        "[zEnv] disableValidation is enabled. Schema value validation will not run. Not recommended for production.",
+      );
+    }
+
     this.client = createApiClient({
       baseUrl: config.baseUrl ?? "https://api.zenv.sh",
       token: config.token,
@@ -106,6 +132,9 @@ export class ZEnv {
     this.vaultKey = config.vaultKey;
     this.projectId = config.projectId;
     this.environment = config.environment ?? "development";
+    this.schema = config.schema;
+    this.strict = config.strict ?? true;
+    this.disableValidation = config.disableValidation ?? false;
   }
 
   /**
@@ -122,7 +151,6 @@ export class ZEnv {
   private async initCrypto(): Promise<CryptoState> {
     if (this.crypto) return this.crypto;
 
-    // 1. Fetch project salt + wrapped DEK from API
     const { data, error } = await this.client.GET(
       "/sdk/projects/{projectID}/crypto",
       {
@@ -138,76 +166,68 @@ export class ZEnv {
     }
 
     const { project_salt, wrapped_project_dek } = data;
+    const projectSalt = base64ToBytes(project_salt!);
+    const wrappedProjectDEK = base64ToBytes(wrapped_project_dek!);
 
-    const projectSalt = base64ToBytes(project_salt!,);
-    const wrappedProjectDEK = base64ToBytes(wrapped_project_dek!,);
-
-    // 2. Derive Project KEK from ZENV_VAULT_KEY + project salt
     const { kek: projectKEK } = await deriveKeys(
       this.vaultKey,
       projectSalt,
       "passphrase",
     );
 
-    // 3. Unwrap Project DEK
-    // Wrapped DEK format: first 12 bytes = nonce, rest = ciphertext (AES-256-GCM)
     const wrappedNonce = wrappedProjectDEK.slice(0, 12);
     const wrappedCiphertext = wrappedProjectDEK.slice(12);
-    const projectDEK = await unwrapKey(wrappedCiphertext, wrappedNonce, projectKEK);
+    const projectDEK = await unwrapKey(
+      wrappedCiphertext,
+      wrappedNonce,
+      projectKEK,
+    );
 
-    // 4. Cache — DEK used for encrypt/decrypt, also as HMAC key for name hashing
-    this.crypto = {
-      dek: projectDEK,
-      hmacKey: projectDEK,
-    };
-
+    this.crypto = { dek: projectDEK, hmacKey: projectDEK };
     return this.crypto;
   }
 
   /**
-   * Load all secrets defined in a schema.
+   * Load all secrets defined in the schema.
    *
-   * Accepts any Standard Schema compliant validator (Zod, Valibot, ArkType)
-   * or a plain object where keys are the secret names.
+   * Requires a schema — either passed in the constructor or as an argument.
+   * load() without a schema throws with a helpful error.
    *
    * The SDK:
    * 1. Extracts key names from the schema (fetch manifest)
    * 2. Hashes each name with HMAC-SHA256
    * 3. Bulk fetches ciphertext from the API
    * 4. Decrypts each locally with Amnesia
-   * 5. Validates + transforms values via schema
+   * 5. Validates + transforms values via schema (unless disableValidation)
    * 6. Reports all errors at once — not one-at-a-time
-   *
-   * @example
-   * // With Zod
-   * const secrets = await vault.load(z.object({
-   *   STRIPE_API_KEY: z.string().min(1),
-   *   DATABASE_URL: z.string().url(),
-   *   PORT: z.string().transform(Number),
-   * }));
-   * secrets.PORT // number
-   *
-   * @example
-   * // Plain object (no validation, keys only)
-   * const secrets = await vault.load({
-   *   STRIPE_API_KEY: {},
-   *   DATABASE_URL: {},
-   * });
-   * secrets.STRIPE_API_KEY // string
    */
-  async load<S extends Record<string, unknown>>(
-    schema: S,
-  ): Promise<InferSchema<S>> {
+  async load(): Promise<InferSchema<S>>;
+  async load<O extends Record<string, unknown>>(schema: O): Promise<InferSchema<O>>;
+  async load<O extends Record<string, unknown>>(schema?: O): Promise<InferSchema<O>> {
+    const activeSchema = (schema ?? this.schema) as O | undefined;
+
+    if (!activeSchema) {
+      throw new Error(
+        "[zEnv] load() requires a schema. Define it in the constructor or pass it to load():\n\n" +
+          "  // In constructor:\n" +
+          "  const vault = zenv({\n" +
+          "    schema: z.object({ STRIPE_API_KEY: z.string() }),\n" +
+          "    ...\n" +
+          "  });\n" +
+          "  const secrets = await vault.load();\n\n" +
+          "  // Or inline:\n" +
+          "  const secrets = await vault.load({ STRIPE_API_KEY: {} });\n\n" +
+          "  // For single keys without a schema, use get():\n" +
+          "  const key = await vault.get('STRIPE_API_KEY');",
+      );
+    }
+
     const { dek, hmacKey } = await this.initCrypto();
-    const keys = extractKeys(schema);
+    const keys = extractKeys(activeSchema);
 
     if (keys.length === 0) {
       throw new Error(
-        "[zEnv] Schema has no keys. Define the secrets your app needs:\n" +
-          "  // With Zod:\n" +
-          "  await vault.load(z.object({ STRIPE_API_KEY: z.string() }))\n" +
-          "  // Or plain object:\n" +
-          "  await vault.load({ STRIPE_API_KEY: {} })",
+        "[zEnv] Schema has no keys. Define the secrets your app needs.",
       );
     }
 
@@ -234,7 +254,6 @@ export class ZEnv {
       );
     }
 
-    // Build lookup: hash → row
     const rows = (data as any[]) ?? [];
     const rowMap = new Map<string, any>();
     for (const row of rows) {
@@ -248,7 +267,9 @@ export class ZEnv {
     for (const { name, hash } of nameHashes) {
       const row = rowMap.get(hash);
       if (!row) {
-        fetchErrors.push(`  ${name} — secret not found in '${this.environment}'`);
+        fetchErrors.push(
+          `  ${name} — secret not found in '${this.environment}'`,
+        );
         continue;
       }
 
@@ -269,27 +290,42 @@ export class ZEnv {
       );
     }
 
-    // Validate + transform via schema
+    // Validate + transform (unless disabled)
+    if (this.disableValidation) {
+      return decrypted as InferSchema<O>;
+    }
+
     const { result, errors: validationErrors } = await validateValues(
-      schema,
+      activeSchema,
       decrypted,
     );
 
     if (validationErrors.length > 0) {
-      const lines = validationErrors.map(
-        (e) => `  ${e.key} — ${e.message}`,
-      );
+      const lines = validationErrors.map((e) => `  ${e.key} — ${e.message}`);
       throw new Error(
         `[zEnv] Startup validation failed:\n${lines.join("\n")}\n\n` +
           "Application did not start. Fix the above and retry.",
       );
     }
 
-    return result as InferSchema<S>;
+    return result as InferSchema<O>;
   }
 
   /** Fetch a single secret by name. */
   async get(name: string): Promise<string> {
+    // Strict mode: reject keys not in schema
+    if (this.strict && this.schema) {
+      const schemaKeys = extractKeys(this.schema);
+      if (!schemaKeys.includes(name)) {
+        const defined = schemaKeys.join(", ");
+        throw new Error(
+          `[zEnv] '${name}' is not defined in your schema.\n` +
+            `  Defined keys: ${defined}\n` +
+            `  Either add '${name}' to your schema or check for a typo.`,
+        );
+      }
+    }
+
     const { dek, hmacKey } = await this.initCrypto();
     const hash = bytesToHex(await hashName(name, hmacKey));
 
@@ -324,7 +360,6 @@ export class ZEnv {
     const plaintext = new TextEncoder().encode(itemJson);
     const { ciphertext, nonce } = await encrypt(plaintext, dek);
 
-    // Try update first, create if not found
     const { error } = await this.client.PUT("/sdk/secrets/{nameHash}", {
       params: {
         path: { nameHash: hash },
@@ -361,4 +396,25 @@ export class ZEnv {
       },
     });
   }
+}
+
+/**
+ * Create a new ZEnv vault instance. Convenience wrapper around `new ZEnv()`.
+ *
+ * @example
+ * const vault = zenv({
+ *   token: process.env.ZENV_TOKEN!,
+ *   vaultKey: process.env.ZENV_VAULT_KEY!,
+ *   projectId: process.env.ZENV_PROJECT_ID!,
+ *   schema: z.object({
+ *     STRIPE_API_KEY: z.string().min(1),
+ *     DATABASE_URL: z.string().url(),
+ *   }),
+ * });
+ * const secrets = await vault.load();
+ */
+export function zenv<S extends Record<string, unknown>>(
+  config: ZEnvConfig<S>,
+): ZEnv<S> {
+  return new ZEnv(config);
 }
