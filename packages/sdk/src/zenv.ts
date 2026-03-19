@@ -8,6 +8,8 @@
  *   const vault = new ZEnv({
  *     token: process.env.ZENV_TOKEN,
  *     vaultKey: process.env.ZENV_VAULT_KEY,
+ *     projectId: process.env.ZENV_PROJECT_ID,
+ *     environment: process.env.NODE_ENV,
  *   });
  *   const secrets = await vault.load({ STRIPE_API_KEY: {}, DATABASE_URL: {} });
  */
@@ -15,8 +17,8 @@ import {
   deriveKeys,
   encrypt,
   decrypt,
+  unwrapKey,
   hashName,
-  generateSalt,
 } from "@zenv/amnesia";
 import { createApiClient, type ApiClient } from "./client.ts";
 
@@ -25,6 +27,10 @@ export interface ZEnvConfig {
   token: string;
   /** Project Vault Key — derives the encryption key locally. Never sent to server. */
   vaultKey: string;
+  /** Project ID — which project to fetch secrets from. */
+  projectId: string;
+  /** Environment — development, staging, or production. */
+  environment?: string;
   /** API base URL. Defaults to https://api.zenv.sh */
   baseUrl?: string;
 }
@@ -60,6 +66,8 @@ function base64ToBytes(b64: string): Uint8Array {
 export class ZEnv {
   private client: ApiClient;
   private vaultKey: string;
+  private projectId: string;
+  private environment: string;
   private crypto: CryptoState | null = null;
 
   constructor(config: ZEnvConfig) {
@@ -84,29 +92,74 @@ export class ZEnv {
           "  export ZENV_VAULT_KEY=...",
       );
     }
+    if (!config.projectId) {
+      throw new Error(
+        "[zEnv] Missing projectId. Set it in your config or via ZENV_PROJECT_ID.",
+      );
+    }
 
     this.client = createApiClient({
       baseUrl: config.baseUrl ?? "https://api.zenv.sh",
       token: config.token,
     });
     this.vaultKey = config.vaultKey;
+    this.projectId = config.projectId;
+    this.environment = config.environment ?? "development";
   }
 
   /**
-   * Initialize crypto state — derives Project KEK from ZENV_VAULT_KEY,
-   * unwraps the Project DEK. Called automatically on first operation.
+   * Initialize crypto state by fetching project crypto from the API.
+   *
+   * Flow (matches master plan Section 2.4.3):
+   * 1. GET /sdk/projects/{id}/crypto → project_salt + wrapped_project_dek
+   * 2. Argon2id(ZENV_VAULT_KEY + project_salt) → Project KEK
+   * 3. AES-256-GCM unwrap(wrapped_project_dek, Project KEK) → Project DEK
+   * 4. Project DEK used for all encrypt/decrypt + HMAC operations
+   *
+   * Called automatically on first operation. Cached for session lifetime.
    */
   private async initCrypto(): Promise<CryptoState> {
     if (this.crypto) return this.crypto;
 
-    // TODO: fetch project salt + wrapped DEK from API once project crypto endpoints exist.
-    // For now, derive a deterministic key from the vault key directly.
-    const salt = generateSalt();
-    const { kek } = await deriveKeys(this.vaultKey, salt, "passphrase");
+    // 1. Fetch project salt + wrapped DEK from API
+    const { data, error } = await this.client.GET(
+      "/sdk/projects/{projectID}/crypto",
+      {
+        params: { path: { projectID: this.projectId } },
+      },
+    );
 
+    if (error || !data) {
+      throw new Error(
+        `[zEnv] Failed to fetch project crypto for project '${this.projectId}'. ` +
+          "Is the project ID correct and does the service token have access?",
+      );
+    }
+
+    const projectSalt = base64ToBytes(
+      (data as { project_salt: string }).project_salt,
+    );
+    const wrappedProjectDEK = base64ToBytes(
+      (data as { wrapped_project_dek: string }).wrapped_project_dek,
+    );
+
+    // 2. Derive Project KEK from ZENV_VAULT_KEY + project salt
+    const { kek: projectKEK } = await deriveKeys(
+      this.vaultKey,
+      projectSalt,
+      "passphrase",
+    );
+
+    // 3. Unwrap Project DEK
+    // Wrapped DEK format: first 12 bytes = nonce, rest = ciphertext (AES-256-GCM)
+    const wrappedNonce = wrappedProjectDEK.slice(0, 12);
+    const wrappedCiphertext = wrappedProjectDEK.slice(12);
+    const projectDEK = await unwrapKey(wrappedCiphertext, wrappedNonce, projectKEK);
+
+    // 4. Cache — DEK used for encrypt/decrypt, also as HMAC key for name hashing
     this.crypto = {
-      dek: kek,
-      hmacKey: kek,
+      dek: projectDEK,
+      hmacKey: projectDEK,
     };
 
     return this.crypto;
@@ -146,13 +199,15 @@ export class ZEnv {
     const { data, error } = await this.client.POST("/sdk/secrets/bulk", {
       body: {
         name_hashes: nameHashes.map((n) => n.hash),
-        project_id: "", // TODO
-        environment: "", // TODO
+        project_id: this.projectId,
+        environment: this.environment,
       } as any,
     });
 
     if (error) {
-      throw new Error(`[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`);
+      throw new Error(
+        `[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`,
+      );
     }
 
     // Build lookup: hash → row
@@ -169,7 +224,7 @@ export class ZEnv {
     for (const { name, hash } of nameHashes) {
       const row = rowMap.get(hash);
       if (!row) {
-        errors.push(`  ${name} — secret not found`);
+        errors.push(`  ${name} — secret not found in '${this.environment}'`);
         continue;
       }
 
@@ -201,7 +256,7 @@ export class ZEnv {
     const { data, error } = await this.client.GET("/sdk/secrets/{nameHash}", {
       params: {
         path: { nameHash: hash },
-        query: { project_id: "", environment: "" }, // TODO
+        query: { project_id: this.projectId, environment: this.environment },
       },
     });
 
@@ -229,11 +284,11 @@ export class ZEnv {
     const plaintext = new TextEncoder().encode(itemJson);
     const { ciphertext, nonce } = await encrypt(plaintext, dek);
 
-    // Try update first, create if 404
+    // Try update first, create if not found
     const { error } = await this.client.PUT("/sdk/secrets/{nameHash}", {
       params: {
         path: { nameHash: hash },
-        query: { project_id: "", environment: "" }, // TODO
+        query: { project_id: this.projectId, environment: this.environment },
       },
       body: {
         ciphertext: bytesToBase64(ciphertext),
@@ -242,14 +297,13 @@ export class ZEnv {
     });
 
     if (error) {
-      // Create new secret
       await this.client.POST("/sdk/secrets", {
         body: {
           name_hash: hash,
           ciphertext: bytesToBase64(ciphertext),
           nonce: bytesToBase64(nonce),
-          project_id: "", // TODO
-          environment: "", // TODO
+          project_id: this.projectId,
+          environment: this.environment,
         },
       });
     }
@@ -257,13 +311,13 @@ export class ZEnv {
 
   /** Delete a secret. */
   async delete(name: string): Promise<void> {
-    const { dek, hmacKey } = await this.initCrypto();
+    const { hmacKey } = await this.initCrypto();
     const hash = bytesToHex(await hashName(name, hmacKey));
 
     await this.client.DELETE("/sdk/secrets/{nameHash}", {
       params: {
         path: { nameHash: hash },
-        query: { project_id: "", environment: "" }, // TODO
+        query: { project_id: this.projectId, environment: this.environment },
       },
     });
   }
