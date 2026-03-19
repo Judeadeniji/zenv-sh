@@ -4,5 +4,4 @@ use (
 	./amnesia
 	./api
 	./cli
-	./wasm
 )

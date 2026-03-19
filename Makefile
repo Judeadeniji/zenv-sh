@@ -29,8 +29,9 @@ test-cli:
 
 # --- WASM (requires TinyGo + Go 1.25 SDK at ~/sdk/go1.25.0) ---
 wasm:
-	cd wasm && GOWORK=off GOROOT=$(HOME)/sdk/go1.25.0 GOTOOLCHAIN=local PATH=$(HOME)/sdk/go1.25.0/bin:$(PATH) \
-		tinygo build -o amnesia.wasm -target wasm -no-debug .
+	export GOWORK=off GOROOT=$(HOME)/sdk/go1.25.0 GOTOOLCHAIN=local && \
+		PATH=$(HOME)/sdk/go1.25.0/bin:$(PATH) && \
+		cd wasm && tinygo build -o amnesia.wasm -target wasm -no-debug .
 
 # --- Lint ---
 lint:
