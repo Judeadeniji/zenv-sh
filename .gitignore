@@ -9,9 +9,6 @@
 # Go
 go.work.sum
 
-# WASM
-wasm/*.wasm
-
 # Test
 *.test
 *.out

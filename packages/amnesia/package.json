@@ -1,16 +1,48 @@
 {
   "name": "@zenv/amnesia",
   "version": "0.0.1",
-  "private": true,
+  "description": "Pure TypeScript cryptographic engine for zEnv — Argon2id, AES-256-GCM, X25519 NaCl box",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "scripts": {
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "cryptography",
+    "aes-256-gcm",
+    "argon2id",
+    "x25519",
+    "nacl",
+    "zero-knowledge",
+    "encryption"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Judeadeniji/zenv-sh.git",
+    "directory": "packages/amnesia"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
   "dependencies": {
-    "@noble/curves": "^1.8.0",
     "hash-wasm": "^4.11.0",
     "tweetnacl": "^1.0.3"
   },

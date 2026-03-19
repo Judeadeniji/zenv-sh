@@ -1,14 +1,47 @@
 {
   "name": "@zenv/sdk",
   "version": "0.0.1",
-  "private": true,
+  "description": "Zero-knowledge secret manager SDK — fetch, decrypt, and validate secrets with type safety",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "scripts": {
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "generate": "openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "secrets",
+    "secret-manager",
+    "zero-knowledge",
+    "encryption",
+    "environment-variables",
+    "zenv"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Judeadeniji/zenv-sh.git",
+    "directory": "packages/sdk"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
   "dependencies": {
     "@zenv/amnesia": "workspace:*",
     "openapi-fetch": "^0.17.0"

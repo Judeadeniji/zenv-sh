@@ -9,7 +9,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
-    "types": ["bun-types"],
+    "types": ["@types/bun"],
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,

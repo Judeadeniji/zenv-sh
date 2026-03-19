@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-test:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: zenv
+          POSTGRES_PASSWORD: zenv_dev
+          POSTGRES_DB: zenv
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Test Amnesia
+        run: go test -v -count=1 ./amnesia/...
+
+      - name: Build API + CLI
+        run: go build ./api/... ./cli/...
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
+        run: make migrate
+
+      - name: Test API
+        env:
+          DATABASE_URL: postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+        run: go test -v -count=1 ./api/...
+
+  ts-test:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test @zenv/amnesia
+        working-directory: packages/amnesia
+        run: bun test
+
+      - name: Build @zenv/amnesia
+        working-directory: packages/amnesia
+        run: pnpm run build
+
+      - name: Typecheck @zenv/sdk
+        working-directory: packages/sdk
+        run: pnpm run typecheck
+
+  cross-language-parity:
+    name: Cross-Language Parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install TS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate test vectors from Go
+        run: go run ./tests/generate_vectors.go > tests/vectors_ci.json
+
+      - name: Verify vectors match committed file
+        run: diff tests/vectors.json tests/vectors_ci.json
+
+      - name: Run TS parity tests
+        working-directory: packages/amnesia
+        run: bun test src/vectors.test.ts
+
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: [go-test, ts-test, cross-language-parity]
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Build API
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -o bin/zenv-api-${{ matrix.goos }}-${{ matrix.goarch }} ./api/cmd/zenv-api
+
+      - name: Build CLI
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -o bin/zenv-${{ matrix.goos }}-${{ matrix.goarch }} ./cli/cmd/zenv
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bin/
