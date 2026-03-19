@@ -14,6 +14,7 @@ import (
 func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	sm := middleware.NewSessionManager(rdb)
 	auth := handler.NewAuthHandler(db, sm)
+	secrets := handler.NewSecretsHandler(db)
 
 	// Public — no session required
 	r.Route("/auth", func(r chi.Router) {
@@ -35,7 +36,12 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Use(sm.RequireVaultUnlocked)
 
 		r.Route("/secrets", func(r chi.Router) {
-			// TODO: CRUD
+			r.Post("/", secrets.Create)
+			r.Post("/bulk", secrets.BulkFetch)
+			r.Get("/", secrets.List)
+			r.Get("/{nameHash}", secrets.Get)
+			r.Put("/{nameHash}", secrets.Update)
+			r.Delete("/{nameHash}", secrets.Delete)
 		})
 
 		r.Route("/tokens", func(r chi.Router) {
