@@ -27,6 +27,19 @@ func Encrypt(plaintext, key []byte) (ciphertext, nonce []byte, err error) {
 	return ciphertext, nonce, nil
 }
 
+// EncryptWithNonce encrypts using a caller-supplied nonce.
+// Only for deterministic test vector generation — production code must use Encrypt.
+func EncryptWithNonce(plaintext, key, nonce []byte) (ciphertext []byte, err error) {
+	gcm, err := newGCM(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(nonce) != NonceSize {
+		return nil, fmt.Errorf("amnesia: nonce must be %d bytes, got %d", NonceSize, len(nonce))
+	}
+	return gcm.Seal(nil, nonce, plaintext, nil), nil
+}
+
 // Decrypt decrypts ciphertext using AES-256-GCM with the given key and nonce.
 func Decrypt(ciphertext, nonce, key []byte) (plaintext []byte, err error) {
 	gcm, err := newGCM(key)
