@@ -2,31 +2,35 @@
 
 ## Up Next
 
-### OAuth (identity layer)
+### Better Auth + Developer Dashboard
 
-- [ ] GitHub OAuth callback handler
-- [ ] Google OAuth callback handler
-- [ ] `zenv login` — browser OAuth flow + token storage
+- [ ] Migration 002: add better_auth_user_id to users, better_auth_org_id to organizations
+- [ ] Scaffold apps/web/ — TanStack Start + Better Auth + Drizzle
+- [ ] Better Auth config: GitHub + Google OAuth, org plugin, 2FA plugin
+- [ ] Run Better Auth migrations (user, session, account, organization tables)
+- [ ] Go API: better_auth.go middleware — read BA session from Postgres
+- [ ] Go API: CORS middleware for app.zenv.sh
+- [ ] Go API: POST /v1/auth/setup-vault — link BA user to zEnv crypto material
+- [ ] Go API: GET /v1/auth/me — return user state (vault_setup_complete, salt, vault_key_type)
+- [ ] Go API: modify /v1/auth/unlock to accept BA sessions
+- [ ] Dashboard: vault-setup page (Amnesia TS in browser → crypto material → Go API)
+- [ ] Dashboard: vault-unlock page (Vault Key → derive → unlock)
+- [ ] Dashboard: _authed layout (redirect to login if no BA session)
+- [ ] Dashboard: _unlocked layout (redirect to unlock if vault locked)
+- [ ] Dashboard: secrets list/detail pages
+- [ ] Dashboard: project switcher
+- [ ] Dashboard: service token management
+- [ ] Dashboard: organization + member management (BA org plugin)
+- [ ] Org linkage: BA afterCreate hook syncs to zEnv organizations table
+- [ ] Gate DevLogin behind ZENV_DEV_MODE env var
+- [ ] Update smoke tests for BA auth flow
 
-### @zenv/vite-plugin — build-time injection
+### @zenv/vite-plugin — build-time injection (Phase 2)
 
 - [ ] Scaffold packages/vite-plugin
 - [ ] Fetch + decrypt at build time via Amnesia TS
 - [ ] Generate virtual `@zenv/secrets` module
 - [ ] Secret leak prevention (server-only TS enforcement, runtime guard, post-build scan)
-
-### Standard Schema support in SDK
-
-- [ ] Accept Zod, Valibot, ArkType schemas in load()
-- [ ] Schema keys as fetch manifest
-- [ ] Validate + transform decrypted values
-
-### CLI remaining
-
-- [ ] `zenv login` — browser OAuth flow + keyring storage
-- [ ] `zenv tokens create/revoke/list` — wire to real API
-- [ ] `zenv env pull` — write secrets to .env file
-- [ ] `zenv env diff ENV1 ENV2` — compare environments
 
 ## Done
 
@@ -121,3 +125,22 @@
 - [x] Project context resolution — .zenv file walk-up, ZENV_* env vars, --project/--env flags
 - [x] HTTP client for SDK API endpoints
 - [x] Crypto wired to real project crypto endpoint (no more hardcoded salt)
+- [x] `zenv tokens create/revoke/list` — wired to real API
+- [x] `zenv env pull` — write secrets to .env file
+- [x] `zenv env diff ENV1 ENV2` — compare environments
+
+### Standard Schema support in SDK
+
+- [x] Accept Zod, Valibot, ArkType schemas via Standard Schema v1 interface
+- [x] Schema keys as fetch manifest
+- [x] Validate + transform decrypted values
+- [x] zenv() convenience factory function
+- [x] strict mode + disableValidation option
+
+### Publishing prep + CI
+
+- [x] TS packages: exports, files, engines, build config for npm
+- [x] tsconfig.build.json with rewriteRelativeImportExtensions
+- [x] GitHub Actions CI: Go tests, TS tests, cross-language parity, cross-compile
+- [x] .editorconfig, .nvmrc
+- [x] READMEs for root + all 5 packages
