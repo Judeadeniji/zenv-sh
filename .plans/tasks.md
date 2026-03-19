@@ -14,23 +14,36 @@
 - [x] Smoke test passing: signup → login → unlock (wrong key correctly rejected)
 
 ### API secrets CRUD
-- [ ] POST /v1/secrets — store encrypted item (ciphertext + nonce + name_hash)
-- [ ] GET /v1/secrets/:name_hash — retrieve single secret
-- [ ] GET /v1/secrets — bulk fetch by list of name_hashes (schema manifest)
-- [ ] PUT /v1/secrets/:name_hash — update (new version, new nonce)
-- [ ] DELETE /v1/secrets/:name_hash — soft delete
+- [x] POST /v1/secrets — store encrypted item (ciphertext + nonce + name_hash)
+- [x] GET /v1/secrets/:nameHash — retrieve single secret with full ciphertext
+- [x] POST /v1/secrets/bulk — bulk fetch by list of name_hashes (schema manifest)
+- [x] GET /v1/secrets — list metadata only (name_hash, version, updated_at — never ciphertext)
+- [x] PUT /v1/secrets/:nameHash — update with version bump, new nonce
+- [x] DELETE /v1/secrets/:nameHash — hard delete
+- [x] All endpoints behind RequireSession + RequireVaultUnlocked middleware
+- [x] Smoke test passing: create → list → get → update (v2) → delete
 
 ### API service tokens
-- [ ] POST /v1/tokens — create scoped token (project + env + permission)
-- [ ] DELETE /v1/tokens/:id — revoke
-- [ ] Token auth middleware — hash-based lookup, scope enforcement
+- [x] POST /v1/tokens — create scoped token (plaintext shown once, SHA-256 hashed before storage)
+- [x] GET /v1/tokens — list tokens for a project (never exposes hash or plaintext)
+- [x] DELETE /v1/tokens/:tokenID — revoke instantly (sets revoked_at)
+- [x] Token auth middleware — Bearer token → SHA-256 hash lookup, revocation + expiry checks
+- [x] RequireWrite middleware — rejects read-only tokens on write endpoints
+- [x] SDK routes mounted at /v1/sdk/* — same secrets CRUD, token-authenticated
+- [x] Smoke test: create token → SDK create secret → SDK list → revoke → rejected
 
 ### CLI implementation
 - [ ] `zenv login` — browser OAuth flow + keyring storage
-- [ ] `zenv secrets get/set/list` — call API, decrypt via Amnesia
-- [ ] `zenv run` — fetch secrets, inject as env vars, exec child process
+- [x] `zenv secrets set KEY VALUE` — encrypt via Amnesia, store on API (create or update)
+- [x] `zenv secrets get KEY` — fetch ciphertext, decrypt locally, print value
+- [x] `zenv secrets list` — show hashed names + version + updated_at (never values)
+- [x] `zenv secrets delete KEY` — remove from server
+- [x] `zenv run -- COMMAND` — bulk fetch, decrypt all, inject as env vars, exec child
 - [ ] `zenv check` — validate required secrets exist (CI use case)
-- [ ] Project context resolution (.zenv file, --project/--env flags)
+- [x] Project context resolution — .zenv file walk-up, ZENV_* env vars, --project/--env flags
+- [x] HTTP client for SDK API endpoints
+- [x] Crypto helpers wrapping Amnesia for secret payloads
+- [x] End-to-end test: set → get → list → delete → run all passing
 
 ### Amnesia WASM
 - [ ] Create wasm/main.go bridge exporting Amnesia functions
