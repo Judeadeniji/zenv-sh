@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +15,7 @@ import (
 var (
 	flagProject string
 	flagEnv     string
+	flagVerbose bool
 
 	// Shared across subcommands.
 	cfg *config.Config
@@ -25,7 +28,16 @@ func NewRootCmd() *cobra.Command {
 		Short: "zEnv — zero-knowledge secret manager",
 		Long:  "zEnv is a zero-knowledge encrypted vault for storing and sharing sensitive data.\nEven we as the provider cannot read your data.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Set log level.
+			logLevel := slog.LevelWarn
+			if flagVerbose {
+				logLevel = slog.LevelDebug
+			}
+			slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
 			cfg = config.Load(flagProject, flagEnv)
+			slog.Debug("config loaded", "project", cfg.Project, "env", cfg.Env, "api", cfg.APIURL)
+
 			if cfg.Token != "" {
 				api = client.New(cfg.APIURL, cfg.Token)
 			}
@@ -36,6 +48,7 @@ func NewRootCmd() *cobra.Command {
 
 	root.PersistentFlags().StringVar(&flagProject, "project", "", "project name or ID")
 	root.PersistentFlags().StringVar(&flagEnv, "env", "", "environment: development, staging, production")
+	root.PersistentFlags().BoolVarP(&flagVerbose, "verbose", "v", false, "enable debug logging")
 
 	root.AddCommand(newSecretsCmd())
 	root.AddCommand(newRunCmd())

@@ -37,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	slog.Info("postgres connected")
+	slog.Debug("postgres connected")
 
 	// Connect to Redis
 	rdb, err := store.NewRedis(ctx, cfg.RedisURL)
@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer rdb.Close()
-	slog.Info("redis connected")
+	slog.Debug("redis connected")
 
 	router := server.New(db, rdb)
 
@@ -63,7 +63,7 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		slog.Info("zenv-api starting", "port", cfg.Port)
+		slog.Info("zenv-api", "port", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server error", "error", err)
 			os.Exit(1)
@@ -71,7 +71,6 @@ func main() {
 	}()
 
 	<-done
-	slog.Info("shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -80,5 +79,5 @@ func main() {
 		slog.Error("shutdown error", "error", err)
 	}
 
-	slog.Info("zenv-api stopped")
+	slog.Info("stopped")
 }
