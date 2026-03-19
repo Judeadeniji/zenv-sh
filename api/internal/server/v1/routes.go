@@ -17,6 +17,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	auth := handler.NewAuthHandler(db, sm)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
+	projects := handler.NewProjectsHandler(db)
 
 	// Public — no session required
 	r.Route("/auth", func(r chi.Router) {
@@ -53,13 +54,18 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		})
 
 		r.Route("/projects", func(r chi.Router) {
-			// TODO: CRUD
+			r.Post("/", projects.Create)
+			r.Get("/", projects.List)
+			r.Get("/{projectID}", projects.Get)
 		})
 	})
 
 	// SDK/CLI routes — authenticate via service token (machine access)
 	r.Route("/sdk", func(r chi.Router) {
 		r.Use(ta.Authenticate)
+
+		// Project crypto — SDK needs salt + wrapped DEK to derive keys
+		r.Get("/projects/{projectID}/crypto", projects.GetCrypto)
 
 		// Read operations
 		r.Post("/secrets/bulk", secrets.BulkFetch)
