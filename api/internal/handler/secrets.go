@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -183,7 +184,12 @@ func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err := stmt.Query(h.db, &item); err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+			return
+		}
+		slog.Error("secrets.get: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch secret"})
 		return
 	}
 
@@ -469,7 +475,7 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 			AND(table.VaultItems.Environment.EQ(String(env))),
 	).ORDER_BY(table.VaultItems.UpdatedAt.DESC())
 
-	if err := stmt.Query(h.db, &items); err != nil && err != sql.ErrNoRows {
+	if err := stmt.Query(h.db, &items); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		slog.Error("secrets.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list secrets"})
 		return

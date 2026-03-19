@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -272,7 +273,7 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.ServiceTokens.ProjectID.EQ(UUID(projectID)),
 	).ORDER_BY(table.ServiceTokens.CreatedAt.DESC())
 
-	if err := stmt.Query(h.db, &tokens); err != nil && err != sql.ErrNoRows {
+	if err := stmt.Query(h.db, &tokens); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		slog.Error("tokens.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list tokens"})
 		return

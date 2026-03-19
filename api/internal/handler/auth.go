@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/subtle"
 	"database/sql"
+	"errors"
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
@@ -33,11 +34,11 @@ func NewAuthHandler(db *sql.DB, session *middleware.SessionManager) *AuthHandler
 type SignupRequest struct {
 	Email             string `json:"email"`
 	VaultKeyType      string `json:"vault_key_type"`      // "pin" or "passphrase"
-	Salt              string `json:"salt"`                 // base64
-	AuthKeyHash       string `json:"auth_key_hash"`        // base64
-	WrappedDEK        string `json:"wrapped_dek"`          // base64
-	PublicKey         string `json:"public_key"`            // base64
-	WrappedPrivateKey string `json:"wrapped_private_key"`  // base64
+	Salt              string `json:"salt"`                // base64
+	AuthKeyHash       string `json:"auth_key_hash"`       // base64
+	WrappedDEK        string `json:"wrapped_dek"`         // base64
+	PublicKey         string `json:"public_key"`          // base64
+	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
 }
 
 type SignupResponse struct {
@@ -208,7 +209,12 @@ func (h *AuthHandler) DevLogin(w http.ResponseWriter, r *http.Request) {
 
 	err := stmt.Query(h.db, &user)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no account found for this email"})
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "no account found for this email"})
+			return
+		}
+		slog.Error("dev-login: fetch user", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch user"})
 		return
 	}
 
@@ -235,9 +241,9 @@ type UnlockRequest struct {
 }
 
 type UnlockResponse struct {
-	WrappedDEK        string `json:"wrapped_dek"`          // base64
-	WrappedPrivateKey string `json:"wrapped_private_key"`  // base64
-	PublicKey         string `json:"public_key"`            // base64
+	WrappedDEK        string `json:"wrapped_dek"`         // base64
+	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
+	PublicKey         string `json:"public_key"`          // base64
 }
 
 // Unlock verifies the Vault Key (via Auth Key hash) and returns the Wrapped DEK.
@@ -289,6 +295,10 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &user)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+			return
+		}
 		slog.Error("unlock: fetch user", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch user"})
 		return
@@ -319,13 +329,13 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 // --- Logout ---
 
-//	@Summary		Logout
-//	@Description	Destroy session and clear cookie.
-//	@Tags			auth
-//	@Produce		json
-//	@Success		200	{object}	map[string]string
-//	@Security		SessionAuth
-//	@Router			/auth/logout [post]
+// @Summary		Logout
+// @Description	Destroy session and clear cookie.
+// @Tags			auth
+// @Produce		json
+// @Success		200	{object}	map[string]string
+// @Security		SessionAuth
+// @Router			/auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess != nil {

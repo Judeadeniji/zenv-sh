@@ -54,6 +54,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newSecretsCmd())
 	root.AddCommand(newRunCmd())
 	root.AddCommand(newTokensCmd())
+	root.AddCommand(newProjectsCmd())
 	root.AddCommand(newEnvCmd())
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newLoginCmd())

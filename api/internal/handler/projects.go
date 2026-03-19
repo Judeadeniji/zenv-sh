@@ -3,13 +3,14 @@ package handler
 import (
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
-	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/go-chi/chi/v5"
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
@@ -29,10 +30,10 @@ func NewProjectsHandler(db *sql.DB) *ProjectsHandler {
 // --- Create Project ---
 
 type CreateProjectRequest struct {
-	OrganizationID     string `json:"organization_id"`
-	Name               string `json:"name"`
-	ProjectSalt        string `json:"project_salt"`         // base64 — generated client-side
-	WrappedProjectDEK  string `json:"wrapped_project_dek"`  // base64 — Project DEK wrapped with Project KEK
+	OrganizationID         string `json:"organization_id"`
+	Name                   string `json:"name"`
+	ProjectSalt            string `json:"project_salt"`              // base64 — generated client-side
+	WrappedProjectDEK      string `json:"wrapped_project_dek"`       // base64 — Project DEK wrapped with Project KEK
 	WrappedProjectVaultKey string `json:"wrapped_project_vault_key"` // base64 — Project Vault Key wrapped with user's public key
 }
 
@@ -43,17 +44,17 @@ type ProjectResponse struct {
 	CreatedAt      string `json:"created_at"`
 }
 
-//	@Summary		Create project
-//	@Description	Create a project with client-generated crypto material. Project Vault Key shown once at creation, never stored on server.
-//	@Tags			projects
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		CreateProjectRequest	true	"Project config + crypto material"
-//	@Success		201		{object}	ProjectResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		409		{object}	ErrorResponse
-//	@Security		SessionAuth
-//	@Router			/projects [post]
+// @Summary		Create project
+// @Description	Create a project with client-generated crypto material. Project Vault Key shown once at creation, never stored on server.
+// @Tags			projects
+// @Accept			json
+// @Produce		json
+// @Param			body	body		CreateProjectRequest	true	"Project config + crypto material"
+// @Success		201		{object}	ProjectResponse
+// @Failure		400		{object}	ErrorResponse
+// @Failure		409		{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/projects [post]
 func (h *ProjectsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -178,14 +179,14 @@ type ListProjectsResponse struct {
 	Projects []ProjectResponse `json:"projects"`
 }
 
-//	@Summary		List projects
-//	@Description	List all projects in an organization.
-//	@Tags			projects
-//	@Produce		json
-//	@Param			organization_id	query		string	true	"Organization ID"
-//	@Success		200				{object}	ListProjectsResponse
-//	@Security		SessionAuth
-//	@Router			/projects [get]
+// @Summary		List projects
+// @Description	List all projects in an organization.
+// @Tags			projects
+// @Produce		json
+// @Param			organization_id	query		string	true	"Organization ID"
+// @Success		200				{object}	ListProjectsResponse
+// @Security		SessionAuth
+// @Router			/projects [get]
 func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 	orgIDStr := r.URL.Query().Get("organization_id")
 	if orgIDStr == "" {
@@ -210,8 +211,10 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 	).ORDER_BY(table.Projects.Name.ASC())
 
 	err = stmt.Query(h.db, &projects)
-	if err != nil {
-		projects = []model.Projects{}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		slog.Error("projects.list: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list projects"})
+		return
 	}
 
 	resp := ListProjectsResponse{Projects: make([]ProjectResponse, 0, len(projects))}
@@ -229,15 +232,15 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // --- Get Project ---
 
-//	@Summary		Get project
-//	@Description	Get a single project by ID.
-//	@Tags			projects
-//	@Produce		json
-//	@Param			projectID	path		string	true	"Project UUID"
-//	@Success		200			{object}	ProjectResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		SessionAuth
-//	@Router			/projects/{projectID} [get]
+// @Summary		Get project
+// @Description	Get a single project by ID.
+// @Tags			projects
+// @Produce		json
+// @Param			projectID	path		string	true	"Project UUID"
+// @Success		200			{object}	ProjectResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/projects/{projectID} [get]
 func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
@@ -255,7 +258,11 @@ func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &project)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project not found"})
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to get project"})
 		return
 	}
 
@@ -274,15 +281,15 @@ type ProjectCryptoResponse struct {
 	WrappedProjectDEK string `json:"wrapped_project_dek"` // base64
 }
 
-//	@Summary		Get project crypto
-//	@Description	Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.
-//	@Tags			projects
-//	@Produce		json
-//	@Param			projectID	path		string	true	"Project UUID"
-//	@Success		200			{object}	ProjectCryptoResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/projects/{projectID}/crypto [get]
+// @Summary		Get project crypto
+// @Description	Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.
+// @Tags			projects
+// @Produce		json
+// @Param			projectID	path		string	true	"Project UUID"
+// @Success		200			{object}	ProjectCryptoResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/projects/{projectID}/crypto [get]
 func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
 	if err != nil {
@@ -300,7 +307,11 @@ func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &vk)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project crypto not found"})
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project crypto not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to get project crypto"})
 		return
 	}
 
