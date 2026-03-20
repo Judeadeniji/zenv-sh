@@ -60,6 +60,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newLoginCmd())
 	root.AddCommand(newWhoamiCmd())
+	root.AddCommand(newConfigCmd())
 
 	return root
 }

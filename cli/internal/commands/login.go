@@ -4,15 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/Judeadeniji/zenv-sh/cli/internal/config"
 )
 
 func newLoginCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate with zEnv",
 		Long: `Authenticate with zEnv by providing a service token.
@@ -23,15 +23,9 @@ You can get a service token from the zEnv dashboard or by running:
 After login, the token is stored in ~/.config/zenv/credentials
 and used automatically for subsequent commands.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			authURL := os.Getenv("ZENV_AUTH_URL")
-			if authURL == "" {
-				authURL = "http://localhost:3000"
-			}
-
 			fmt.Fprintln(os.Stderr, "Get a service token from your zEnv dashboard.")
-			fmt.Fprintf(os.Stderr, "Dashboard: %s\n\n", authURL)
+			fmt.Fprintf(os.Stderr, "Dashboard: %s\n\n", cfg.AuthURL)
 
-			// Prompt for token
 			fmt.Fprint(os.Stderr, "Paste your service token: ")
 			reader := bufio.NewReader(os.Stdin)
 			token, err := reader.ReadString('\n')
@@ -43,33 +37,18 @@ and used automatically for subsequent commands.`,
 			if token == "" {
 				return fmt.Errorf("no token provided")
 			}
-
 			if !strings.HasPrefix(token, "svc_") {
 				return fmt.Errorf("invalid token format — service tokens start with svc_")
 			}
 
-			// Store to ~/.config/zenv/credentials
-			configDir, err := os.UserConfigDir()
-			if err != nil {
-				return fmt.Errorf("resolve config dir: %w", err)
-			}
-			zenvDir := configDir + "/zenv"
-			if err := os.MkdirAll(zenvDir, 0700); err != nil {
-				return fmt.Errorf("create config dir: %w", err)
+			if err := config.Set(config.KeyToken, token); err != nil {
+				return fmt.Errorf("save token: %w", err)
 			}
 
-			credPath := zenvDir + "/credentials"
-			if err := os.WriteFile(credPath, []byte("ZENV_TOKEN="+token+"\n"), 0600); err != nil {
-				return fmt.Errorf("write credentials: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "Token saved to %s\n", credPath)
-			fmt.Fprintln(os.Stderr, "You can also set ZENV_TOKEN in your shell to override.")
+			fmt.Fprintln(os.Stderr, "Token saved. Run `zenv whoami` to verify.")
 			return nil
 		},
 	}
-
-	return cmd
 }
 
 func newWhoamiCmd() *cobra.Command {
@@ -78,6 +57,7 @@ func newWhoamiCmd() *cobra.Command {
 		Short: "Show current auth context and active project",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "API:         %s\n", cfg.APIURL)
+			fmt.Fprintf(os.Stderr, "Auth:        %s\n", cfg.AuthURL)
 
 			if cfg.Token != "" {
 				masked := cfg.Token[:min(8, len(cfg.Token))] + "..." + cfg.Token[max(0, len(cfg.Token)-4):]
@@ -116,19 +96,5 @@ func newWhoamiCmd() *cobra.Command {
 
 			return nil
 		},
-	}
-}
-
-// openBrowser opens a URL in the user's default browser.
-func openBrowser(url string) error {
-	switch runtime.GOOS {
-	case "linux":
-		return exec.Command("xdg-open", url).Start()
-	case "darwin":
-		return exec.Command("open", url).Start()
-	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	default:
-		return fmt.Errorf("unsupported platform")
 	}
 }
