@@ -1,0 +1,53 @@
+---
+title: Key Derivation
+description: How Amnesia derives encryption keys from the Vault Key using Argon2id.
+---
+
+## DeriveKeys
+
+The core key derivation function. Runs Argon2id **exactly once** per unlock, producing 64 bytes that are split into two 32-byte keys.
+
+```
+Argon2id(vaultKey, salt, params) --> 64 bytes
+  bytes  0-31: KEK (Key Encryption Key) -- wraps/unwraps the DEK
+  bytes 32-63: Auth Key -- hashed and sent to server for verification
+```
+
+### Go
+
+```go
+import "github.com/Judeadeniji/zenv-sh/amnesia"
+
+kek, authKey := amnesia.DeriveKeys("my-vault-key", salt, amnesia.KeyTypePassphrase)
+// kek:     32 bytes -- use to wrap/unwrap DEK
+// authKey: 32 bytes -- hash with HashAuthKey() before sending to server
+```
+
+### TypeScript
+
+```ts
+import { deriveKeys } from "@zenv/amnesia";
+
+const { kek, authKey } = await deriveKeys("my-vault-key", salt, "passphrase");
+```
+
+## Adaptive Parameters
+
+Amnesia adjusts Argon2id parameters based on the Vault Key type:
+
+| Parameter | PIN | Passphrase |
+|-----------|-----|------------|
+| Memory | 256 MB | 64 MB |
+| Iterations | 10 | 3 |
+| Parallelism | 4 | 4 |
+| Output | 64 bytes | 64 bytes |
+
+**PIN (~20 bits entropy):** Argon2id does the heavy lifting. High memory and iterations compensate for the low entropy of a 4-8 digit PIN.
+
+**Passphrase (~50-70 bits):** The entropy in the passphrase does the heavy lifting. Lighter Argon2id parameters keep unlock times reasonable (~500ms).
+
+## Hard Invariant
+
+Argon2id runs **once per unlock**. The 64-byte output is split at a fixed boundary (byte 32). There is no second derivation, no re-keying, no key stretching chain. One input, one output, one split.
+
+This is enforced across both implementations. If you find code that calls `DeriveKeys` twice for the same unlock operation, it's a bug.

@@ -1,0 +1,68 @@
+---
+title: Amnesia Crypto Engine
+description: The pure cryptographic engine behind zEnv -- zero dependencies, zero state, zero knowledge.
+---
+
+Amnesia is zEnv's cryptographic core. It ships in two identical implementations:
+
+- **Go** (`amnesia/`) -- used by the CLI and API
+- **TypeScript** (`@zenv/amnesia`) -- used by the SDK in Node.js
+
+Both produce **byte-identical output** for the same inputs. This is enforced by shared JSON test vectors in CI.
+
+## Design Principles
+
+**Pure function, no side effects.** Amnesia takes bytes in and gives bytes out. It has no concept of users, projects, secrets, networks, databases, or configuration. It never makes HTTP calls or reads files.
+
+**Minimal dependencies.** Go Amnesia depends only on the standard library and `golang.org/x/crypto`. TypeScript Amnesia uses Web Crypto API, `hash-wasm`, and `@noble/curves` (via tweetnacl for NaCl box).
+
+**Auditable.** Because Amnesia is MIT-licensed and dependency-light, anyone can verify the zero-knowledge claims. The entire Go implementation is ~300 lines across 5 files.
+
+## What Amnesia Does
+
+| Operation | Algorithm | Purpose |
+|-----------|-----------|---------|
+| Key derivation | Argon2id | Vault Key + salt --> KEK + Auth Key |
+| Symmetric encrypt/decrypt | AES-256-GCM | Encrypt secrets, wrap/unwrap keys |
+| Name hashing | HMAC-SHA256 | Blind server-side lookups by name |
+| Auth key hashing | Argon2id | Hash Auth Key before server storage |
+| Asymmetric wrap/unwrap | X25519 + NaCl box | Team key sharing |
+| Random generation | CSPRNG | Salts, nonces, keys |
+
+## Files
+
+### Go (`amnesia/`)
+
+| File | Contents |
+|------|----------|
+| `derive.go` | `DeriveKeys` -- Argon2id with adaptive params (PIN vs passphrase) |
+| `symmetric.go` | `Encrypt`, `Decrypt`, `WrapKey`, `UnwrapKey` -- AES-256-GCM |
+| `hash.go` | `HashName` (HMAC-SHA256), `HashAuthKey` (Argon2id) |
+| `asymmetric.go` | `GenerateKeypair`, `WrapWithPublicKey`, `UnwrapWithPrivateKey` -- X25519 |
+| `random.go` | `GenerateSalt`, `GenerateNonce`, `GenerateKey` -- crypto/rand |
+
+### TypeScript (`packages/amnesia/src/`)
+
+| File | Contents |
+|------|----------|
+| `derive.ts` | `deriveKeys` -- Argon2id via hash-wasm |
+| `symmetric.ts` | `encrypt`, `decrypt`, `wrapKey`, `unwrapKey` -- Web Crypto API |
+| `hash.ts` | `hashName` (HMAC-SHA256 via Web Crypto), `hashAuthKey` (Argon2id) |
+| `asymmetric.ts` | `generateKeypair`, `wrapWithPublicKey`, `unwrapWithPrivateKey` -- tweetnacl |
+| `random.ts` | `generateSalt`, `generateNonce`, `generateKey` -- crypto.getRandomValues |
+
+## Constants
+
+| Name | Value | Used by |
+|------|-------|---------|
+| `KeySize` | 32 bytes | AES-256 keys (DEK, KEK) |
+| `NonceSize` | 12 bytes | AES-256-GCM nonces |
+| `SaltSize` | 32 bytes | Argon2id salts |
+| `DerivedKeySize` | 64 bytes | Argon2id output (split into KEK + Auth Key) |
+| `Curve25519KeySize` | 32 bytes | X25519 public/private keys |
+
+## Cross-Language Parity
+
+Shared test vectors live in `packages/amnesia/src/vectors.test.ts` and `amnesia/amnesia_test.go`. Both read the same JSON fixtures containing known inputs and expected outputs. If either implementation produces different bytes, CI fails.
+
+This guarantees that a secret encrypted by the Go CLI can be decrypted by the TypeScript SDK, and vice versa.

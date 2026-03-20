@@ -1,0 +1,62 @@
+---
+title: Symmetric Encryption
+description: AES-256-GCM encryption, decryption, and key wrapping in Amnesia.
+---
+
+All symmetric operations use **AES-256-GCM** with 32-byte keys and 12-byte nonces.
+
+## Encrypt / Decrypt
+
+Encrypt plaintext with a key. Returns ciphertext and a randomly generated nonce. Every call produces a unique nonce.
+
+### Go
+
+```go
+ciphertext, nonce, err := amnesia.Encrypt(plaintext, key)
+plaintext, err := amnesia.Decrypt(ciphertext, nonce, key)
+```
+
+### TypeScript
+
+```ts
+import { encrypt, decrypt } from "@zenv/amnesia";
+
+const { ciphertext, nonce } = await encrypt(plaintext, key);
+const plaintext = await decrypt(ciphertext, nonce, key);
+```
+
+## WrapKey / UnwrapKey
+
+Semantically identical to Encrypt/Decrypt, but named to make intent clear when wrapping a DEK with a KEK.
+
+### Go
+
+```go
+wrappedDEK, nonce, err := amnesia.WrapKey(dek, kek)
+dek, err := amnesia.UnwrapKey(wrappedDEK, nonce, kek)
+```
+
+### TypeScript
+
+```ts
+import { wrapKey, unwrapKey } from "@zenv/amnesia";
+
+const { ciphertext: wrappedDEK, nonce } = await wrapKey(dek, kek);
+const dek = await unwrapKey(wrappedDEK, nonce, kek);
+```
+
+## GCM Details
+
+- **Key size:** 32 bytes (AES-256)
+- **Nonce size:** 12 bytes (96-bit, GCM standard)
+- **Authentication tag:** 16 bytes (appended to ciphertext by GCM)
+- **Nonce generation:** `crypto/rand` (Go) or `crypto.getRandomValues` (TS)
+
+Nonces are never reused with the same key. Each Encrypt/WrapKey call generates a fresh random nonce.
+
+## Errors
+
+| Error | Cause |
+|-------|-------|
+| `ErrInvalidKeySize` | Key is not exactly 32 bytes |
+| `ErrDecryptionFailed` | Wrong key, corrupted ciphertext, or tampered data |

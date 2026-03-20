@@ -1,0 +1,62 @@
+---
+title: Hashing
+description: HMAC-SHA256 name hashing and Argon2id auth key hashing in Amnesia.
+---
+
+## HashName (Blind Lookups)
+
+Computes `HMAC-SHA256(key, name)` so the server can look up secrets by name without ever knowing the plaintext name.
+
+### Go
+
+```go
+hash := amnesia.HashName("DATABASE_URL", hmacKey)
+// hash: 32 bytes -- send to server as the lookup key
+
+ok := amnesia.VerifyNameHash("DATABASE_URL", hmacKey, hash)
+// ok: true
+```
+
+### TypeScript
+
+```ts
+import { hashName } from "@zenv/amnesia";
+
+const hash = await hashName("DATABASE_URL", hmacKey);
+// hash: Uint8Array (32 bytes)
+```
+
+The HMAC key is the Project DEK itself. Different projects produce different hashes for the same name, providing project-level isolation.
+
+## HashAuthKey (Server Storage)
+
+Hashes the Auth Key with Argon2id before sending it to the server. Even if the database is breached, the attacker cannot recover the Auth Key without brute-forcing Argon2id.
+
+### Go
+
+```go
+hash := amnesia.HashAuthKey(authKey)
+// hash: 32 bytes -- stored on server as auth_key_hash
+```
+
+### TypeScript
+
+```ts
+import { hashAuthKey } from "@zenv/amnesia";
+
+const hash = await hashAuthKey(authKey);
+```
+
+### Parameters
+
+The Auth Key hash uses fixed Argon2id parameters:
+
+| Parameter | Value |
+|-----------|-------|
+| Memory | 64 MB |
+| Iterations | 3 |
+| Parallelism | 4 |
+| Output | 32 bytes |
+| Salt | SHA-256(authKey)[:32] (deterministic) |
+
+The salt is derived from the auth key itself. This is safe because the auth key already has high entropy (32 bytes from Argon2id output). The purpose is verification, not deriving a key from a weak input.

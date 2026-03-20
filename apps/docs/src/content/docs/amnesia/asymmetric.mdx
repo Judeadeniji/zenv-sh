@@ -1,0 +1,81 @@
+---
+title: Asymmetric Encryption
+description: X25519 keypair generation and NaCl box encryption for team key sharing.
+---
+
+Amnesia uses **X25519 + NaCl box** (Curve25519 + XSalsa20-Poly1305) for asymmetric operations. This is used for team key sharing -- encrypting a Project Vault Key or item key for a specific recipient.
+
+## GenerateKeypair
+
+Generates an X25519 keypair (32-byte public key, 32-byte private key).
+
+### Go
+
+```go
+publicKey, privateKey, err := amnesia.GenerateKeypair()
+```
+
+### TypeScript
+
+```ts
+import { generateKeypair } from "@zenv/amnesia";
+
+const { publicKey, privateKey } = generateKeypair();
+```
+
+The public key is stored on the server (plaintext). The private key is wrapped with the user's KEK and stored encrypted.
+
+## WrapWithPublicKey
+
+Encrypts a payload for a specific recipient using their public key. Generates an ephemeral keypair for each operation -- the sender's identity is not embedded.
+
+### Go
+
+```go
+sealed, err := amnesia.WrapWithPublicKey(payload, recipientPublicKey)
+```
+
+### TypeScript
+
+```ts
+import { wrapWithPublicKey } from "@zenv/amnesia";
+
+const sealed = wrapWithPublicKey(payload, recipientPublicKey);
+```
+
+**Output format:** `[24-byte nonce][32-byte ephemeral public key][NaCl sealed box]`
+
+## UnwrapWithPrivateKey
+
+Decrypts a payload that was encrypted with WrapWithPublicKey.
+
+### Go
+
+```go
+plaintext, err := amnesia.UnwrapWithPrivateKey(sealed, recipientPrivateKey)
+```
+
+### TypeScript
+
+```ts
+import { unwrapWithPrivateKey } from "@zenv/amnesia";
+
+const plaintext = unwrapWithPrivateKey(sealed, recipientPrivateKey);
+```
+
+## Use Case: Team Key Grants
+
+When a user creates a project, they:
+
+1. Generate a Project DEK and Project Vault Key
+2. Wrap the Project Vault Key with their own public key (self-grant)
+3. Store the wrapped key on the server as a "key grant"
+
+When inviting a team member, the project owner:
+
+1. Fetches the member's public key from the server
+2. Unwraps the Project Vault Key with their own private key
+3. Re-wraps it with the member's public key
+4. Stores the new key grant on the server
+
+The server never sees the Project Vault Key in plaintext at any point in this flow.

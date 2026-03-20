@@ -18,6 +18,17 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Amnesia (Crypto Engine)',
+					items: [
+						{ label: 'Overview', slug: 'amnesia/overview' },
+						{ label: 'Key Derivation', slug: 'amnesia/key-derivation' },
+						{ label: 'Symmetric Encryption', slug: 'amnesia/symmetric' },
+						{ label: 'Hashing', slug: 'amnesia/hashing' },
+						{ label: 'Asymmetric Encryption', slug: 'amnesia/asymmetric' },
+						{ label: 'Random Generation', slug: 'amnesia/random' },
+					],
+				},
+				{
 					label: 'CLI',
 					autogenerate: { directory: 'cli' },
 				},

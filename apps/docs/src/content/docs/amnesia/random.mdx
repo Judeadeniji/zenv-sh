@@ -1,0 +1,59 @@
+---
+title: Random Generation
+description: Cryptographically secure random bytes for salts, nonces, and keys.
+---
+
+All random generation uses the platform's CSPRNG:
+- **Go:** `crypto/rand.Read`
+- **TypeScript:** `crypto.getRandomValues`
+
+If the CSPRNG fails, Amnesia panics (Go) or throws (TS). A failed CSPRNG means the system is in an unrecoverable state -- silently falling back to weak randomness would be worse.
+
+## Functions
+
+### GenerateSalt
+
+32 random bytes for Argon2id key derivation.
+
+```go
+salt := amnesia.GenerateSalt() // 32 bytes
+```
+
+```ts
+import { generateSalt } from "@zenv/amnesia";
+const salt = generateSalt(); // Uint8Array(32)
+```
+
+### GenerateNonce
+
+12 random bytes for AES-256-GCM.
+
+```go
+nonce := amnesia.GenerateNonce() // 12 bytes
+```
+
+```ts
+import { generateNonce } from "@zenv/amnesia";
+const nonce = generateNonce(); // Uint8Array(12)
+```
+
+### GenerateKey
+
+32 random bytes for use as an AES-256 key (e.g. a DEK).
+
+```go
+dek := amnesia.GenerateKey() // 32 bytes
+```
+
+```ts
+import { generateKey } from "@zenv/amnesia";
+const dek = generateKey(); // Uint8Array(32)
+```
+
+## When to Use Each
+
+| Function | When |
+|----------|------|
+| `GenerateSalt` | Creating a new user or project (one salt per entity) |
+| `GenerateNonce` | Never call directly -- `Encrypt` and `WrapKey` generate nonces internally |
+| `GenerateKey` | Creating a new DEK for a project or user |
