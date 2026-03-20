@@ -152,8 +152,6 @@ definitions:
     type: object
   api_internal_handler.MeResponse:
     properties:
-      ba_user_id:
-        type: string
       email:
         type: string
       salt:
@@ -423,7 +421,7 @@ paths:
       - auth
   /auth/me:
     get:
-      description: Returns BA identity, vault setup status, and vault lock state.
+      description: Returns identity, vault setup status, and vault lock state.
       produces:
       - application/json
       responses:
@@ -440,7 +438,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Store client-generated crypto material and link to Better Auth
+      description: Store client-generated crypto material and link to authenticated
         identity.
       parameters:
       - description: Crypto material from client

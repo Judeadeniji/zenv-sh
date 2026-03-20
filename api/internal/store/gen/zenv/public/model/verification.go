@@ -8,14 +8,14 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
 )
 
-type Organizations struct {
-	ID            uuid.UUID `sql:"primary_key"`
-	Name          string
-	OwnerID       uuid.UUID
-	CreatedAt     time.Time
-	IdentityOrgID *string
+type Verification struct {
+	ID         string `sql:"primary_key"`
+	Identifier string
+	Value      string
+	ExpiresAt  time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }

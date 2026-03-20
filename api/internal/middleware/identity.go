@@ -11,80 +11,80 @@ import (
 )
 
 const (
-	BASessionCookieName = "better-auth.session_token"
-	baVaultPrefix       = "ba_vault:" // Redis key prefix for vault unlock state
+	IdentitySessionCookie = "better-auth.session_token"
+	vaultUnlockPrefix     = "vault_unlock:" // Redis key prefix for vault unlock state
 )
 
-// BetterAuthSession is middleware that reads a Better Auth session cookie,
-// verifies it against BA's session table in Postgres, and injects
+// IdentitySession is middleware that reads an identity session cookie,
+// verifies it against the session table in Postgres, and injects
 // a zEnv Session into context. Vault unlock state is tracked in Redis.
-type BetterAuthSession struct {
+type IdentitySession struct {
 	db  *sql.DB
 	rdb *redis.Client
 }
 
-func NewBetterAuthSession(db *sql.DB, rdb *redis.Client) *BetterAuthSession {
-	return &BetterAuthSession{db: db, rdb: rdb}
+func NewIdentitySession(db *sql.DB, rdb *redis.Client) *IdentitySession {
+	return &IdentitySession{db: db, rdb: rdb}
 }
 
-// baSessionRow holds the result of querying BA's session + user tables.
-type baSessionRow struct {
-	SessionID string
-	BAUserID  string
-	Email     string
-	ExpiresAt time.Time
+// identityRow holds the result of querying the identity session + user tables.
+type identityRow struct {
+	SessionID  string
+	IdentityID string
+	Email      string
+	ExpiresAt  time.Time
 }
 
-// RequireSession reads the BA session cookie, validates it against Postgres,
+// RequireSession reads the identity session cookie, validates it against Postgres,
 // resolves the zEnv user, and injects a Session into context.
-func (ba *BetterAuthSession) RequireSession(next http.Handler) http.Handler {
+func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try BA session cookie first, then fall back to Authorization: Bearer header.
+		// Try session cookie first, then fall back to Authorization: Bearer header.
 		// The header fallback allows Postman and cross-origin API calls where
 		// the cookie from the auth server isn't automatically forwarded.
 		var token string
-		if cookie, err := r.Cookie(BASessionCookieName); err == nil && cookie.Value != "" {
+		if cookie, err := r.Cookie(IdentitySessionCookie); err == nil && cookie.Value != "" {
 			token = cookie.Value
 		} else if h := r.Header.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
 			token = h[7:]
 		}
 
 		if token == "" {
-			slog.Debug("better_auth: no token found in cookie or header")
+			slog.Debug("identity: no token found in cookie or header")
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 
-		slog.Debug("better_auth: resolving session", "token_prefix", token[:min(8, len(token))]+"...")
+		slog.Debug("identity: resolving session", "token_prefix", token[:min(8, len(token))]+"...")
 
-		// Query BA's session + user tables (raw SQL — BA tables are not in Go-Jet codegen).
-		var row baSessionRow
-		err := ba.db.QueryRowContext(r.Context(),
+		// Query the identity session + user tables (raw SQL — not in Go-Jet codegen).
+		var row identityRow
+		err := id.db.QueryRowContext(r.Context(),
 			`SELECT s.id, s.user_id, u.email, s.expires_at
 			 FROM "session" s
 			 JOIN "user" u ON s.user_id = u.id
 			 WHERE s.token = $1 AND s.expires_at > NOW()`,
 			token,
-		).Scan(&row.SessionID, &row.BAUserID, &row.Email, &row.ExpiresAt)
+		).Scan(&row.SessionID, &row.IdentityID, &row.Email, &row.ExpiresAt)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				slog.Debug("better_auth: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
+				slog.Debug("identity: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
 				http.Error(w, `{"error":"session expired or invalid"}`, http.StatusUnauthorized)
 				return
 			}
-			slog.Error("better_auth: query session", "error", err)
+			slog.Error("identity: query session", "error", err)
 			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 			return
 		}
 
-		// Resolve zEnv user by better_auth_user_id.
+		// Resolve zEnv user by identity_id.
 		var zenvUserID string
-		err = ba.db.QueryRowContext(r.Context(),
-			`SELECT id FROM users WHERE better_auth_user_id = $1`,
-			row.BAUserID,
+		err = id.db.QueryRowContext(r.Context(),
+			`SELECT id FROM users WHERE identity_id = $1`,
+			row.IdentityID,
 		).Scan(&zenvUserID)
 		if err != nil && err != sql.ErrNoRows {
-			slog.Error("better_auth: resolve zenv user", "error", err)
+			slog.Error("identity: resolve zenv user", "error", err)
 			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -93,7 +93,7 @@ func (ba *BetterAuthSession) RequireSession(next http.Handler) http.Handler {
 
 		// Check vault unlock state in Redis.
 		var vaultUnlockedAt *string
-		val, redisErr := ba.rdb.Get(r.Context(), baVaultPrefix+token).Result()
+		val, redisErr := id.rdb.Get(r.Context(), vaultUnlockPrefix+token).Result()
 		if redisErr == nil && val != "" {
 			vaultUnlockedAt = &val
 		}
@@ -101,7 +101,7 @@ func (ba *BetterAuthSession) RequireSession(next http.Handler) http.Handler {
 		sess := &Session{
 			ID:              row.SessionID,
 			UserID:          zenvUserID, // may be empty if vault not set up
-			BAUserID:        row.BAUserID,
+			IdentityID:      row.IdentityID,
 			Email:           row.Email,
 			VaultUnlockedAt: vaultUnlockedAt,
 			CreatedAt:       "",
@@ -112,9 +112,8 @@ func (ba *BetterAuthSession) RequireSession(next http.Handler) http.Handler {
 	})
 }
 
-// RequireVaultUnlocked reuses the same check from session.go.
-// It's defined on BetterAuthSession for middleware chaining convenience.
-func (ba *BetterAuthSession) RequireVaultUnlocked(next http.Handler) http.Handler {
+// RequireVaultUnlocked checks that the user has completed both auth layers.
+func (id *IdentitySession) RequireVaultUnlocked(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess := GetSession(r.Context())
 		if sess == nil {
@@ -129,12 +128,12 @@ func (ba *BetterAuthSession) RequireVaultUnlocked(next http.Handler) http.Handle
 	})
 }
 
-// SetVaultUnlocked marks the vault as unlocked for a BA session token in Redis.
-func (ba *BetterAuthSession) SetVaultUnlocked(ctx context.Context, sessionToken string, expiresAt time.Time) error {
+// SetVaultUnlocked marks the vault as unlocked for a session token in Redis.
+func (id *IdentitySession) SetVaultUnlocked(ctx context.Context, sessionToken string, expiresAt time.Time) error {
 	unlockTime := time.Now().UTC().Format(time.RFC3339)
 	ttl := time.Until(expiresAt)
 	if ttl <= 0 {
 		ttl = sessionTTL
 	}
-	return ba.rdb.Set(ctx, baVaultPrefix+sessionToken, unlockTime, ttl).Err()
+	return id.rdb.Set(ctx, vaultUnlockPrefix+sessionToken, unlockTime, ttl).Err()
 }

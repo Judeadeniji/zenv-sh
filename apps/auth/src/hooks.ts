@@ -2,12 +2,12 @@ import { sql } from "drizzle-orm";
 import { db } from "./db.js";
 
 /**
- * Map Better Auth roles to zEnv organization_members roles.
- * BA: owner, admin, member
+ * Map identity provider roles to zEnv organization_members roles.
+ * Identity: owner, admin, member
  * zEnv: admin, senior_dev, dev, contractor, ci_bot
  */
-function mapRole(baRole: string): string {
-  switch (baRole) {
+function mapRole(role: string): string {
+  switch (role) {
     case "owner":
     case "admin":
       return "admin";
@@ -18,21 +18,21 @@ function mapRole(baRole: string): string {
 }
 
 /**
- * Resolve a Better Auth user ID to a zEnv user UUID.
+ * Resolve an identity provider user ID to a zEnv user UUID.
  * Returns null if the user hasn't set up their vault yet.
  */
 async function resolveZenvUser(
-  baUserId: string,
+  identityId: string,
 ): Promise<string | null> {
   const rows = await db.execute(
-    sql`SELECT id::text FROM users WHERE better_auth_user_id = ${baUserId} LIMIT 1`,
+    sql`SELECT id::text FROM users WHERE identity_id = ${identityId} LIMIT 1`,
   );
   if (rows.length === 0) return null;
   return rows[0].id as string;
 }
 
 /**
- * After a BA organization is created, insert a corresponding row in
+ * After an organization is created, insert a corresponding row in
  * zEnv's organizations table and add the creator as an admin member.
  */
 export async function syncOrgToZenv(
@@ -42,16 +42,16 @@ export async function syncOrgToZenv(
   const zenvUserId = await resolveZenvUser(member.userId);
   if (!zenvUserId) {
     console.warn(
-      `[hooks] syncOrgToZenv: BA user ${member.userId} has no zEnv user (vault not set up). Skipping org sync.`,
+      `[hooks] syncOrgToZenv: user ${member.userId} has no zEnv user (vault not set up). Skipping org sync.`,
     );
     return;
   }
 
   try {
     await db.execute(
-      sql`INSERT INTO organizations (name, owner_id, better_auth_org_id)
+      sql`INSERT INTO organizations (name, owner_id, identity_org_id)
           VALUES (${org.name}, ${zenvUserId}::uuid, ${org.id})
-          ON CONFLICT (better_auth_org_id) DO NOTHING`,
+          ON CONFLICT (identity_org_id) DO NOTHING`,
     );
   } catch (err) {
     console.error(`[hooks] syncOrgToZenv failed:`, err);
@@ -59,7 +59,7 @@ export async function syncOrgToZenv(
 }
 
 /**
- * After a BA member is added to an org, insert into zEnv's organization_members table.
+ * After a member is added to an org, insert into zEnv's organization_members table.
  */
 export async function syncMemberToZenv(
   member: { userId: string; role: string },
@@ -68,7 +68,7 @@ export async function syncMemberToZenv(
   const zenvUserId = await resolveZenvUser(member.userId);
   if (!zenvUserId) {
     console.warn(
-      `[hooks] syncMemberToZenv: BA user ${member.userId} has no zEnv user. Skipping member sync.`,
+      `[hooks] syncMemberToZenv: user ${member.userId} has no zEnv user. Skipping member sync.`,
     );
     return;
   }
@@ -76,13 +76,13 @@ export async function syncMemberToZenv(
   const zenvRole = mapRole(member.role);
 
   try {
-    // Resolve zEnv org ID from BA org ID
+    // Resolve zEnv org ID from identity org ID
     const orgRows = await db.execute(
-      sql`SELECT id::text FROM organizations WHERE better_auth_org_id = ${org.id} LIMIT 1`,
+      sql`SELECT id::text FROM organizations WHERE identity_org_id = ${org.id} LIMIT 1`,
     );
     if (orgRows.length === 0) {
       console.warn(
-        `[hooks] syncMemberToZenv: no zEnv org for BA org ${org.id}. Skipping.`,
+        `[hooks] syncMemberToZenv: no zEnv org for identity org ${org.id}. Skipping.`,
       );
       return;
     }

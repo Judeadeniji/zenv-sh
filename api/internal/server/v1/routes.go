@@ -14,9 +14,9 @@ import (
 // Routes mounts all /v1 endpoints onto the given router.
 func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, cfg *config.Config) {
 	sm := middleware.NewSessionManager(rdb)
-	ba := middleware.NewBetterAuthSession(db, rdb)
+	identity := middleware.NewIdentitySession(db, rdb)
 	ta := middleware.NewTokenAuth(db)
-	auth := handler.NewAuthHandler(db, sm, ba)
+	auth := handler.NewAuthHandler(db, sm, identity)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
@@ -38,19 +38,19 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, cfg *config.Config) {
 		r.Post("/auth/logout", auth.Logout)
 	})
 
-	// Better Auth session routes — identity verified via BA cookie
+	// Identity session routes — verified via session cookie or Bearer token
 	r.Group(func(r chi.Router) {
-		r.Use(ba.RequireSession)
+		r.Use(identity.RequireSession)
 
 		r.Get("/auth/me", auth.Me)
 		r.Post("/auth/setup-vault", auth.SetupVault)
 		r.Post("/auth/unlock", auth.Unlock)
 	})
 
-	// Dashboard routes — require BA session + vault unlock
+	// Dashboard routes — require identity session + vault unlock
 	r.Group(func(r chi.Router) {
-		r.Use(ba.RequireSession)
-		r.Use(ba.RequireVaultUnlocked)
+		r.Use(identity.RequireSession)
+		r.Use(identity.RequireVaultUnlocked)
 
 		r.Route("/secrets", func(r chi.Router) {
 			r.Post("/", secrets.Create)

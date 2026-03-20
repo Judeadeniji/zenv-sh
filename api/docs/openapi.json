@@ -18,7 +18,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/DevLoginRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.DevLoginRequest"
                             }
                         }
                     },
@@ -31,7 +31,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/DevLoginResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.DevLoginResponse"
                                 }
                             }
                         }
@@ -41,7 +41,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -85,7 +85,7 @@
                         "SessionAuth": []
                     }
                 ],
-                "description": "Returns BA identity, vault setup status, and vault lock state.",
+                "description": "Returns identity, vault setup status, and vault lock state.",
                 "tags": [
                     "auth"
                 ],
@@ -96,7 +96,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MeResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.MeResponse"
                                 }
                             }
                         }
@@ -111,7 +111,7 @@
                         "SessionAuth": []
                     }
                 ],
-                "description": "Store client-generated crypto material and link to Better Auth identity.",
+                "description": "Store client-generated crypto material and link to authenticated identity.",
                 "tags": [
                     "auth"
                 ],
@@ -120,7 +120,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SetupVaultRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.SetupVaultRequest"
                             }
                         }
                     },
@@ -133,7 +133,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SetupVaultResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SetupVaultResponse"
                                 }
                             }
                         }
@@ -143,7 +143,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -153,7 +153,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -172,7 +172,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SignupRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.SignupRequest"
                             }
                         }
                     },
@@ -185,7 +185,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SignupResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SignupResponse"
                                 }
                             }
                         }
@@ -195,7 +195,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -205,7 +205,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -229,7 +229,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UnlockRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.UnlockRequest"
                             }
                         }
                     },
@@ -242,7 +242,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/UnlockResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.UnlockResponse"
                                 }
                             }
                         }
@@ -252,7 +252,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -278,7 +278,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ListOrgsResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ListOrgsResponse"
                                 }
                             }
                         }
@@ -300,7 +300,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateOrgRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.CreateOrgRequest"
                             }
                         }
                     },
@@ -313,7 +313,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/OrgResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.OrgResponse"
                                 }
                             }
                         }
@@ -323,7 +323,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -333,7 +333,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -370,7 +370,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/OrgResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.OrgResponse"
                                 }
                             }
                         }
@@ -380,7 +380,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -417,7 +417,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ListMembersResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ListMembersResponse"
                                 }
                             }
                         }
@@ -427,7 +427,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -460,7 +460,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/AddMemberRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.AddMemberRequest"
                             }
                         }
                     },
@@ -473,7 +473,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MemberResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.MemberResponse"
                                 }
                             }
                         }
@@ -483,7 +483,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -493,7 +493,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -503,7 +503,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -562,7 +562,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -599,7 +599,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ListProjectsResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ListProjectsResponse"
                                 }
                             }
                         }
@@ -621,7 +621,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateProjectRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.CreateProjectRequest"
                             }
                         }
                     },
@@ -634,7 +634,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ProjectResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
                                 }
                             }
                         }
@@ -644,7 +644,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -654,7 +654,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -691,7 +691,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ProjectResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
                                 }
                             }
                         }
@@ -701,7 +701,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -738,7 +738,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ProjectCryptoResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectCryptoResponse"
                                 }
                             }
                         }
@@ -748,7 +748,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -794,7 +794,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ListSecretsResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ListSecretsResponse"
                                 }
                             }
                         }
@@ -816,7 +816,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateSecretRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.CreateSecretRequest"
                             }
                         }
                     },
@@ -829,7 +829,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SecretResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
                                 }
                             }
                         }
@@ -839,7 +839,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -849,7 +849,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -873,7 +873,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/BulkFetchRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.BulkFetchRequest"
                             }
                         }
                     },
@@ -888,7 +888,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/SecretResponse"
+                                        "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
                                     }
                                 }
                             }
@@ -944,7 +944,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SecretResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
                                 }
                             }
                         }
@@ -954,7 +954,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1005,7 +1005,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UpdateSecretRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.UpdateSecretRequest"
                             }
                         }
                     },
@@ -1018,7 +1018,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SecretResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
                                 }
                             }
                         }
@@ -1028,7 +1028,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1084,7 +1084,7 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1137,7 +1137,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/RollbackRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.RollbackRequest"
                             }
                         }
                     },
@@ -1150,7 +1150,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/SecretResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
                                 }
                             }
                         }
@@ -1160,7 +1160,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1215,7 +1215,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/VersionsResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.VersionsResponse"
                                 }
                             }
                         }
@@ -1225,7 +1225,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1262,7 +1262,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ListTokensResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ListTokensResponse"
                                 }
                             }
                         }
@@ -1284,7 +1284,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateTokenRequest"
+                                "$ref": "#/components/schemas/api_internal_handler.CreateTokenRequest"
                             }
                         }
                     },
@@ -1297,7 +1297,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/CreateTokenResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.CreateTokenResponse"
                                 }
                             }
                         }
@@ -1307,7 +1307,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1347,7 +1347,7 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -1376,7 +1376,7 @@
             }
         },
         "schemas": {
-            "AddMemberRequest": {
+            "api_internal_handler.AddMemberRequest": {
                 "type": "object",
                 "properties": {
                     "role": {
@@ -1388,7 +1388,7 @@
                     }
                 }
             },
-            "BulkFetchRequest": {
+            "api_internal_handler.BulkFetchRequest": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -1406,7 +1406,7 @@
                     }
                 }
             },
-            "CreateOrgRequest": {
+            "api_internal_handler.CreateOrgRequest": {
                 "type": "object",
                 "properties": {
                     "name": {
@@ -1414,7 +1414,7 @@
                     }
                 }
             },
-            "CreateProjectRequest": {
+            "api_internal_handler.CreateProjectRequest": {
                 "type": "object",
                 "properties": {
                     "name": {
@@ -1437,7 +1437,7 @@
                     }
                 }
             },
-            "CreateSecretRequest": {
+            "api_internal_handler.CreateSecretRequest": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -1460,7 +1460,7 @@
                     }
                 }
             },
-            "CreateTokenRequest": {
+            "api_internal_handler.CreateTokenRequest": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -1483,7 +1483,7 @@
                     }
                 }
             },
-            "CreateTokenResponse": {
+            "api_internal_handler.CreateTokenResponse": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1513,7 +1513,7 @@
                     }
                 }
             },
-            "DevLoginRequest": {
+            "api_internal_handler.DevLoginRequest": {
                 "type": "object",
                 "properties": {
                     "email": {
@@ -1521,7 +1521,7 @@
                     }
                 }
             },
-            "DevLoginResponse": {
+            "api_internal_handler.DevLoginResponse": {
                 "type": "object",
                 "properties": {
                     "salt": {
@@ -1539,7 +1539,7 @@
                     }
                 }
             },
-            "ErrorResponse": {
+            "api_internal_handler.ErrorResponse": {
                 "type": "object",
                 "properties": {
                     "error": {
@@ -1547,67 +1547,64 @@
                     }
                 }
             },
-            "ListMembersResponse": {
+            "api_internal_handler.ListMembersResponse": {
                 "type": "object",
                 "properties": {
                     "members": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/MemberResponse"
+                            "$ref": "#/components/schemas/api_internal_handler.MemberResponse"
                         }
                     }
                 }
             },
-            "ListOrgsResponse": {
+            "api_internal_handler.ListOrgsResponse": {
                 "type": "object",
                 "properties": {
                     "organizations": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/OrgResponse"
+                            "$ref": "#/components/schemas/api_internal_handler.OrgResponse"
                         }
                     }
                 }
             },
-            "ListProjectsResponse": {
+            "api_internal_handler.ListProjectsResponse": {
                 "type": "object",
                 "properties": {
                     "projects": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/ProjectResponse"
+                            "$ref": "#/components/schemas/api_internal_handler.ProjectResponse"
                         }
                     }
                 }
             },
-            "ListSecretsResponse": {
+            "api_internal_handler.ListSecretsResponse": {
                 "type": "object",
                 "properties": {
                     "secrets": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/SecretListItem"
+                            "$ref": "#/components/schemas/api_internal_handler.SecretListItem"
                         }
                     }
                 }
             },
-            "ListTokensResponse": {
+            "api_internal_handler.ListTokensResponse": {
                 "type": "object",
                 "properties": {
                     "tokens": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/TokenListItem"
+                            "$ref": "#/components/schemas/api_internal_handler.TokenListItem"
                         }
                     }
                 }
             },
-            "MeResponse": {
+            "api_internal_handler.MeResponse": {
                 "type": "object",
                 "properties": {
-                    "ba_user_id": {
-                        "type": "string"
-                    },
                     "email": {
                         "type": "string"
                     },
@@ -1626,7 +1623,7 @@
                     }
                 }
             },
-            "MemberResponse": {
+            "api_internal_handler.MemberResponse": {
                 "type": "object",
                 "properties": {
                     "email": {
@@ -1646,7 +1643,7 @@
                     }
                 }
             },
-            "OrgResponse": {
+            "api_internal_handler.OrgResponse": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1663,7 +1660,7 @@
                     }
                 }
             },
-            "ProjectCryptoResponse": {
+            "api_internal_handler.ProjectCryptoResponse": {
                 "type": "object",
                 "properties": {
                     "project_salt": {
@@ -1676,7 +1673,7 @@
                     }
                 }
             },
-            "ProjectResponse": {
+            "api_internal_handler.ProjectResponse": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1693,7 +1690,7 @@
                     }
                 }
             },
-            "RollbackRequest": {
+            "api_internal_handler.RollbackRequest": {
                 "type": "object",
                 "properties": {
                     "version": {
@@ -1701,7 +1698,7 @@
                     }
                 }
             },
-            "SecretListItem": {
+            "api_internal_handler.SecretListItem": {
                 "type": "object",
                 "properties": {
                     "environment": {
@@ -1721,7 +1718,7 @@
                     }
                 }
             },
-            "SecretResponse": {
+            "api_internal_handler.SecretResponse": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -1753,7 +1750,7 @@
                     }
                 }
             },
-            "SetupVaultRequest": {
+            "api_internal_handler.SetupVaultRequest": {
                 "type": "object",
                 "properties": {
                     "auth_key_hash": {
@@ -1782,7 +1779,7 @@
                     }
                 }
             },
-            "SetupVaultResponse": {
+            "api_internal_handler.SetupVaultResponse": {
                 "type": "object",
                 "properties": {
                     "user_id": {
@@ -1793,7 +1790,7 @@
                     }
                 }
             },
-            "SignupRequest": {
+            "api_internal_handler.SignupRequest": {
                 "type": "object",
                 "properties": {
                     "auth_key_hash": {
@@ -1825,7 +1822,7 @@
                     }
                 }
             },
-            "SignupResponse": {
+            "api_internal_handler.SignupResponse": {
                 "type": "object",
                 "properties": {
                     "session_id": {
@@ -1836,7 +1833,7 @@
                     }
                 }
             },
-            "TokenListItem": {
+            "api_internal_handler.TokenListItem": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1865,7 +1862,7 @@
                     }
                 }
             },
-            "UnlockRequest": {
+            "api_internal_handler.UnlockRequest": {
                 "type": "object",
                 "properties": {
                     "auth_key_hash": {
@@ -1874,7 +1871,7 @@
                     }
                 }
             },
-            "UnlockResponse": {
+            "api_internal_handler.UnlockResponse": {
                 "type": "object",
                 "properties": {
                     "public_key": {
@@ -1891,7 +1888,7 @@
                     }
                 }
             },
-            "UpdateSecretRequest": {
+            "api_internal_handler.UpdateSecretRequest": {
                 "type": "object",
                 "properties": {
                     "ciphertext": {
@@ -1904,7 +1901,7 @@
                     }
                 }
             },
-            "VersionItem": {
+            "api_internal_handler.VersionItem": {
                 "type": "object",
                 "properties": {
                     "created_at": {
@@ -1915,7 +1912,7 @@
                     }
                 }
             },
-            "VersionsResponse": {
+            "api_internal_handler.VersionsResponse": {
                 "type": "object",
                 "properties": {
                     "current_version": {
@@ -1924,7 +1921,7 @@
                     "versions": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/VersionItem"
+                            "$ref": "#/components/schemas/api_internal_handler.VersionItem"
                         }
                     }
                 }

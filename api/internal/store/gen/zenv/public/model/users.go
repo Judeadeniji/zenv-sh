@@ -23,5 +23,5 @@ type Users struct {
 	WrappedPrivateKey []byte
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
-	BetterAuthUserID  *string
+	IdentityID        *string
 }

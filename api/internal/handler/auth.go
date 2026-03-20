@@ -23,11 +23,11 @@ import (
 type AuthHandler struct {
 	db      *sql.DB
 	session *middleware.SessionManager
-	ba      *middleware.BetterAuthSession
+	identity *middleware.IdentitySession
 }
 
-func NewAuthHandler(db *sql.DB, session *middleware.SessionManager, ba *middleware.BetterAuthSession) *AuthHandler {
-	return &AuthHandler{db: db, session: session, ba: ba}
+func NewAuthHandler(db *sql.DB, session *middleware.SessionManager, identity *middleware.IdentitySession) *AuthHandler {
+	return &AuthHandler{db: db, session: session, identity: identity}
 }
 
 // --- Signup ---
@@ -279,7 +279,7 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch user — by zEnv user ID or BA user ID depending on session type.
+	// Fetch user — by zEnv user ID or identity ID depending on session type.
 	var user model.Users
 	var stmt SelectStatement
 
@@ -295,13 +295,13 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 			table.Users.WrappedPrivateKey,
 			table.Users.PublicKey,
 		).FROM(table.Users).WHERE(table.Users.ID.EQ(UUID(uid)))
-	} else if sess.BAUserID != "" {
+	} else if sess.IdentityID != "" {
 		stmt = SELECT(
 			table.Users.AuthKeyHash,
 			table.Users.WrappedDek,
 			table.Users.WrappedPrivateKey,
 			table.Users.PublicKey,
-		).FROM(table.Users).WHERE(table.Users.BetterAuthUserID.EQ(String(sess.BAUserID)))
+		).FROM(table.Users).WHERE(table.Users.IdentityID.EQ(String(sess.IdentityID)))
 	} else {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "invalid session"})
 		return
@@ -331,12 +331,12 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 	unlockTime := time.Now().UTC().Format(time.RFC3339)
 	sess.VaultUnlockedAt = &unlockTime
 
-	if sess.BAUserID != "" {
-		// BA session: store vault unlock state in Redis via BA middleware.
-		cookie, _ := r.Cookie(middleware.BASessionCookieName)
-		if cookie != nil && h.ba != nil {
-			if err := h.ba.SetVaultUnlocked(r.Context(), cookie.Value, time.Now().Add(24*time.Hour)); err != nil {
-				slog.Error("unlock: set ba vault state", "error", err)
+	if sess.IdentityID != "" {
+		// Identity session: store vault unlock state in Redis.
+		cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
+		if cookie != nil && h.identity != nil {
+			if err := h.identity.SetVaultUnlocked(r.Context(), cookie.Value, time.Now().Add(24*time.Hour)); err != nil {
+				slog.Error("unlock: set vault state", "error", err)
 			}
 		}
 	} else {
@@ -371,7 +371,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
 }
 
-// --- Vault Setup (Better Auth flow) ---
+// --- Vault Setup ---
 
 type SetupVaultRequest struct {
 	VaultKeyType      string `json:"vault_key_type"`      // "pin" or "passphrase"
@@ -387,11 +387,11 @@ type SetupVaultResponse struct {
 	VaultSetupComplete bool   `json:"vault_setup_complete"`
 }
 
-// SetupVault creates a zEnv user row linked to the BA identity.
-// Called after the user authenticates via Better Auth and chooses a Vault Key.
+// SetupVault creates a zEnv user row linked to the authenticated identity.
+// Called after the user signs in and chooses a Vault Key.
 //
 // @Summary		Setup vault
-// @Description	Store client-generated crypto material and link to Better Auth identity.
+// @Description	Store client-generated crypto material and link to authenticated identity.
 // @Tags			auth
 // @Accept			json
 // @Produce		json
@@ -403,8 +403,8 @@ type SetupVaultResponse struct {
 // @Router			/auth/setup-vault [post]
 func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
-	if sess == nil || sess.BAUserID == "" {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Better Auth session required"})
+	if sess == nil || sess.IdentityID == "" {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
 
@@ -423,10 +423,10 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if vault already set up for this BA user.
+	// Check if vault already set up for this user.
 	var existingID string
 	err := h.db.QueryRowContext(r.Context(),
-		`SELECT id FROM users WHERE better_auth_user_id = $1`, sess.BAUserID,
+		`SELECT id FROM users WHERE identity_id = $1`, sess.IdentityID,
 	).Scan(&existingID)
 	if err == nil {
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "vault already set up for this account"})
@@ -472,7 +472,7 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		table.Users.WrappedDek,
 		table.Users.PublicKey,
 		table.Users.WrappedPrivateKey,
-		table.Users.BetterAuthUserID,
+		table.Users.IdentityID,
 		table.Users.CreatedAt,
 		table.Users.UpdatedAt,
 	).VALUES(
@@ -484,7 +484,7 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		wrappedDEK,
 		publicKey,
 		wrappedPrivateKey,
-		sess.BAUserID,
+		sess.IdentityID,
 		now,
 		now,
 	)
@@ -504,18 +504,17 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 // --- Me (user state) ---
 
 type MeResponse struct {
-	BAUserID           string  `json:"ba_user_id"`
-	Email              string  `json:"email"`
-	VaultSetupComplete bool    `json:"vault_setup_complete"`
-	VaultKeyType       string  `json:"vault_key_type,omitempty"`
-	Salt               string  `json:"salt,omitempty"` // base64
-	VaultUnlocked      bool    `json:"vault_unlocked"`
+	Email              string `json:"email"`
+	VaultSetupComplete bool   `json:"vault_setup_complete"`
+	VaultKeyType       string `json:"vault_key_type,omitempty"`
+	Salt               string `json:"salt,omitempty"` // base64
+	VaultUnlocked      bool   `json:"vault_unlocked"`
 }
 
 // Me returns the current user's auth state.
 //
 // @Summary		Get auth state
-// @Description	Returns BA identity, vault setup status, and vault lock state.
+// @Description	Returns identity, vault setup status, and vault lock state.
 // @Tags			auth
 // @Produce		json
 // @Success		200	{object}	MeResponse
@@ -523,13 +522,12 @@ type MeResponse struct {
 // @Router			/auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
-	if sess == nil || sess.BAUserID == "" {
-		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Better Auth session required"})
+	if sess == nil || sess.IdentityID == "" {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
 
 	resp := MeResponse{
-		BAUserID:      sess.BAUserID,
 		Email:         sess.Email,
 		VaultUnlocked: sess.IsVaultUnlocked(),
 	}
@@ -540,7 +538,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		table.Users.VaultKeyType,
 		table.Users.Salt,
 	).FROM(table.Users).WHERE(
-		table.Users.BetterAuthUserID.EQ(String(sess.BAUserID)),
+		table.Users.IdentityID.EQ(String(sess.IdentityID)),
 	)
 
 	if err := stmt.Query(h.db, &user); err == nil {

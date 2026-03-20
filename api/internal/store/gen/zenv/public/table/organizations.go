@@ -17,11 +17,11 @@ type organizationsTable struct {
 	postgres.Table
 
 	// Columns
-	ID              postgres.ColumnString
-	Name            postgres.ColumnString
-	OwnerID         postgres.ColumnString
-	CreatedAt       postgres.ColumnTimestampz
-	BetterAuthOrgID postgres.ColumnString
+	ID            postgres.ColumnString
+	Name          postgres.ColumnString
+	OwnerID       postgres.ColumnString
+	CreatedAt     postgres.ColumnTimestampz
+	IdentityOrgID postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,25 +63,25 @@ func newOrganizationsTable(schemaName, tableName, alias string) *OrganizationsTa
 
 func newOrganizationsTableImpl(schemaName, tableName, alias string) organizationsTable {
 	var (
-		IDColumn              = postgres.StringColumn("id")
-		NameColumn            = postgres.StringColumn("name")
-		OwnerIDColumn         = postgres.StringColumn("owner_id")
-		CreatedAtColumn       = postgres.TimestampzColumn("created_at")
-		BetterAuthOrgIDColumn = postgres.StringColumn("better_auth_org_id")
-		allColumns            = postgres.ColumnList{IDColumn, NameColumn, OwnerIDColumn, CreatedAtColumn, BetterAuthOrgIDColumn}
-		mutableColumns        = postgres.ColumnList{NameColumn, OwnerIDColumn, CreatedAtColumn, BetterAuthOrgIDColumn}
-		defaultColumns        = postgres.ColumnList{IDColumn, CreatedAtColumn}
+		IDColumn            = postgres.StringColumn("id")
+		NameColumn          = postgres.StringColumn("name")
+		OwnerIDColumn       = postgres.StringColumn("owner_id")
+		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
+		IdentityOrgIDColumn = postgres.StringColumn("identity_org_id")
+		allColumns          = postgres.ColumnList{IDColumn, NameColumn, OwnerIDColumn, CreatedAtColumn, IdentityOrgIDColumn}
+		mutableColumns      = postgres.ColumnList{NameColumn, OwnerIDColumn, CreatedAtColumn, IdentityOrgIDColumn}
+		defaultColumns      = postgres.ColumnList{IDColumn, CreatedAtColumn}
 	)
 
 	return organizationsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:              IDColumn,
-		Name:            NameColumn,
-		OwnerID:         OwnerIDColumn,
-		CreatedAt:       CreatedAtColumn,
-		BetterAuthOrgID: BetterAuthOrgIDColumn,
+		ID:            IDColumn,
+		Name:          NameColumn,
+		OwnerID:       OwnerIDColumn,
+		CreatedAt:     CreatedAtColumn,
+		IdentityOrgID: IdentityOrgIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

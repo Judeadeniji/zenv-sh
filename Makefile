@@ -69,7 +69,7 @@ dev-api:
 dev-auth:
 	portless zenv-auth pnpm -C apps/auth run dev
 
-# --- Auth server (Better Auth) ---
+# --- Auth server ---
 auth-build:
 	pnpm -C apps/auth run build
 

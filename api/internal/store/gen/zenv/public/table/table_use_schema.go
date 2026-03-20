@@ -10,6 +10,7 @@ package table
 // UseSchema sets a new schema name for all generated table SQL builder types. It is recommended to invoke
 // this method only once at the beginning of the program.
 func UseSchema(schema string) {
+	Account = Account.FromSchema(schema)
 	AuditLogs = AuditLogs.FromSchema(schema)
 	AuditLogs202603 = AuditLogs202603.FromSchema(schema)
 	AuditLogs202604 = AuditLogs202604.FromSchema(schema)
@@ -23,7 +24,10 @@ func UseSchema(schema string) {
 	AuditLogs202612 = AuditLogs202612.FromSchema(schema)
 	AuditLogs202701 = AuditLogs202701.FromSchema(schema)
 	AuditLogs202702 = AuditLogs202702.FromSchema(schema)
+	Invitation = Invitation.FromSchema(schema)
 	LinkedProviders = LinkedProviders.FromSchema(schema)
+	Member = Member.FromSchema(schema)
+	Organization = Organization.FromSchema(schema)
 	OrganizationMembers = OrganizationMembers.FromSchema(schema)
 	Organizations = Organizations.FromSchema(schema)
 	ProjectKeyGrants = ProjectKeyGrants.FromSchema(schema)
@@ -31,7 +35,10 @@ func UseSchema(schema string) {
 	Projects = Projects.FromSchema(schema)
 	SchemaMigrations = SchemaMigrations.FromSchema(schema)
 	ServiceTokens = ServiceTokens.FromSchema(schema)
+	Session = Session.FromSchema(schema)
+	User = User.FromSchema(schema)
 	Users = Users.FromSchema(schema)
 	VaultItemVersions = VaultItemVersions.FromSchema(schema)
 	VaultItems = VaultItems.FromSchema(schema)
+	Verification = Verification.FromSchema(schema)
 }

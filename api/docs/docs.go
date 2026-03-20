@@ -90,7 +90,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Returns BA identity, vault setup status, and vault lock state.",
+                "description": "Returns identity, vault setup status, and vault lock state.",
                 "produces": [
                     "application/json"
                 ],
@@ -115,7 +115,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Store client-generated crypto material and link to Better Auth identity.",
+                "description": "Store client-generated crypto material and link to authenticated identity.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1437,9 +1437,6 @@ const docTemplate = `{
         "api_internal_handler.MeResponse": {
             "type": "object",
             "properties": {
-                "ba_user_id": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },

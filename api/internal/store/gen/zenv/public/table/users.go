@@ -27,7 +27,7 @@ type usersTable struct {
 	WrappedPrivateKey postgres.ColumnBytea
 	CreatedAt         postgres.ColumnTimestampz
 	UpdatedAt         postgres.ColumnTimestampz
-	BetterAuthUserID  postgres.ColumnString
+	IdentityID        postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -79,9 +79,9 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		WrappedPrivateKeyColumn = postgres.ByteaColumn("wrapped_private_key")
 		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn         = postgres.TimestampzColumn("updated_at")
-		BetterAuthUserIDColumn  = postgres.StringColumn("better_auth_user_id")
-		allColumns              = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, BetterAuthUserIDColumn}
-		mutableColumns          = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, BetterAuthUserIDColumn}
+		IdentityIDColumn        = postgres.StringColumn("identity_id")
+		allColumns              = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn}
+		mutableColumns          = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn}
 		defaultColumns          = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn}
 	)
 
@@ -99,7 +99,7 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		WrappedPrivateKey: WrappedPrivateKeyColumn,
 		CreatedAt:         CreatedAtColumn,
 		UpdatedAt:         UpdatedAtColumn,
-		BetterAuthUserID:  BetterAuthUserIDColumn,
+		IdentityID:        IdentityIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

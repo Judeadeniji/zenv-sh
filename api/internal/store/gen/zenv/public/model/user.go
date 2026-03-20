@@ -8,14 +8,19 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
 )
 
-type Organizations struct {
-	ID            uuid.UUID `sql:"primary_key"`
+type User struct {
+	ID            string `sql:"primary_key"`
 	Name          string
-	OwnerID       uuid.UUID
+	Email         string
+	EmailVerified bool
+	Image         *string
 	CreatedAt     time.Time
-	IdentityOrgID *string
+	UpdatedAt     time.Time
+	Role          *string
+	Banned        *bool
+	BanReason     *string
+	BanExpires    *time.Time
 }
