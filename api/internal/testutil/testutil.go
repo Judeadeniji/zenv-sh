@@ -21,7 +21,8 @@ import (
 )
 
 // identityTablesDDL creates the identity provider tables that the Go API reads.
-// Consolidated from the auth server's drizzle migrations.
+// Consolidated from the auth server's drizzle migrations. Uses IF NOT EXISTS
+// so it's safe to run on a reused container.
 const identityTablesDDL = `
 CREATE TABLE IF NOT EXISTS "user" (
     id TEXT PRIMARY KEY NOT NULL,
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS "account" (
     scope TEXT,
     password TEXT,
     created_at TIMESTAMP DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "verification" (
@@ -112,52 +113,38 @@ CREATE TABLE IF NOT EXISTS "invitation" (
 );
 `
 
-// SetupDB starts a Postgres container, runs all migrations, and returns a *sql.DB.
-// The container is terminated when the test completes.
+const (
+	pgContainerName    = "zenv-test-postgres"
+	redisContainerName = "zenv-test-redis"
+)
+
+func init() {
+	// Disable Ryuk so reused containers persist after the test process exits.
+	// Containers must be stopped manually: docker rm -f zenv-test-postgres zenv-test-redis
+	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
+// SetupDB starts (or reuses) a Postgres container, runs migrations, returns *sql.DB.
 func SetupDB(t *testing.T) *sql.DB {
 	t.Helper()
-	ctx := context.Background()
-
-	pg, err := tcPostgres.Run(ctx,
-		"postgres:17-alpine",
-		tcPostgres.WithDatabase("zenv_test"),
-		tcPostgres.WithUsername("test"),
-		tcPostgres.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
+	db, err := setupDB()
 	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() { pg.Terminate(ctx) })
-
-	connStr, err := pg.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get postgres connection string: %v", err)
-	}
-
-	db, err := sql.Open("pgx", connStr)
-	if err != nil {
-		t.Fatalf("open postgres: %v", err)
+		t.Fatalf("setup db: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-
-	// Create identity tables first (BA tables that the API reads).
-	if _, err := db.ExecContext(ctx, identityTablesDDL); err != nil {
-		t.Fatalf("create identity tables: %v", err)
-	}
-
-	// Run zEnv migrations.
-	runMigrations(t, ctx, db)
-
 	return db
 }
 
-// SetupDBForMain is like SetupDB but for use in TestMain where *testing.T is unavailable.
+// SetupDBForMain is like SetupDB but for TestMain.
 func SetupDBForMain() (*sql.DB, func()) {
+	db, err := setupDB()
+	if err != nil {
+		panic(fmt.Sprintf("setup db: %v", err))
+	}
+	return db, func() { db.Close() }
+}
+
+func setupDB() (*sql.DB, error) {
 	ctx := context.Background()
 
 	pg, err := tcPostgres.Run(ctx,
@@ -165,86 +152,83 @@ func SetupDBForMain() (*sql.DB, func()) {
 		tcPostgres.WithDatabase("zenv_test"),
 		tcPostgres.WithUsername("test"),
 		tcPostgres.WithPassword("test"),
+		testcontainers.WithReuseByName(pgContainerName),
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
+			wait.ForListeningPort("5432/tcp").
 				WithStartupTimeout(60*time.Second),
 		),
 	)
 	if err != nil {
-		panic(fmt.Sprintf("start postgres container: %v", err))
+		return nil, fmt.Errorf("start postgres: %w", err)
 	}
 
 	connStr, err := pg.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		panic(fmt.Sprintf("get postgres connection string: %v", err))
+		return nil, fmt.Errorf("connection string: %w", err)
 	}
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
-		panic(fmt.Sprintf("open postgres: %v", err))
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 
+	// Identity tables (idempotent — IF NOT EXISTS).
 	if _, err := db.ExecContext(ctx, identityTablesDDL); err != nil {
-		panic(fmt.Sprintf("create identity tables: %v", err))
-	}
-
-	runMigrationsForMain(ctx, db)
-
-	cleanup := func() {
 		db.Close()
-		pg.Terminate(ctx)
+		return nil, fmt.Errorf("identity tables: %w", err)
 	}
-	return db, cleanup
+
+	// zEnv migrations (idempotent — check if already applied).
+	if err := runMigrationsIdempotent(ctx, db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrations: %w", err)
+	}
+
+	return db, nil
 }
 
-// SetupRedis starts a Redis container and returns a *redis.Client.
+// SetupRedis starts (or reuses) a Redis container.
 func SetupRedis(t *testing.T) *redis.Client {
 	t.Helper()
-	ctx := context.Background()
-
-	rds, err := tcRedis.Run(ctx, "redis:7-alpine")
+	rdb, err := setupRedis()
 	if err != nil {
-		t.Fatalf("start redis container: %v", err)
+		t.Fatalf("setup redis: %v", err)
 	}
-	t.Cleanup(func() { rds.Terminate(ctx) })
-
-	endpoint, err := rds.Endpoint(ctx, "")
-	if err != nil {
-		t.Fatalf("get redis endpoint: %v", err)
-	}
-
-	rdb := redis.NewClient(&redis.Options{Addr: endpoint})
 	t.Cleanup(func() { rdb.Close() })
-
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		t.Fatalf("ping redis: %v", err)
-	}
-
 	return rdb
 }
 
 // SetupRedisForMain is like SetupRedis but for TestMain.
 func SetupRedisForMain() (*redis.Client, func()) {
+	rdb, err := setupRedis()
+	if err != nil {
+		panic(fmt.Sprintf("setup redis: %v", err))
+	}
+	return rdb, func() { rdb.Close() }
+}
+
+func setupRedis() (*redis.Client, error) {
 	ctx := context.Background()
 
-	rds, err := tcRedis.Run(ctx, "redis:7-alpine")
+	rds, err := tcRedis.Run(ctx,
+		"redis:7-alpine",
+		testcontainers.WithReuseByName(redisContainerName),
+	)
 	if err != nil {
-		panic(fmt.Sprintf("start redis container: %v", err))
+		return nil, fmt.Errorf("start redis: %w", err)
 	}
 
 	endpoint, err := rds.Endpoint(ctx, "")
 	if err != nil {
-		panic(fmt.Sprintf("get redis endpoint: %v", err))
+		return nil, fmt.Errorf("redis endpoint: %w", err)
 	}
 
 	rdb := redis.NewClient(&redis.Options{Addr: endpoint})
-
-	cleanup := func() {
-		rdb.Close()
-		rds.Terminate(ctx)
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("ping redis: %w", err)
 	}
-	return rdb, cleanup
+
+	return rdb, nil
 }
 
 // migrationsDir resolves the path to api/migrations/ relative to this file.
@@ -253,12 +237,24 @@ func migrationsDir() string {
 	return filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
 }
 
-func runMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
-	t.Helper()
+// runMigrationsIdempotent runs migrations only if not already applied.
+// Checks for the `users` table as a sentinel.
+func runMigrationsIdempotent(ctx context.Context, db *sql.DB) error {
+	var exists bool
+	err := db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='users')`,
+	).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("check migrations: %w", err)
+	}
+	if exists {
+		return nil // already migrated
+	}
+
 	dir := migrationsDir()
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("read migrations dir: %v", err)
+		return fmt.Errorf("read migrations dir: %w", err)
 	}
 
 	var upFiles []string
@@ -272,36 +268,12 @@ func runMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	for _, name := range upFiles {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
-			t.Fatalf("read migration %s: %v", name, err)
+			return fmt.Errorf("read %s: %w", name, err)
 		}
 		if _, err := db.ExecContext(ctx, string(data)); err != nil {
-			t.Fatalf("run migration %s: %v", name, err)
+			return fmt.Errorf("run %s: %w", name, err)
 		}
-	}
-}
-
-func runMigrationsForMain(ctx context.Context, db *sql.DB) {
-	dir := migrationsDir()
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		panic(fmt.Sprintf("read migrations dir: %v", err))
 	}
 
-	var upFiles []string
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".up.sql") {
-			upFiles = append(upFiles, f.Name())
-		}
-	}
-	sort.Strings(upFiles)
-
-	for _, name := range upFiles {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			panic(fmt.Sprintf("read migration %s: %v", name, err))
-		}
-		if _, err := db.ExecContext(ctx, string(data)); err != nil {
-			panic(fmt.Sprintf("run migration %s: %v", name, err))
-		}
-	}
+	return nil
 }
