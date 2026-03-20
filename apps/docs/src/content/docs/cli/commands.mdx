@@ -1,0 +1,266 @@
+---
+title: Commands
+description: Complete reference for every zEnv CLI command.
+---
+
+All commands support `--verbose` / `-v` for debug logging and `--project` / `--env` flags to override the active project and environment.
+
+---
+
+## `zenv login`
+
+Authenticate by pasting a service token. The token is stored in `~/.config/zenv/credentials`.
+
+```bash
+zenv login
+```
+
+Tokens must start with `ze_`. Get one from the zEnv dashboard or create one with `zenv tokens create`.
+
+---
+
+## `zenv whoami`
+
+Display the current authentication context: API URL, token (masked), Vault Key status, project, and environment. If a token and project are configured, validates the token against the API.
+
+```bash
+zenv whoami
+```
+
+---
+
+## `zenv secrets`
+
+Manage encrypted secrets. Alias: `zenv s`.
+
+### `zenv secrets set KEY VALUE`
+
+Encrypt a value locally and store it. Creates the secret if it does not exist, updates it otherwise.
+
+```bash
+zenv secrets set DATABASE_URL "postgres://user:pass@host:5432/db"
+```
+
+### `zenv secrets get KEY`
+
+Fetch and decrypt a single secret. Prints the plaintext value to stdout (no trailing newline).
+
+```bash
+zenv secrets get DATABASE_URL
+```
+
+### `zenv secrets list`
+
+List all secrets in the current project and environment. Since names are HMAC-hashed, only truncated hashes, version numbers, and timestamps are shown. Alias: `zenv secrets ls`.
+
+```bash
+zenv secrets list
+```
+
+### `zenv secrets delete KEY`
+
+Delete a secret. Alias: `zenv secrets rm`.
+
+```bash
+zenv secrets delete DATABASE_URL
+```
+
+---
+
+## `zenv run -- COMMAND [ARGS...]`
+
+Fetch all secrets for the current project and environment, decrypt them, inject them as environment variables, and `exec` the given command. The child process replaces the CLI process -- secrets are never written to disk.
+
+```bash
+zenv run -- node server.js
+zenv run -- docker compose up
+zenv run -- printenv | grep DATABASE
+```
+
+---
+
+## `zenv check KEY [KEY...]`
+
+Validate that specific secrets exist in the vault. Exits with code 1 if any are missing. Designed for CI pipelines.
+
+```bash
+zenv check DATABASE_URL STRIPE_KEY JWT_SECRET --env production
+```
+
+Output:
+```
+  ✓ DATABASE_URL
+  ✓ STRIPE_KEY
+  ✗ JWT_SECRET — missing
+
+zenv check: 1 of 3 secrets missing in <project>/production
+```
+
+---
+
+## `zenv tokens`
+
+Manage scoped service tokens.
+
+### `zenv tokens create`
+
+Create a service token for the current project and environment.
+
+```bash
+zenv tokens create --name "ci-deploy" --permission read --expires-at 2025-12-31T00:00:00Z
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--name` | (required) | Token name |
+| `--permission` | `read` | `read` or `read_write` |
+| `--expires-at` | (none) | Optional expiry in RFC 3339 format |
+
+The token value is displayed once and never shown again.
+
+### `zenv tokens list`
+
+List active service tokens for the current project. Alias: `zenv tokens ls`.
+
+```bash
+zenv tokens list
+```
+
+### `zenv tokens revoke TOKEN_ID`
+
+Immediately revoke a service token.
+
+```bash
+zenv tokens revoke <TOKEN_ID>
+```
+
+---
+
+## `zenv projects`
+
+Manage projects. Alias: `zenv p`.
+
+### `zenv projects init PROJECT_ID`
+
+Write a `.zenv` file in the current directory to pin it to a project.
+
+```bash
+zenv projects init <PROJECT_ID> --env development
+```
+
+### `zenv projects create`
+
+Create a new project with client-side crypto. Generates a project salt, DEK, and wraps them locally before sending ciphertext to the server.
+
+```bash
+zenv projects create --org <ORG_ID> --name "my-app" --public-key <BASE64_PUBLIC_KEY>
+```
+
+| Flag | Description |
+|---|---|
+| `--org` | Organization ID (or set `ZENV_ORGANIZATION`) |
+| `--name` | Project name (required) |
+| `--public-key` | Base64-encoded X25519 public key from vault unlock |
+
+### `zenv projects list`
+
+List projects in an organization. Alias: `zenv projects ls`.
+
+```bash
+zenv projects list --org <ORG_ID>
+```
+
+### `zenv projects get PROJECT_ID`
+
+Display project details.
+
+```bash
+zenv projects get <PROJECT_ID>
+```
+
+---
+
+## `zenv orgs`
+
+Manage organizations. Alias: `zenv o`.
+
+### `zenv orgs create`
+
+```bash
+zenv orgs create --name "my-team"
+```
+
+### `zenv orgs list`
+
+List your organizations. Alias: `zenv orgs ls`.
+
+### `zenv orgs get ORG_ID`
+
+Display organization details.
+
+### `zenv orgs members ORG_ID`
+
+List members of an organization. Alias: `zenv orgs ls-members`.
+
+### `zenv orgs add-member ORG_ID`
+
+Add a user to an organization.
+
+```bash
+zenv orgs add-member <ORG_ID> --user <USER_ID> --role admin
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--user` | (required) | User ID to add |
+| `--role` | `dev` | One of: `admin`, `senior_dev`, `dev`, `contractor`, `ci_bot` |
+
+### `zenv orgs remove-member ORG_ID MEMBER_ID`
+
+Remove a member from an organization.
+
+```bash
+zenv orgs remove-member <ORG_ID> <MEMBER_ID>
+```
+
+---
+
+## `zenv env`
+
+Environment file operations.
+
+### `zenv env pull`
+
+Fetch and decrypt all secrets, then write them to a local `.env` file.
+
+```bash
+zenv env pull                          # writes to .env.local
+zenv env pull -o .env.production       # custom output path
+zenv env pull -o -                     # print to stdout
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o`, `--output` | `.env.local` | Output file path (use `-` for stdout) |
+
+### `zenv env diff ENV1 ENV2`
+
+Compare which secrets exist in two environments. Since names are hashed, the comparison is based on hash presence -- not plaintext names.
+
+```bash
+zenv env diff development production
+```
+
+---
+
+## `zenv config`
+
+Manage CLI configuration. See the [Configuration](/cli/configuration/) page for details.
+
+### `zenv config set KEY VALUE`
+### `zenv config get KEY`
+### `zenv config list`
+### `zenv config unset KEY`
+### `zenv config path`
+
+All config commands accept `--global` to target `~/.config/zenv/` instead of the local `.zenv` file.

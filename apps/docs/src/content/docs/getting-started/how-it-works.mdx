@@ -1,0 +1,103 @@
+---
+title: How It Works
+description: The zero-knowledge architecture behind zEnv -- key hierarchy, encryption flow, and what the server actually stores.
+---
+
+## Two-Layer Authentication
+
+zEnv separates **identity** from **encryption**:
+
+1. **Identity layer** -- OAuth-based login (email/password, GitHub, Google) handled by a standalone auth server. Proves *who you are*.
+2. **Encryption layer** -- the Vault Key, chosen by the user. Proves *you can decrypt*. The server never sees this key.
+
+A valid session requires both layers. You can be logged in (identity) but still locked out of your data until you provide the Vault Key.
+
+## Key Hierarchy
+
+```
+Vault Key (user-chosen passphrase)
+  |
+  +-- Argon2id(Vault Key, salt) --> 64 bytes
+        |
+        +-- bytes 0-31:  KEK (Key Encryption Key)
+        +-- bytes 32-63: Auth Key
+              |
+              +-- SHA-256(Auth Key) --> Auth Key Hash (stored on server)
+        |
+        KEK
+          |
+          +-- AES-256-GCM wrap(DEK, KEK) --> Wrapped DEK (stored on server)
+          |
+          DEK (Data Encryption Key)
+            |
+            +-- AES-256-GCM encrypt(secret, DEK) --> ciphertext (stored on server)
+            +-- HMAC-SHA256(name, DEK)            --> name hash (stored on server)
+```
+
+**Argon2id runs exactly once per unlock.** The 64-byte output is split: the first 32 bytes become the KEK, the last 32 bytes become the Auth Key. This is a hard invariant -- it is never run twice for the same unlock operation.
+
+## What the Server Stores
+
+| Field | Contents |
+|---|---|
+| `auth_key_hash` | SHA-256 hash of the Auth Key (not the Auth Key itself) |
+| `salt` | Argon2id salt (random, per-user) |
+| `wrapped_dek` | DEK encrypted with KEK (AES-256-GCM) |
+| `wrapped_private_key` | X25519 private key encrypted with KEK |
+| `public_key` | X25519 public key (plaintext -- used for team key grants) |
+| `name_hash` | HMAC-SHA256 of the secret name (per secret) |
+| `ciphertext` | AES-256-GCM encrypted secret value (per secret) |
+| `nonce` | GCM nonce for the ciphertext (per secret) |
+
+The server never stores the Vault Key, KEK, Auth Key, or plaintext DEK.
+
+## How the CLI/SDK Derive Keys
+
+When the CLI or SDK needs to read or write secrets:
+
+1. **Fetch project crypto** -- `GET /sdk/projects/{id}/crypto` returns `project_salt` and `wrapped_project_dek`.
+2. **Derive Project KEK** -- `Argon2id(ZENV_VAULT_KEY, project_salt)` produces the Project KEK (bytes 0-31).
+3. **Unwrap Project DEK** -- `AES-256-GCM decrypt(wrapped_project_dek, Project KEK)` recovers the Project DEK.
+4. **Use Project DEK** -- encrypt/decrypt secret values and HMAC-hash secret names.
+
+```
+ZENV_VAULT_KEY + project_salt
+       |
+       Argon2id
+       |
+       Project KEK
+       |
+       unwrap(wrapped_project_dek)
+       |
+       Project DEK
+      / \
+encrypt   HMAC
+secrets   names
+```
+
+## HMAC Name Hashing (Blind Lookups)
+
+Secret names are never sent to the server in plaintext. Instead, the client computes `HMAC-SHA256(name, DEK)` and sends the resulting hash. The server uses this hash as the lookup key.
+
+This means the server can match "give me the secret called DATABASE_URL" without ever knowing that the name is `DATABASE_URL`. The API operates entirely on opaque hashes.
+
+## Item-Per-Row Storage
+
+Each secret is its own encrypted database row with its own `name_hash`, `ciphertext`, and `nonce`. zEnv does **not** store all secrets in a single encrypted blob.
+
+Benefits:
+- **Granular access** -- permissions can be scoped to individual secrets
+- **Independent versioning** -- each secret has its own version counter
+- **Concurrent writes** -- two team members can update different secrets simultaneously without conflicts
+- **Efficient sync** -- only changed rows need to be fetched
+
+## Cross-Language Parity
+
+The Amnesia engine ships in two implementations:
+
+- **Go** (`amnesia/`) -- used by the CLI and API server
+- **TypeScript** (`packages/amnesia/`) -- used by `@zenv/sdk` in Node.js
+
+Both implementations must produce **byte-identical output** for the same inputs. This is enforced by shared JSON test vectors that run in CI. If a TypeScript Amnesia encryption produces different bytes than Go Amnesia for the same key and plaintext, the build fails.
+
+This parity guarantee means secrets written by the CLI can be read by the SDK, and vice versa.

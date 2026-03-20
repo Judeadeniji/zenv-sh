@@ -1,0 +1,44 @@
+---
+title: Installation
+description: Install the zEnv CLI via go install or build from source.
+---
+
+## Install via `go install`
+
+Requires Go 1.21 or later.
+
+```bash
+go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest
+```
+
+Make sure `$GOPATH/bin` (usually `~/go/bin`) is on your `PATH`.
+
+## Build from Source
+
+```bash
+git clone https://github.com/Judeadeniji/zenv-sh.git
+cd zenv-sh
+make build
+```
+
+This produces two binaries in `bin/`:
+- `bin/zenv` -- the CLI
+- `bin/zenv-api` -- the API server
+
+To install just the CLI:
+
+```bash
+go build -o ~/go/bin/zenv ./cli/cmd/zenv
+```
+
+## Verify
+
+```bash
+zenv --version
+```
+
+Check that the CLI can reach your zEnv instance:
+
+```bash
+zenv whoami
+```

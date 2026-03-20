@@ -1,0 +1,69 @@
+---
+title: Installation
+description: Install @zenv/sdk for server-side TypeScript applications.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Install
+
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    npm install @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @zenv/sdk
+    ```
+  </TabItem>
+</Tabs>
+
+## Requirements
+
+- **Node.js 18+** -- the SDK uses the Web Crypto API available in Node 18 and later.
+- **Server-only** -- the SDK throws a hard error if it detects a browser environment (`window` is defined). `ZENV_TOKEN` and `ZENV_VAULT_KEY` are server credentials that must never reach the client. For browser applications, use `@zenv/vite-plugin` for build-time injection instead.
+
+## Environment Variables
+
+The SDK requires two credentials:
+
+| Variable | Description |
+|---|---|
+| `ZENV_TOKEN` | Service token for API authentication. Starts with `ze_`. Create one with `zenv tokens create`. |
+| `ZENV_VAULT_KEY` | Your Vault Key. Used locally to derive the encryption key. Never sent to the server. |
+
+Set them in your server environment:
+
+```bash
+export ZENV_TOKEN=ze_your_service_token_here
+export ZENV_VAULT_KEY=your_vault_key_here
+```
+
+You will also need a project ID, typically set via `ZENV_PROJECT_ID` or passed directly in the SDK config.
+
+## Verify
+
+```typescript
+import { zenv } from "@zenv/sdk";
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+});
+
+const value = await vault.get("DATABASE_URL");
+console.log(value);
+```

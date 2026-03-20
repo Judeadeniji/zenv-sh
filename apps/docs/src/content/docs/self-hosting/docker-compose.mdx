@@ -1,0 +1,156 @@
+---
+title: Docker Compose
+description: Self-host the entire zEnv stack with Docker Compose -- API server, auth server, Postgres, and Redis.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- Docker Engine 20.10+
+- Docker Compose v2
+
+## Setup
+
+<Steps>
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/Judeadeniji/zenv-sh.git
+   cd zenv-sh
+   ```
+
+2. **Configure environment**
+
+   Copy the example config and fill in your values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   At minimum, set these three secrets:
+
+   ```bash
+   POSTGRES_PASSWORD=<generate-a-strong-password>
+   REDIS_PASSWORD=<generate-a-strong-password>
+   BETTER_AUTH_SECRET=<random-string-at-least-32-chars>
+   ```
+
+3. **Start the stack**
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+   This starts four services:
+   - **postgres** -- PostgreSQL 17 (Alpine)
+   - **redis** -- Redis 7 (Alpine)
+   - **api** -- zEnv API server on port 8080
+   - **auth** -- Auth server on port 3000
+
+4. **Run database migrations**
+
+   ```bash
+   export DATABASE_URL="postgres://zenv:${POSTGRES_PASSWORD}@localhost:5432/zenv?sslmode=disable"
+   make migrate
+   ```
+
+5. **Verify**
+
+   Check that the API server is running:
+
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+</Steps>
+
+## Environment Variables Reference
+
+### Postgres
+
+| Variable | Default | Description |
+|---|---|---|
+| `POSTGRES_USER` | `zenv` | Database user |
+| `POSTGRES_PASSWORD` | (required) | Database password |
+| `POSTGRES_DB` | `zenv` | Database name |
+
+### Redis
+
+| Variable | Default | Description |
+|---|---|---|
+| `REDIS_PASSWORD` | (required) | Redis authentication password |
+
+### API Server
+
+| Variable | Default | Description |
+|---|---|---|
+| `API_PORT` | `8080` | Host port for the API |
+| `CORS_ORIGINS` | (empty) | Comma-separated allowed origins |
+| `LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+
+The API server automatically connects to Postgres and Redis using the Docker Compose internal DNS names (`postgres:5432`, `redis:6379`).
+
+### Auth Server
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH_PORT` | `3000` | Host port for the auth server |
+| `BETTER_AUTH_SECRET` | (required) | Secret for session signing (min 32 chars) |
+| `BETTER_AUTH_URL` | `http://localhost:3000` | Public URL of the auth server |
+| `TRUSTED_ORIGINS` | (empty) | Comma-separated trusted origins for CORS |
+| `COOKIE_DOMAIN` | (empty) | Domain for session cookies |
+
+### OAuth Providers (Optional)
+
+| Variable | Description |
+|---|---|
+| `GITHUB_CLIENT_ID` | GitHub OAuth app client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+
+Omit these to disable the respective OAuth provider.
+
+## Updating
+
+Pull the latest changes and rebuild:
+
+```bash
+git pull origin main
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Run any new migrations after updating:
+
+```bash
+make migrate
+```
+
+## Backup Strategy
+
+### Postgres
+
+The Postgres data is persisted in a Docker volume (`pgdata`). Back it up regularly:
+
+```bash
+docker compose -f docker-compose.prod.yml exec postgres \
+  pg_dump -U zenv zenv > backup-$(date +%Y%m%d).sql
+```
+
+Restore from a backup:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U zenv zenv < backup-20250101.sql
+```
+
+### Redis
+
+Redis data is persisted in the `redisdata` volume. It is used for session state and cache. Losing Redis data means active sessions are invalidated (users will need to log in again) but no secrets are lost.
+
+### What About Encryption Keys?
+
+The server only stores ciphertext. No encryption keys exist on the server to back up. If you need disaster recovery for encrypted data, the critical piece is the **user's Vault Key** -- which is the user's responsibility to retain.

@@ -1,0 +1,50 @@
+---
+title: Introduction
+description: What zEnv is, why it exists, and how its zero-knowledge architecture keeps your secrets safe.
+---
+
+## What is zEnv?
+
+zEnv is a zero-knowledge encryption platform for managing secrets. All encryption and decryption happens client-side through the **Amnesia** cryptographic engine. The server is a ciphertext warehouse -- it stores encrypted data it can never read.
+
+Unlike conventional secret managers where the provider holds (or can derive) your encryption keys, zEnv is **architecturally incapable** of accessing your plaintext data. There is no master key on the server, no key escrow, no "break glass" backdoor. If you lose your Vault Key, your data is gone.
+
+## Two Products
+
+**zEnv Platform** (available now) -- a B2B secrets manager and encryption API. Teams store application secrets (database URLs, API keys, signing keys) in encrypted vaults and inject them into builds, CI pipelines, and running applications via the CLI or SDK.
+
+**zEnv Vault** (coming later) -- a B2C personal encrypted vault for passwords, notes, and sensitive files.
+
+## Key Concepts
+
+### Vault Key
+
+A passphrase chosen by the user. It never leaves the client. Combined with a salt through Argon2id, it produces the KEK and Auth Key.
+
+### KEK (Key Encryption Key)
+
+Derived from the Vault Key via Argon2id (bytes 0-31 of the 64-byte output). Used to wrap and unwrap the DEK. Never stored on the server.
+
+### Auth Key
+
+Derived from the same Argon2id run (bytes 32-63). Hashed and sent to the server to prove the user knows their Vault Key -- without revealing the KEK.
+
+### DEK (Data Encryption Key)
+
+A random AES-256 key that encrypts and decrypts individual secrets. Stored on the server only in **wrapped** form (encrypted by the KEK). The server never sees the unwrapped DEK.
+
+### Amnesia Engine
+
+The pure cryptographic library that handles all client-side operations: key derivation, AES-256-GCM encryption, key wrapping, HMAC name hashing, and X25519 asymmetric operations. Ships in both Go and TypeScript with byte-identical output enforced by shared test vectors in CI.
+
+### Item-Per-Row Storage
+
+Each secret is encrypted individually and stored as its own database row. zEnv does not use a single-blob vault model. This enables granular access control, independent versioning, and concurrent writes without conflicts.
+
+## What "Zero-Knowledge" Means in Practice
+
+- The **DEK**, **KEK**, and **Vault Key** never leave the client.
+- The API server never decrypts user data. It stores and retrieves ciphertext.
+- Secret names are HMAC-hashed before being sent to the server, so even the names are opaque.
+- The server stores an Auth Key **hash** to verify identity, but the Auth Key itself is derived client-side and discarded after use.
+- Losing your Vault Key means permanent data loss. There is no recovery mechanism.

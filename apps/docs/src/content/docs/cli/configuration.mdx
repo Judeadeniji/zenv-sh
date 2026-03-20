@@ -1,0 +1,117 @@
+---
+title: Configuration
+description: How the zEnv CLI resolves configuration -- flags, local files, global config, and environment variables.
+---
+
+## Resolution Order
+
+The CLI resolves each configuration value using the first match from this priority chain (highest wins):
+
+1. **CLI flags** -- `--project`, `--env`
+2. **Local `.zenv` file** -- found by walking up from the current directory
+3. **Global config** -- `~/.config/zenv/config` and `~/.config/zenv/credentials`
+4. **Environment variables** -- `ZENV_API_URL`, `ZENV_AUTH_URL`, `ZENV_TOKEN`, `ZENV_VAULT_KEY`, `ZENV_PROJECT`, `ZENV_ENV`
+5. **Defaults** -- `api_url` defaults to `http://localhost:8080`, `auth_url` defaults to `http://localhost:3000`
+
+## Config Commands
+
+### Set a value
+
+```bash
+# Local (writes to .zenv in current directory)
+zenv config set project <PROJECT_ID>
+zenv config set env production
+
+# Global (writes to ~/.config/zenv/)
+zenv config set --global api_url https://api.zenv.sh
+zenv config set --global token ze_...
+zenv config set --global vault_key <VAULT_KEY>
+```
+
+Sensitive keys (`token`, `vault_key`) are stored in `~/.config/zenv/credentials` with `0600` file permissions.
+
+### Get a value
+
+```bash
+zenv config get project
+zenv config get --global api_url
+```
+
+### List all values
+
+```bash
+# Show both local and global config
+zenv config list
+
+# Show only global config
+zenv config list --global
+```
+
+Sensitive values are automatically masked in output.
+
+### Remove a value
+
+```bash
+zenv config unset env
+zenv config unset --global token
+```
+
+### Print config directory
+
+```bash
+zenv config path
+# Output: /home/user/.config/zenv
+```
+
+## The `.zenv` File
+
+The `.zenv` file pins a directory to a project and environment. It uses a simple `key=value` format:
+
+```ini
+project=550e8400-e29b-41d4-a716-446655440000
+env=development
+```
+
+Create one with `zenv projects init`:
+
+```bash
+zenv projects init <PROJECT_ID> --env development
+```
+
+The CLI walks up from the current working directory looking for `.zenv`, so it works in subdirectories too.
+
+**Commit `.zenv` to version control.** It contains no secrets -- just a project ID and environment name.
+
+## Global File Layout
+
+```
+~/.config/zenv/
+  config         # api_url, auth_url (0644)
+  credentials    # token, vault_key (0600)
+```
+
+## Available Keys
+
+| Key | Scope | Description |
+|---|---|---|
+| `api_url` | global | API server URL |
+| `auth_url` | global | Auth server URL |
+| `token` | global | Service token (stored in credentials) |
+| `vault_key` | global | Vault Key for key derivation (stored in credentials) |
+| `project` | local | Project ID |
+| `env` | local | Environment (`development`, `staging`, `production`) |
+
+## Environment Variables
+
+Every config key has a corresponding environment variable:
+
+| Key | Environment Variable |
+|---|---|
+| `api_url` | `ZENV_API_URL` |
+| `auth_url` | `ZENV_AUTH_URL` |
+| `token` | `ZENV_TOKEN` |
+| `vault_key` | `ZENV_VAULT_KEY` |
+| `project` | `ZENV_PROJECT` |
+| `env` | `ZENV_ENV` |
+
+Environment variables take lower priority than config files and flags but higher priority than defaults. They are useful in CI environments where you do not want to write config files.

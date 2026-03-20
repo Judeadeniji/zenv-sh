@@ -1,0 +1,147 @@
+---
+title: Quickstart
+description: Go from zero to your first encrypted secret in five minutes.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- Go 1.21+ (for CLI installation)
+- A zEnv account (sign up at your instance or the hosted platform)
+- A service token and Vault Key from the dashboard
+
+## Your First Secret
+
+<Steps>
+
+1. **Install the CLI**
+
+   ```bash
+   go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest
+   ```
+
+   Verify the install:
+
+   ```bash
+   zenv --version
+   ```
+
+2. **Configure the API URL**
+
+   Point the CLI at your zEnv instance:
+
+   ```bash
+   zenv config set --global api_url https://api.zenv.sh
+   ```
+
+3. **Authenticate**
+
+   Paste a service token from the dashboard:
+
+   ```bash
+   zenv login
+   ```
+
+   The token is stored in `~/.config/zenv/credentials` with `0600` permissions.
+
+4. **Set your Vault Key**
+
+   ```bash
+   zenv config set --global vault_key YOUR_VAULT_KEY
+   ```
+
+5. **Initialize a project**
+
+   Link the current directory to a project:
+
+   ```bash
+   zenv projects init <PROJECT_ID> --env development
+   ```
+
+   This creates a `.zenv` file:
+
+   ```ini
+   project=<PROJECT_ID>
+   env=development
+   ```
+
+6. **Store a secret**
+
+   ```bash
+   zenv secrets set DATABASE_URL "postgres://user:pass@localhost:5432/mydb"
+   ```
+
+   The CLI encrypts the value locally with Amnesia, then sends only ciphertext to the server.
+
+7. **Read it back**
+
+   ```bash
+   zenv secrets get DATABASE_URL
+   ```
+
+   Output: `postgres://user:pass@localhost:5432/mydb`
+
+8. **Inject secrets into a process**
+
+   ```bash
+   zenv run -- node server.js
+   ```
+
+   All secrets for the current project and environment are decrypted and injected as environment variables. The `run` command replaces the current process via `exec`, so secrets are never written to disk.
+
+</Steps>
+
+## Using the SDK
+
+For server-side TypeScript applications, use `@zenv/sdk` to load secrets at runtime.
+
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    npm install @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @zenv/sdk
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @zenv/sdk
+    ```
+  </TabItem>
+</Tabs>
+
+```typescript
+import { zenv } from "@zenv/sdk";
+import { z } from "zod";
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: "production",
+  schema: z.object({
+    DATABASE_URL: z.string().url(),
+    STRIPE_API_KEY: z.string().min(1),
+  }),
+});
+
+const secrets = await vault.load();
+// secrets.DATABASE_URL — fully typed, validated, decrypted
+```
+
+The SDK decrypts everything locally. `ZENV_TOKEN` and `ZENV_VAULT_KEY` must be set as environment variables on the server -- they must never reach a browser.
+
+## Next Steps
+
+- [How It Works](/getting-started/how-it-works/) -- understand the key hierarchy and encryption model
+- [CLI Commands](/cli/commands/) -- full command reference
+- [SDK Usage](/sdk/usage/) -- schema validation, individual operations, error handling

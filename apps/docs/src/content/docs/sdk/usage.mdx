@@ -1,0 +1,244 @@
+---
+title: Usage
+description: Load, validate, and manage secrets with @zenv/sdk -- schema validation, individual operations, and error handling.
+---
+
+## Basic Setup
+
+```typescript
+import { zenv } from "@zenv/sdk";
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: "production", // defaults to "development"
+});
+```
+
+You can also use the class directly:
+
+```typescript
+import { ZEnv } from "@zenv/sdk";
+
+const vault = new ZEnv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+});
+```
+
+## Loading All Secrets with a Schema
+
+`load()` fetches, decrypts, and validates all secrets defined in a schema in a single call. This is the recommended approach for application startup.
+
+```typescript
+import { zenv } from "@zenv/sdk";
+import { z } from "zod";
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: "production",
+  schema: z.object({
+    DATABASE_URL: z.string().url(),
+    STRIPE_API_KEY: z.string().min(1),
+    PORT: z.string().transform(Number),
+  }),
+});
+
+const secrets = await vault.load();
+// secrets.DATABASE_URL  — string
+// secrets.STRIPE_API_KEY — string
+// secrets.PORT — number (transformed by Zod)
+```
+
+The schema serves two purposes:
+
+1. **Fetch manifest** -- the keys define which secrets to fetch from the vault.
+2. **Validation and transformation** -- after decryption, each value is validated (and optionally transformed) through the schema.
+
+If any secret is missing or fails validation, `load()` throws with **all** errors at once so you can fix them in a single pass.
+
+## Schema Validation
+
+The SDK supports any [Standard Schema](https://github.com/standard-schema/standard-schema) compliant library:
+
+```typescript
+// Zod
+import { z } from "zod";
+const schema = z.object({
+  DATABASE_URL: z.string().url(),
+  API_KEY: z.string().min(1),
+});
+
+// Valibot
+import * as v from "valibot";
+const schema = {
+  DATABASE_URL: v.pipe(v.string(), v.url()),
+  API_KEY: v.pipe(v.string(), v.minLength(1)),
+};
+
+// ArkType
+import { type } from "arktype";
+const schema = {
+  DATABASE_URL: type("string"),
+  API_KEY: type("string > 0"),
+};
+```
+
+You can also pass a schema directly to `load()`:
+
+```typescript
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+});
+
+const secrets = await vault.load(
+  z.object({
+    DATABASE_URL: z.string().url(),
+  }),
+);
+```
+
+### Disabling Validation
+
+If you want the schema only as a fetch manifest (keys define what to fetch, but values pass through as raw strings):
+
+```typescript
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  schema: z.object({ DATABASE_URL: z.string() }),
+  disableValidation: true,
+});
+```
+
+## Individual Operations
+
+### `get(name)`
+
+Fetch and decrypt a single secret by name.
+
+```typescript
+const dbUrl = await vault.get("DATABASE_URL");
+```
+
+In strict mode (default), `get()` rejects keys not defined in the schema:
+
+```typescript
+const vault = zenv({
+  // ...
+  schema: z.object({ DATABASE_URL: z.string() }),
+  strict: true, // default
+});
+
+await vault.get("DATABASE_URL"); // OK
+await vault.get("UNKNOWN_KEY");  // throws: 'UNKNOWN_KEY' is not defined in your schema
+```
+
+Set `strict: false` to allow fetching any key regardless of the schema.
+
+### `set(name, value)`
+
+Encrypt a value locally and store it on the server. Creates the secret if it does not exist, updates it otherwise.
+
+```typescript
+await vault.set("DATABASE_URL", "postgres://user:pass@host:5432/db");
+```
+
+### `delete(name)`
+
+Delete a secret.
+
+```typescript
+await vault.delete("OLD_API_KEY");
+```
+
+## Configuration Reference
+
+```typescript
+interface ZEnvConfig {
+  /** Service token for API authentication (required). */
+  token: string;
+
+  /** Vault Key for local key derivation (required). Never sent to server. */
+  vaultKey: string;
+
+  /** Project ID (required). */
+  projectId: string;
+
+  /** Environment name. Defaults to "development". */
+  environment?: string;
+
+  /** Schema for load() — defines keys to fetch and validation rules. */
+  schema?: StandardSchema;
+
+  /** Strict mode (default: true). Rejects get() calls for keys not in schema. */
+  strict?: boolean;
+
+  /** Skip schema validation — use schema only as a fetch manifest. */
+  disableValidation?: boolean;
+
+  /** API base URL. Defaults to "https://api.zenv.sh". */
+  baseUrl?: string;
+}
+```
+
+## Error Handling
+
+The SDK throws descriptive errors that include the context needed to fix the problem.
+
+**Missing credentials:**
+```
+[zEnv] Missing ZENV_TOKEN. Set it in your environment:
+  export ZENV_TOKEN=ze_...
+```
+
+**Missing secrets at startup:**
+```
+[zEnv] Startup validation failed:
+  DATABASE_URL — secret not found in 'production'
+  STRIPE_KEY — secret not found in 'production'
+
+Application did not start. Fix the above and retry.
+```
+
+**Schema validation failures:**
+```
+[zEnv] Startup validation failed:
+  DATABASE_URL — Invalid url
+  PORT — Expected number, received string
+
+Application did not start. Fix the above and retry.
+```
+
+**Browser detection:**
+```
+[zEnv] @zenv/sdk detected a browser environment (window is defined).
+ZENV_TOKEN and ZENV_VAULT_KEY are server credentials — they must never
+reach the browser. Use @zenv/vite-plugin for build-time injection instead.
+```
+
+All `load()` errors are collected and reported at once. The SDK does not fail on the first missing secret and hide the rest.
+
+## TypeScript Types
+
+`load()` infers its return type from the schema. If you use Zod's `.transform()`, the output type reflects the transformation:
+
+```typescript
+const schema = z.object({
+  PORT: z.string().transform(Number),
+  DEBUG: z.string().transform((v) => v === "true"),
+});
+
+const secrets = await vault.load(schema);
+// secrets.PORT  — number
+// secrets.DEBUG — boolean
+```
+
+Without a Standard Schema validator (plain object keys), all values are typed as `string`.
