@@ -60,7 +60,7 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 		}
 
 		tokenPlaintext := strings.TrimPrefix(authHeader, "Bearer ")
-		if !strings.HasPrefix(tokenPlaintext, "svc_") {
+		if !strings.HasPrefix(tokenPlaintext, "ze_") {
 			http.Error(w, `{"error":"invalid token format"}`, http.StatusUnauthorized)
 			return
 		}

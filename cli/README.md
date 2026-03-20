@@ -74,7 +74,7 @@ env=development
 
 ```bash
 export ZENV_API_URL=http://localhost:8080   # API base URL
-export ZENV_TOKEN=svc_development_...       # Service token
+export ZENV_TOKEN=ze_development_...       # Service token
 export ZENV_VAULT_KEY=...                   # Project Vault Key
 export ZENV_PROJECT=<project-id>            # Project ID
 export ZENV_ENV=development                 # Environment

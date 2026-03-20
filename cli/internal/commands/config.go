@@ -23,7 +23,7 @@ Use --global to target ~/.config/zenv/ instead.
   zenv config set project <uuid>           # writes to .zenv
   zenv config set env production           # writes to .zenv
   zenv config set --global api_url http://zenv.localhost
-  zenv config set --global token svc_...   # stored in credentials (0600)
+  zenv config set --global token ze_...   # stored in credentials (0600)
 
 Keys: api_url, auth_url, token, vault_key, project, env`,
 	}

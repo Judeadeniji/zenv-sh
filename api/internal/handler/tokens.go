@@ -100,7 +100,7 @@ func (h *TokensHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate token: svc_{env}_{random}
+	// Generate token: ze_{env}_{random}
 	tokenPlaintext, err := generateServiceToken(req.Environment)
 	if err != nil {
 		slog.Error("tokens.create: generate", "error", err)
@@ -305,13 +305,13 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // --- Token generation and hashing ---
 
-// generateServiceToken creates a token like "svc_dev_a3f9b2c8e1d4..."
+// generateServiceToken creates a token like "ze_dev_a3f9b2c8e1d4..."
 func generateServiceToken(env string) (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("token: rand: %w", err)
 	}
-	return fmt.Sprintf("svc_%s_%s", env, hex.EncodeToString(b)), nil
+	return fmt.Sprintf("ze_%s_%s", env, hex.EncodeToString(b)), nil
 }
 
 // hashToken returns SHA-256 of the plaintext token for storage.

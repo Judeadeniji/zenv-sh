@@ -37,8 +37,8 @@ and used automatically for subsequent commands.`,
 			if token == "" {
 				return fmt.Errorf("no token provided")
 			}
-			if !strings.HasPrefix(token, "svc_") {
-				return fmt.Errorf("invalid token format — service tokens start with svc_")
+			if !strings.HasPrefix(token, "ze_") {
+				return fmt.Errorf("invalid token format — service tokens start with ze_")
 			}
 
 			if err := config.Set(config.KeyToken, token); err != nil {

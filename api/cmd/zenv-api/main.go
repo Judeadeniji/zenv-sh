@@ -22,7 +22,7 @@ import (
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
 //	@name						Authorization
-//	@description				Service token: "Bearer svc_..."
+//	@description				Service token: "Bearer ze_..."
 //	@securityDefinitions.apikey	SessionAuth
 //	@in							cookie
 //	@name						session_id

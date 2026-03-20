@@ -184,7 +184,7 @@ assert_status "GET deleted secret" "404" "$GONE_STATUS"
 echo ""
 echo "=== SDK: Invalid Token ==="
 BAD_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/v1/sdk/secrets?project_id=$PID&environment=development" \
-  -H "Authorization: Bearer svc_dev_fakefake")
+  -H "Authorization: Bearer ze_dev_fakefake")
 assert_status "GET with invalid token" "401" "$BAD_STATUS"
 
 echo ""

@@ -84,7 +84,7 @@ PORT=8080 \
 Two independent auth mechanisms:
 
 - **Session auth** (cookie `session_id`) — for dashboard (human access). Requires identity layer (OAuth) + vault unlock (Vault Key).
-- **Bearer token auth** (`Authorization: Bearer svc_...`) — for SDK/CLI (machine access). Token is SHA-256 hashed before storage. Scoped to project + environment + permission.
+- **Bearer token auth** (`Authorization: Bearer ze_...`) — for SDK/CLI (machine access). Token is SHA-256 hashed before storage. Scoped to project + environment + permission.
 
 ## OpenAPI Spec
 

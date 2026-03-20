@@ -104,7 +104,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     if (!config.token) {
       throw new Error(
         "[zEnv] Missing ZENV_TOKEN. Set it in your environment:\n" +
-          "  export ZENV_TOKEN=svc_...",
+          "  export ZENV_TOKEN=ze_...",
       );
     }
     if (!config.vaultKey) {
