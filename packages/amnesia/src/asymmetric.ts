@@ -7,6 +7,7 @@
  * Wire format: [24-byte nonce][32-byte ephemeral public key][sealed box]
  */
 import nacl from "tweetnacl";
+import { NACL_NONCE_SIZE, NACL_HEADER_SIZE } from "./constants.ts";
 
 /**
  * Generate an X25519 keypair (NaCl box keypair).
@@ -36,20 +37,14 @@ export function wrapWithPublicKey(
   payload: Uint8Array,
   recipientPublicKey: Uint8Array,
 ): Uint8Array {
-  // Ephemeral keypair
   const ephemeral = nacl.box.keyPair();
-
-  // Random 24-byte nonce
-  const nonce = nacl.randomBytes(24);
-
-  // Seal
+  const nonce = nacl.randomBytes(NACL_NONCE_SIZE);
   const sealed = nacl.box(payload, nonce, recipientPublicKey, ephemeral.secretKey);
 
-  // Pack: nonce (24) + ephemeral public key (32) + sealed box
-  const out = new Uint8Array(24 + 32 + sealed.length);
+  const out = new Uint8Array(NACL_HEADER_SIZE + sealed.length);
   out.set(nonce, 0);
-  out.set(ephemeral.publicKey, 24);
-  out.set(sealed, 56);
+  out.set(ephemeral.publicKey, NACL_NONCE_SIZE);
+  out.set(sealed, NACL_HEADER_SIZE);
   return out;
 }
 
@@ -63,14 +58,14 @@ export function unwrapWithPrivateKey(
   packed: Uint8Array,
   recipientPrivateKey: Uint8Array,
 ): Uint8Array {
-  const minSize = 24 + 32 + nacl.box.overheadLength;
+  const minSize = NACL_HEADER_SIZE + nacl.box.overheadLength;
   if (packed.length < minSize) {
     throw new Error("amnesia: asymmetric decryption failed");
   }
 
-  const nonce = packed.slice(0, 24);
-  const ephemeralPublic = packed.slice(24, 56);
-  const sealed = packed.slice(56);
+  const nonce = packed.slice(0, NACL_NONCE_SIZE);
+  const ephemeralPublic = packed.slice(NACL_NONCE_SIZE, NACL_HEADER_SIZE);
+  const sealed = packed.slice(NACL_HEADER_SIZE);
 
   const plaintext = nacl.box.open(sealed, nonce, ephemeralPublic, recipientPrivateKey);
   if (plaintext === null) {

@@ -6,26 +6,14 @@
  *   bytes 32-63 → Auth Key
  */
 import { argon2id } from "hash-wasm";
+import {
+  KEY_SIZE,
+  DERIVED_KEY_SIZE,
+  PIN_PARAMS,
+  PASSPHRASE_PARAMS,
+} from "./constants.ts";
 
 export type KeyType = "pin" | "passphrase";
-
-interface Argon2Params {
-  memorySize: number; // KiB
-  iterations: number;
-  parallelism: number;
-}
-
-const PIN_PARAMS: Argon2Params = {
-  memorySize: 256 * 1024, // 256 MB in KiB
-  iterations: 10,
-  parallelism: 4,
-};
-
-const PASSPHRASE_PARAMS: Argon2Params = {
-  memorySize: 64 * 1024, // 64 MB in KiB
-  iterations: 3,
-  parallelism: 4,
-};
 
 /**
  * Derive KEK and Auth Key from a Vault Key + salt.
@@ -46,13 +34,13 @@ export async function deriveKeys(
     parallelism: params.parallelism,
     iterations: params.iterations,
     memorySize: params.memorySize,
-    hashLength: 64,
+    hashLength: DERIVED_KEY_SIZE,
     outputType: "binary",
   });
 
   const output = new Uint8Array(hash);
   return {
-    kek: output.slice(0, 32),
-    authKey: output.slice(32, 64),
+    kek: output.slice(0, KEY_SIZE),
+    authKey: output.slice(KEY_SIZE, DERIVED_KEY_SIZE),
   };
 }
