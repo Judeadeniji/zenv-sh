@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
@@ -84,7 +86,7 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &user)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
 			return
 		}
