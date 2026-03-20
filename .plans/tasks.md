@@ -5,8 +5,6 @@
 ### Developer Dashboard
 
 - [ ] Scaffold apps/web/ — TanStack Start + Drizzle
-- [ ] Add OAuth providers (GitHub, Google) to auth server config
-- [ ] Add 2FA plugin to auth server config
 - [ ] Dashboard: vault-setup page (Amnesia TS in browser → crypto material → Go API)
 - [ ] Dashboard: vault-unlock page (Vault Key → derive → unlock)
 - [ ] Dashboard: _authed layout (redirect to login if no session)
@@ -15,7 +13,6 @@
 - [ ] Dashboard: project switcher
 - [ ] Dashboard: service token management
 - [ ] Dashboard: organization + member management
-- [ ] Update smoke tests for auth flow
 
 ### @zenv/vite-plugin — build-time injection (Phase 2)
 
@@ -72,6 +69,10 @@
 - [x] @hono/node-server runtime, env validated via @t3-oss/env-core + Zod
 - [x] Drizzle migrations for identity tables (user, session, account, verification, organization, member, invitation)
 - [x] Cross-subdomain cookie support for production (.zenv.sh)
+- [x] GitHub + Google OAuth (conditional on env vars)
+- [x] 2FA plugin (twoFactor) with migration
+- [x] Branded token prefix: ze_{env}_{random}
+- [x] Removed all "Better Auth" / "BA" naming — generic identity layer
 
 ### Go API — vault + identity integration
 
@@ -84,6 +85,7 @@
 - [x] Removed legacy auth (signup, DevLogin, logout, SessionManager)
 - [x] API is vault-only — identity handled by standalone auth server
 - [x] Regenerated OpenAPI spec
+- [x] Smoke tests rewritten for auth server + vault-only API architecture
 
 ### API secrets CRUD
 
