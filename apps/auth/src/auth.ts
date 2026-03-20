@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, openAPI, organization } from "better-auth/plugins";
+import { admin, openAPI, organization, twoFactor } from "better-auth/plugins";
 import { db } from "./db.js";
 import * as schema from "./schema/index.js";
 import { env } from "./env.js";
@@ -14,6 +14,24 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema: schema }),
   emailAndPassword: {
     enabled: true,
+  },
+  socialProviders: {
+    ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+      ? {
+          github: {
+            clientId: env.GITHUB_CLIENT_ID,
+            clientSecret: env.GITHUB_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
   },
   trustedOrigins,
   session: {
@@ -30,6 +48,7 @@ export const auth = betterAuth({
       defaultRole: "user",
       adminRole: "admin",
     }),
+    twoFactor(),
     organization({
       allowUserToCreateOrganization: true,
       organizationLimit: 5,

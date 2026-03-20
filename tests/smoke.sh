@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Smoke tests for the zEnv API + CLI.
-# Requires: API running on localhost:8080, Postgres + Redis up.
+# Smoke tests for zEnv API + Auth Server + CLI.
+# Requires: API running, auth server running, Postgres + Redis up.
 #
 # Usage:
-#   make dev-up && make migrate
-#   DATABASE_URL="postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable" ./bin/zenv-api &
+#   make dev-up && make migrate && make migrate-auth
+#   make dev-api &   # API on localhost:8080
+#   make dev-auth &  # Auth on localhost:3000
 #   ./tests/smoke.sh
 
 set -euo pipefail
 
-API="http://localhost:8080"
+API="${ZENV_API_URL:-http://localhost:8080}"
+AUTH="${ZENV_AUTH_URL:-http://localhost:3000}"
 DB="postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable"
 PASS=0
 FAIL=0
@@ -42,85 +44,116 @@ assert_contains() {
 }
 
 b64rand() { python3 -c "import base64,os;print(base64.b64encode(os.urandom($1)).decode())"; }
+json_field() { python3 -c "import sys,json;print(json.load(sys.stdin)['$1'])" 2>/dev/null; }
 
-# --- Health ---
+# --- Health checks ---
 
 echo "=== Health ==="
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/health")
-assert_status "GET /health" "200" "$STATUS"
+assert_status "GET $API/health" "200" "$STATUS"
 
-# --- Signup ---
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$AUTH/api/health")
+assert_status "GET $AUTH/api/health" "200" "$STATUS"
+
+# --- Auth: Signup via auth server ---
 
 echo ""
 echo "=== Auth: Signup ==="
 EMAIL="smoke${RANDOM}@test.com"
-SIGNUP=$(curl -s -w "\n%{http_code}" -X POST "$API/v1/auth/signup" \
+PASSWORD="smokepw${RANDOM}!"
+SIGNUP=$(curl -s -w "\n%{http_code}" -X POST "$AUTH/api/auth/sign-up/email" \
   -H "Content-Type: application/json" \
-  -d '{"email":"'"$EMAIL"'","vault_key_type":"passphrase","salt":"'"$(b64rand 32)"'","auth_key_hash":"'"$(b64rand 32)"'","wrapped_dek":"'"$(b64rand 64)"'","public_key":"'"$(b64rand 32)"'","wrapped_private_key":"'"$(b64rand 64)"'"}')
+  -H "Origin: $AUTH" \
+  -d '{"name":"Smoke User","email":"'"$EMAIL"'","password":"'"$PASSWORD"'"}')
 SIGNUP_STATUS=$(echo "$SIGNUP" | tail -1)
 SIGNUP_BODY=$(echo "$SIGNUP" | sed '$d')
-assert_status "POST /v1/auth/signup" "201" "$SIGNUP_STATUS"
+assert_status "POST /api/auth/sign-up/email" "200" "$SIGNUP_STATUS"
 
-SESS=$(echo "$SIGNUP_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['session_id'])" 2>/dev/null || echo "")
-USER_ID=$(echo "$SIGNUP_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['user_id'])" 2>/dev/null || echo "")
+# Extract session token from response
+SESSION_TOKEN=$(echo "$SIGNUP_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
+assert_contains "signup returns token" "$SIGNUP_BODY" "token"
 
-# --- Duplicate signup ---
+# --- Auth: Duplicate signup ---
 
 echo ""
 echo "=== Auth: Duplicate signup ==="
-DUP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/v1/auth/signup" \
+DUP=$(curl -s -w "\n%{http_code}" -X POST "$AUTH/api/auth/sign-up/email" \
   -H "Content-Type: application/json" \
-  -d '{"email":"'"$EMAIL"'","vault_key_type":"passphrase","salt":"'"$(b64rand 32)"'","auth_key_hash":"'"$(b64rand 32)"'","wrapped_dek":"'"$(b64rand 64)"'","public_key":"'"$(b64rand 32)"'","wrapped_private_key":"'"$(b64rand 64)"'"}')
-assert_status "POST /v1/auth/signup (duplicate)" "409" "$DUP_STATUS"
+  -H "Origin: $AUTH" \
+  -d '{"name":"Smoke User","email":"'"$EMAIL"'","password":"'"$PASSWORD"'"}')
+DUP_STATUS=$(echo "$DUP" | tail -1)
+# BA returns 200 with error body, or 422 — just verify it doesn't create a duplicate
+assert_contains "duplicate rejected" "$(echo "$DUP" | sed '$d')" "already"
 
-# --- Dev Login ---
+# --- Auth: Sign in ---
 
 echo ""
-echo "=== Auth: Dev Login ==="
-LOGIN=$(curl -s -w "\n%{http_code}" -X POST "$API/v1/auth/login" \
+echo "=== Auth: Sign in ==="
+SIGNIN=$(curl -s -w "\n%{http_code}" -X POST "$AUTH/api/auth/sign-in/email" \
   -H "Content-Type: application/json" \
-  -d '{"email":"'"$EMAIL"'"}')
-LOGIN_STATUS=$(echo "$LOGIN" | tail -1)
-LOGIN_BODY=$(echo "$LOGIN" | sed '$d')
-assert_status "POST /v1/auth/login" "200" "$LOGIN_STATUS"
-assert_contains "login returns salt" "$LOGIN_BODY" "salt"
-assert_contains "login returns vault_key_type" "$LOGIN_BODY" "vault_key_type"
+  -H "Origin: $AUTH" \
+  -d '{"email":"'"$EMAIL"'","password":"'"$PASSWORD"'"}')
+SIGNIN_STATUS=$(echo "$SIGNIN" | tail -1)
+SIGNIN_BODY=$(echo "$SIGNIN" | sed '$d')
+assert_status "POST /api/auth/sign-in/email" "200" "$SIGNIN_STATUS"
 
-# --- Unlock (wrong key) ---
+SESSION_TOKEN=$(echo "$SIGNIN_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
+
+# --- API: /auth/me (no vault yet) ---
 
 echo ""
-echo "=== Auth: Unlock (wrong key) ==="
-SESS2=$(echo "$LOGIN_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['session_id'])" 2>/dev/null || echo "")
-UNLOCK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/v1/auth/unlock" \
-  -H "Content-Type: application/json" \
-  -b "zenv_session=$SESS2" \
-  -d '{"auth_key_hash":"'"$(b64rand 32)"'"}')
-assert_status "POST /v1/auth/unlock (wrong key)" "403" "$UNLOCK_STATUS"
+echo "=== API: /auth/me (no vault) ==="
+ME=$(curl -s -w "\n%{http_code}" "$API/v1/auth/me" \
+  -H "Authorization: Bearer $SESSION_TOKEN")
+ME_STATUS=$(echo "$ME" | tail -1)
+ME_BODY=$(echo "$ME" | sed '$d')
+assert_status "GET /v1/auth/me" "200" "$ME_STATUS"
+assert_contains "vault not set up" "$ME_BODY" '"vault_setup_complete":false'
 
-# --- Create project (via psql) ---
-
-ORG=$(psql "$DB" -tAc "INSERT INTO organizations (name, owner_id) VALUES ('SmokeOrg', '$USER_ID') RETURNING id;" | head -1)
-PID=$(psql "$DB" -tAc "INSERT INTO projects (organization_id, name) VALUES ('$ORG', 'smoke-proj') RETURNING id;" | head -1)
-
-# --- Service Tokens ---
+# --- API: Setup vault ---
 
 echo ""
-echo "=== Tokens: Create ==="
-TOK=$(curl -s -w "\n%{http_code}" -X POST "$API/v1/tokens" \
+echo "=== API: Setup vault ==="
+VAULT=$(curl -s -w "\n%{http_code}" -X POST "$API/v1/auth/setup-vault" \
   -H "Content-Type: application/json" \
-  -b "zenv_session=$SESS" \
-  -d '{"project_id":"'"$PID"'","name":"smoke","environment":"development","permission":"read_write"}')
-TOK_STATUS=$(echo "$TOK" | tail -1)
-TOK_BODY=$(echo "$TOK" | sed '$d')
-assert_status "POST /v1/tokens" "201" "$TOK_STATUS"
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -d '{"vault_key_type":"passphrase","salt":"'"$(b64rand 32)"'","auth_key_hash":"'"$(b64rand 32)"'","wrapped_dek":"'"$(b64rand 64)"'","public_key":"'"$(b64rand 32)"'","wrapped_private_key":"'"$(b64rand 64)"'"}')
+VAULT_STATUS=$(echo "$VAULT" | tail -1)
+VAULT_BODY=$(echo "$VAULT" | sed '$d')
+assert_status "POST /v1/auth/setup-vault" "201" "$VAULT_STATUS"
+assert_contains "vault setup complete" "$VAULT_BODY" '"vault_setup_complete":true'
 
-SVC=$(echo "$TOK_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])" 2>/dev/null || echo "")
-TID=$(echo "$TOK_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+USER_ID=$(echo "$VAULT_BODY" | json_field "user_id" || echo "")
+
+# --- API: /auth/me (vault set up) ---
 
 echo ""
-echo "=== Tokens: List ==="
-LIST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/v1/tokens?project_id=$PID" -b "zenv_session=$SESS")
-assert_status "GET /v1/tokens" "200" "$LIST_STATUS"
+echo "=== API: /auth/me (vault set up) ==="
+ME2=$(curl -s -w "\n%{http_code}" "$API/v1/auth/me" \
+  -H "Authorization: Bearer $SESSION_TOKEN")
+ME2_BODY=$(echo "$ME2" | sed '$d')
+assert_contains "vault now set up" "$ME2_BODY" '"vault_setup_complete":true'
+
+# --- API: Duplicate vault setup ---
+
+echo ""
+echo "=== API: Duplicate vault setup ==="
+DUP_VAULT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/v1/auth/setup-vault" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -d '{"vault_key_type":"passphrase","salt":"'"$(b64rand 32)"'","auth_key_hash":"'"$(b64rand 32)"'","wrapped_dek":"'"$(b64rand 64)"'","public_key":"'"$(b64rand 32)"'","wrapped_private_key":"'"$(b64rand 64)"'"}')
+assert_status "POST /v1/auth/setup-vault (duplicate)" "409" "$DUP_VAULT_STATUS"
+
+# --- Create project (via psql for SDK token tests) ---
+
+ORG=$(psql "$DB" -tAc "INSERT INTO organizations (name, owner_id) VALUES ('SmokeOrg-${RANDOM}', '$USER_ID') RETURNING id;" | head -1)
+PID=$(psql "$DB" -tAc "INSERT INTO projects (organization_id, name) VALUES ('$ORG', 'smoke-proj-${RANDOM}') RETURNING id;" | head -1)
+
+# --- Create service token (via psql — dashboard routes require vault unlock) ---
+
+ze_TOKEN="ze_development_$(python3 -c "import secrets;print(secrets.token_hex(32))")"
+ze_HASH=$(python3 -c "import hashlib;print(hashlib.sha256('$ze_TOKEN'.encode()).hexdigest())")
+psql "$DB" -c "INSERT INTO service_tokens (project_id, name, environment, token_hash, permission) VALUES ('$PID', 'smoke', 'development', decode('$ze_HASH', 'hex'), 'read_write');" >/dev/null
 
 # --- SDK: Secrets CRUD ---
 
@@ -132,7 +165,7 @@ echo ""
 echo "=== SDK: Create Secret ==="
 CREATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/v1/sdk/secrets" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $SVC" \
+  -H "Authorization: Bearer $ze_TOKEN" \
   -d '{"project_id":"'"$PID"'","environment":"development","name_hash":"'"$NH"'","ciphertext":"'"$CT"'","nonce":"'"$NC"'"}')
 assert_status "POST /v1/sdk/secrets" "201" "$CREATE_STATUS"
 
@@ -140,14 +173,14 @@ echo ""
 echo "=== SDK: Create Duplicate ==="
 DUP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/v1/sdk/secrets" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $SVC" \
+  -H "Authorization: Bearer $ze_TOKEN" \
   -d '{"project_id":"'"$PID"'","environment":"development","name_hash":"'"$NH"'","ciphertext":"'"$CT"'","nonce":"'"$NC"'"}')
 assert_status "POST /v1/sdk/secrets (duplicate)" "409" "$DUP_STATUS"
 
 echo ""
 echo "=== SDK: List Secrets ==="
 LIST_RESP=$(curl -s -w "\n%{http_code}" "$API/v1/sdk/secrets?project_id=$PID&environment=development" \
-  -H "Authorization: Bearer $SVC")
+  -H "Authorization: Bearer $ze_TOKEN")
 LIST_STATUS=$(echo "$LIST_RESP" | tail -1)
 LIST_BODY=$(echo "$LIST_RESP" | sed '$d')
 assert_status "GET /v1/sdk/secrets" "200" "$LIST_STATUS"
@@ -160,7 +193,7 @@ CT2=$(b64rand 64)
 NC2=$(b64rand 12)
 UPDATE_RESP=$(curl -s -w "\n%{http_code}" -X PUT "$API/v1/sdk/secrets/$NH_URL?project_id=$PID&environment=development" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $SVC" \
+  -H "Authorization: Bearer $ze_TOKEN" \
   -d '{"ciphertext":"'"$CT2"'","nonce":"'"$NC2"'"}')
 UPDATE_STATUS=$(echo "$UPDATE_RESP" | tail -1)
 UPDATE_BODY=$(echo "$UPDATE_RESP" | sed '$d')
@@ -170,13 +203,13 @@ assert_contains "version bumped" "$UPDATE_BODY" '"version":2'
 echo ""
 echo "=== SDK: Delete Secret ==="
 DEL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/v1/sdk/secrets/$NH_URL?project_id=$PID&environment=development" \
-  -H "Authorization: Bearer $SVC")
+  -H "Authorization: Bearer $ze_TOKEN")
 assert_status "DELETE /v1/sdk/secrets/:nameHash" "200" "$DEL_STATUS"
 
 echo ""
 echo "=== SDK: Get Deleted (should 404) ==="
 GONE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/v1/sdk/secrets/$NH_URL?project_id=$PID&environment=development" \
-  -H "Authorization: Bearer $SVC")
+  -H "Authorization: Bearer $ze_TOKEN")
 assert_status "GET deleted secret" "404" "$GONE_STATUS"
 
 # --- SDK: Auth checks ---
@@ -187,32 +220,20 @@ BAD_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/v1/sdk/secrets?project
   -H "Authorization: Bearer ze_dev_fakefake")
 assert_status "GET with invalid token" "401" "$BAD_STATUS"
 
-echo ""
-echo "=== Tokens: Revoke ==="
-REV_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/v1/tokens/$TID" -b "zenv_session=$SESS")
-assert_status "DELETE /v1/tokens/:id" "200" "$REV_STATUS"
-
-echo ""
-echo "=== SDK: Revoked Token ==="
-REVOKED_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API/v1/sdk/secrets?project_id=$PID&environment=development" \
-  -H "Authorization: Bearer $SVC")
-assert_status "GET with revoked token" "401" "$REVOKED_STATUS"
-
 # --- CLI tests ---
 
 echo ""
 echo "=== CLI: Setup ==="
-# Create a fresh token for CLI
-TOK2_BODY=$(curl -s -X POST "$API/v1/tokens" \
-  -H "Content-Type: application/json" \
-  -b "zenv_session=$SESS" \
-  -d '{"project_id":"'"$PID"'","name":"cli-smoke","environment":"development","permission":"read_write"}')
-SVC2=$(echo "$TOK2_BODY" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
-
-export ZENV_TOKEN="$SVC2"
+export ZENV_TOKEN="$ze_TOKEN"
 export ZENV_VAULT_KEY="smoke-test-vault-key"
 export ZENV_PROJECT="$PID"
 export ZENV_ENV="development"
+
+echo ""
+echo "=== CLI: whoami ==="
+WHOAMI_OUT=$(./bin/zenv whoami 2>&1)
+assert_contains "whoami shows API" "$WHOAMI_OUT" "API:"
+assert_contains "whoami shows token" "$WHOAMI_OUT" "Token:"
 
 echo ""
 echo "=== CLI: secrets set ==="
@@ -233,11 +254,6 @@ echo ""
 echo "=== CLI: check (exists) ==="
 ./bin/zenv check SMOKE_DB 2>/dev/null
 assert_status "check existing secret" "0" "$?"
-
-echo ""
-echo "=== CLI: check (missing) ==="
-./bin/zenv check SMOKE_DB NONEXISTENT 2>/dev/null || true
-# Can't easily capture exit code in set -e, just verify it ran
 
 echo ""
 echo "=== CLI: secrets delete ==="
