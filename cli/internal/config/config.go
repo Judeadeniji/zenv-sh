@@ -21,7 +21,7 @@ type Config struct {
 func Load(flagProject, flagEnv string) *Config {
 	c := &Config{
 		APIURL:   envOr("ZENV_API_URL", "http://localhost:8080"),
-		Token:    os.Getenv("ZENV_TOKEN"),
+		Token:    envOr("ZENV_TOKEN", loadStoredToken()),
 		VaultKey: os.Getenv("ZENV_VAULT_KEY"),
 	}
 
@@ -92,6 +92,25 @@ func parseDotZenv(f *os.File) map[string]string {
 		}
 	}
 	return result
+}
+
+// loadStoredToken reads ZENV_TOKEN from ~/.config/zenv/credentials.
+func loadStoredToken() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(configDir, "zenv", "credentials"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ZENV_TOKEN=") {
+			return strings.TrimPrefix(line, "ZENV_TOKEN=")
+		}
+	}
+	return ""
 }
 
 func envOr(key, fallback string) string {
