@@ -113,6 +113,15 @@ func ListGlobal() map[string]string {
 	return result
 }
 
+// GetLocal reads a single key from the nearest .zenv file.
+func GetLocal(key string) string {
+	kv := findDotZenv()
+	if kv == nil {
+		return ""
+	}
+	return kv[key]
+}
+
 // SetLocal writes a key to the nearest .zenv file (creates in cwd if none).
 func SetLocal(key, value string) error {
 	path := findDotZenvPath()
@@ -120,6 +129,24 @@ func SetLocal(key, value string) error {
 		path = ".zenv"
 	}
 	return setKV(path, key, value)
+}
+
+// UnsetLocal removes a key from the nearest .zenv file.
+func UnsetLocal(key string) error {
+	path := findDotZenvPath()
+	if path == "" {
+		return nil
+	}
+	return removeKV(path, key)
+}
+
+// ListLocal returns all key-value pairs from the nearest .zenv file.
+func ListLocal() map[string]string {
+	kv := findDotZenv()
+	if kv == nil {
+		return map[string]string{}
+	}
+	return kv
 }
 
 // isCredential returns true if the key holds a secret.
