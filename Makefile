@@ -18,6 +18,9 @@ build-cli:
 test:
 	go test ./amnesia/... ./api/... ./cli/...
 
+test-fast:
+	go test ./amnesia/... ./cli/...
+
 test-amnesia:
 	go test -v -count=1 ./amnesia/...
 
