@@ -159,7 +159,9 @@
 - [x] httptest server helper with production router
 - [x] Middleware tests (13): identity session (cookie, Bearer, expired, missing, invalid), vault lock/unlock, token auth (valid, invalid, prefix, revoked), read/write permissions
 - [x] E2E integration tests (3): full secret lifecycle, read-only token rejection, invalid token rejection
-- [x] All 16 tests passing via `go test ./api/...`
+- [x] Handler tests (37): auth (10), secrets (12), tokens (3), projects (5), orgs (7)
+- [x] CLI config tests (9): defaults, env overrides, flags, global/local files, credentials perms, set/unset
+- [x] All 93 tests passing via `make test`
 
 ### Publishing prep + CI
 
