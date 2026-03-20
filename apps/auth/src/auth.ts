@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { openAPI, organization } from "better-auth/plugins";
+import { admin, openAPI, organization } from "better-auth/plugins";
 import { db } from "./db.js";
+import * as schema from "./schema/index.js";
 import { env } from "./env.js";
 import { syncOrgToZenv, syncMemberToZenv } from "./hooks.js";
 
@@ -10,7 +11,7 @@ const trustedOrigins = env.TRUSTED_ORIGINS
   : [];
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "pg" }),
+  database: drizzleAdapter(db, { provider: "pg", schema: schema }),
   emailAndPassword: {
     enabled: true,
   },
@@ -25,6 +26,10 @@ export const auth = betterAuth({
   },
   plugins: [
     openAPI(),
+    admin({
+      defaultRole: "user",
+      adminRole: "admin",
+    }),
     organization({
       allowUserToCreateOrganization: true,
       organizationLimit: 5,

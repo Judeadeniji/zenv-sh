@@ -4,15 +4,9 @@
 
 ### Better Auth + Developer Dashboard
 
-- [ ] Migration 002: add better_auth_user_id to users, better_auth_org_id to organizations
 - [ ] Scaffold apps/web/ — TanStack Start + Better Auth + Drizzle
-- [ ] Better Auth config: GitHub + Google OAuth, org plugin, 2FA plugin
-- [ ] Run Better Auth migrations (user, session, account, organization tables)
-- [ ] Go API: better_auth.go middleware — read BA session from Postgres
-- [ ] Go API: CORS middleware for app.zenv.sh
-- [ ] Go API: POST /v1/auth/setup-vault — link BA user to zEnv crypto material
-- [ ] Go API: GET /v1/auth/me — return user state (vault_setup_complete, salt, vault_key_type)
-- [ ] Go API: modify /v1/auth/unlock to accept BA sessions
+- [ ] Add OAuth providers (GitHub, Google) to BA config
+- [ ] Add 2FA plugin to BA config
 - [ ] Dashboard: vault-setup page (Amnesia TS in browser → crypto material → Go API)
 - [ ] Dashboard: vault-unlock page (Vault Key → derive → unlock)
 - [ ] Dashboard: _authed layout (redirect to login if no BA session)
@@ -21,8 +15,6 @@
 - [ ] Dashboard: project switcher
 - [ ] Dashboard: service token management
 - [ ] Dashboard: organization + member management (BA org plugin)
-- [ ] Org linkage: BA afterCreate hook syncs to zEnv organizations table
-- [ ] Gate DevLogin behind ZENV_DEV_MODE env var
 - [ ] Update smoke tests for BA auth flow
 
 ### @zenv/vite-plugin — build-time injection (Phase 2)
@@ -144,3 +136,32 @@
 - [x] GitHub Actions CI: Go tests, TS tests, cross-language parity, cross-compile
 - [x] .editorconfig, .nvmrc
 - [x] READMEs for root + all 5 packages
+
+### Better Auth server (standalone)
+
+- [x] Scaffold apps/auth/ — Hono + Better Auth + Drizzle on Postgres
+- [x] Email/password auth enabled
+- [x] Organization plugin with afterCreate hooks syncing to zEnv tables
+- [x] OpenAPI plugin (Scalar docs at /api/auth/reference)
+- [x] @hono/node-server runtime, env validated via @t3-oss/env-core + Zod
+- [x] Drizzle migrations for BA tables (user, session, account, verification, organization, member, invitation)
+- [x] Cross-subdomain cookie support for production (.zenv.sh)
+
+### Go API — Better Auth integration
+
+- [x] Migration 002: better_auth_user_id on users, better_auth_org_id on organizations
+- [x] BetterAuthSession middleware — reads BA session cookie from Postgres, resolves zEnv user
+- [x] POST /v1/auth/setup-vault — link BA identity to zEnv crypto material
+- [x] GET /v1/auth/me — return vault setup/unlock state
+- [x] POST /v1/auth/unlock — accepts both BA and legacy sessions
+- [x] CORS middleware via go-chi/cors (CORS_ORIGINS env var)
+- [x] Gate DevLogin behind ZENV_DEV_MODE env var
+- [x] Config: DevMode, CORSOrigins fields
+- [x] Routes split into BA-session and legacy groups
+- [x] Regenerated OpenAPI spec with new endpoints
+
+### CLI — projects + orgs
+
+- [x] `zenv projects init/list/get/create` — full client-side crypto
+- [x] `zenv orgs create/list/get/members/add-member/remove-member`
+- [x] Client methods for project and org CRUD

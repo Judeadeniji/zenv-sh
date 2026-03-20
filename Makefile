@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean dev-up dev-down migrate jet-gen swagger sdk-types auth-dev auth-build migrate-auth
+.PHONY: all build test lint clean dev-up dev-down dev-api dev-auth migrate jet-gen swagger sdk-types auth-build migrate-auth
 
 BIN := ./bin
 DATABASE_URL ?= postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
@@ -62,10 +62,14 @@ sdk-types: swagger
 	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
 	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
 
-# --- Auth server (Better Auth) ---
-auth-dev:
-	pnpm -C apps/auth run dev
+# --- Dev (Portless) ---
+dev-api:
+	env $$(grep -v '^#' api/.env | xargs) portless zenv go run ./api/cmd/zenv-api
 
+dev-auth:
+	portless zenv-auth pnpm -C apps/auth run dev
+
+# --- Auth server (Better Auth) ---
 auth-build:
 	pnpm -C apps/auth run build
 

@@ -39,29 +39,36 @@ type baSessionRow struct {
 // resolves the zEnv user, and injects a Session into context.
 func (ba *BetterAuthSession) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie(BASessionCookieName)
-		if err != nil {
+		// Try BA session cookie first, then fall back to Authorization: Bearer header.
+		// The header fallback allows Postman and cross-origin API calls where
+		// the cookie from the auth server isn't automatically forwarded.
+		var token string
+		if cookie, err := r.Cookie(BASessionCookieName); err == nil && cookie.Value != "" {
+			token = cookie.Value
+		} else if h := r.Header.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
+			token = h[7:]
+		}
+
+		if token == "" {
+			slog.Debug("better_auth: no token found in cookie or header")
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 
-		token := cookie.Value
-		if token == "" {
-			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
-			return
-		}
+		slog.Debug("better_auth: resolving session", "token_prefix", token[:min(8, len(token))]+"...")
 
 		// Query BA's session + user tables (raw SQL — BA tables are not in Go-Jet codegen).
 		var row baSessionRow
-		err = ba.db.QueryRowContext(r.Context(),
+		err := ba.db.QueryRowContext(r.Context(),
 			`SELECT s.id, s.user_id, u.email, s.expires_at
-			 FROM session s
+			 FROM "session" s
 			 JOIN "user" u ON s.user_id = u.id
 			 WHERE s.token = $1 AND s.expires_at > NOW()`,
 			token,
 		).Scan(&row.SessionID, &row.BAUserID, &row.Email, &row.ExpiresAt)
 		if err != nil {
 			if err == sql.ErrNoRows {
+				slog.Debug("better_auth: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
 				http.Error(w, `{"error":"session expired or invalid"}`, http.StatusUnauthorized)
 				return
 			}
