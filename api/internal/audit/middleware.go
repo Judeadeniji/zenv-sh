@@ -92,14 +92,12 @@ func routeToAction(method, path string) string {
 		return "token.create"
 	case strings.HasPrefix(p, "tokens") && method == "DELETE":
 		return "token.revoke"
-	case strings.HasPrefix(p, "auth/signup"):
-		return "auth.signup"
-	case strings.HasPrefix(p, "auth/login"):
-		return "auth.login"
+	case strings.HasPrefix(p, "auth/setup-vault"):
+		return "auth.setup_vault"
 	case strings.HasPrefix(p, "auth/unlock"):
 		return "auth.unlock"
-	case strings.HasPrefix(p, "auth/logout"):
-		return "auth.logout"
+	case strings.HasPrefix(p, "auth/me"):
+		return "auth.me"
 	case strings.HasPrefix(p, "projects") && method == "POST":
 		return "project.create"
 	default:

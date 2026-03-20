@@ -6,37 +6,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/Judeadeniji/zenv-sh/api/internal/config"
 	"github.com/Judeadeniji/zenv-sh/api/internal/handler"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 )
 
 // Routes mounts all /v1 endpoints onto the given router.
-func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, cfg *config.Config) {
-	sm := middleware.NewSessionManager(rdb)
+func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	identity := middleware.NewIdentitySession(db, rdb)
 	ta := middleware.NewTokenAuth(db)
-	auth := handler.NewAuthHandler(db, sm, identity)
+	auth := handler.NewAuthHandler(db, identity)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
 	orgs := handler.NewOrgsHandler(db)
-
-	// Public — no session required
-	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", auth.Signup)
-		if cfg.DevMode {
-			r.Post("/login", auth.DevLogin)
-		}
-	})
-
-	// Legacy session routes (dev mode / CLI-initiated sessions)
-	r.Group(func(r chi.Router) {
-		r.Use(sm.RequireSession)
-
-		r.Post("/auth/unlock", auth.Unlock)
-		r.Post("/auth/logout", auth.Logout)
-	})
 
 	// Identity session routes — verified via session cookie or Bearer token
 	r.Group(func(r chi.Router) {

@@ -93,23 +93,6 @@ definitions:
         description: shown exactly once — never stored
         type: string
     type: object
-  api_internal_handler.DevLoginRequest:
-    properties:
-      email:
-        type: string
-    type: object
-  api_internal_handler.DevLoginResponse:
-    properties:
-      salt:
-        description: base64 — client needs this to re-derive KEK
-        type: string
-      session_id:
-        type: string
-      user_id:
-        type: string
-      vault_key_type:
-        type: string
-    type: object
   api_internal_handler.ErrorResponse:
     properties:
       error:
@@ -275,36 +258,6 @@ definitions:
       vault_setup_complete:
         type: boolean
     type: object
-  api_internal_handler.SignupRequest:
-    properties:
-      auth_key_hash:
-        description: base64
-        type: string
-      email:
-        type: string
-      public_key:
-        description: base64
-        type: string
-      salt:
-        description: base64
-        type: string
-      vault_key_type:
-        description: '"pin" or "passphrase"'
-        type: string
-      wrapped_dek:
-        description: base64
-        type: string
-      wrapped_private_key:
-        description: base64
-        type: string
-    type: object
-  api_internal_handler.SignupResponse:
-    properties:
-      session_id:
-        type: string
-      user_id:
-        type: string
-    type: object
   api_internal_handler.TokenListItem:
     properties:
       created_at:
@@ -375,50 +328,6 @@ info:
   title: zEnv API
   version: 0.1.0
 paths:
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Create session by email. Development only — replaced by OAuth in
-        production.
-      parameters:
-      - description: Email to login
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/api_internal_handler.DevLoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api_internal_handler.DevLoginResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      summary: Dev login (temporary)
-      tags:
-      - auth
-  /auth/logout:
-    post:
-      description: Destroy session and clear cookie.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - SessionAuth: []
-      summary: Logout
-      tags:
-      - auth
   /auth/me:
     get:
       description: Returns identity, vault setup status, and vault lock state.
@@ -465,37 +374,6 @@ paths:
       security:
       - SessionAuth: []
       summary: Setup vault
-      tags:
-      - auth
-  /auth/signup:
-    post:
-      consumes:
-      - application/json
-      description: Register with client-generated crypto material. Server stores ciphertext
-        only.
-      parameters:
-      - description: Crypto material from client
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/api_internal_handler.SignupRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/api_internal_handler.SignupResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      summary: Create account
       tags:
       - auth
   /auth/unlock:

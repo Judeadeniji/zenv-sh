@@ -7,77 +7,6 @@
         "version": "0.1.0"
     },
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Create session by email. Development only — replaced by OAuth in production.",
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Dev login (temporary)",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.DevLoginRequest"
-                            }
-                        }
-                    },
-                    "description": "Email to login",
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.DevLoginResponse"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/logout": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "Destroy session and clear cookie.",
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Logout",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/auth/me": {
             "get": {
                 "security": [
@@ -134,58 +63,6 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/api_internal_handler.SetupVaultResponse"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/signup": {
-            "post": {
-                "description": "Register with client-generated crypto material. Server stores ciphertext only.",
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Create account",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.SignupRequest"
-                            }
-                        }
-                    },
-                    "description": "Crypto material from client",
-                    "required": true
-                },
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/api_internal_handler.SignupResponse"
                                 }
                             }
                         }
@@ -1513,32 +1390,6 @@
                     }
                 }
             },
-            "api_internal_handler.DevLoginRequest": {
-                "type": "object",
-                "properties": {
-                    "email": {
-                        "type": "string"
-                    }
-                }
-            },
-            "api_internal_handler.DevLoginResponse": {
-                "type": "object",
-                "properties": {
-                    "salt": {
-                        "description": "base64 — client needs this to re-derive KEK",
-                        "type": "string"
-                    },
-                    "session_id": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": "string"
-                    },
-                    "vault_key_type": {
-                        "type": "string"
-                    }
-                }
-            },
             "api_internal_handler.ErrorResponse": {
                 "type": "object",
                 "properties": {
@@ -1787,49 +1638,6 @@
                     },
                     "vault_setup_complete": {
                         "type": "boolean"
-                    }
-                }
-            },
-            "api_internal_handler.SignupRequest": {
-                "type": "object",
-                "properties": {
-                    "auth_key_hash": {
-                        "description": "base64",
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "public_key": {
-                        "description": "base64",
-                        "type": "string"
-                    },
-                    "salt": {
-                        "description": "base64",
-                        "type": "string"
-                    },
-                    "vault_key_type": {
-                        "description": "\"pin\" or \"passphrase\"",
-                        "type": "string"
-                    },
-                    "wrapped_dek": {
-                        "description": "base64",
-                        "type": "string"
-                    },
-                    "wrapped_private_key": {
-                        "description": "base64",
-                        "type": "string"
-                    }
-                }
-            },
-            "api_internal_handler.SignupResponse": {
-                "type": "object",
-                "properties": {
-                    "session_id": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": "string"
                     }
                 }
             },

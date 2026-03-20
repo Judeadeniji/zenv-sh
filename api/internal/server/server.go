@@ -55,7 +55,7 @@ func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) *chi.Mux {
 	// API versions
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(al.Middleware) // Audit every /v1 request
-		v1.Routes(r, db, rdb, cfg)
+		v1.Routes(r, db, rdb)
 	})
 
 	return r

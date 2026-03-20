@@ -4,100 +4,6 @@
  */
 
 export interface paths {
-    "/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Dev login (temporary)
-         * @description Create session by email. Development only — replaced by OAuth in production.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            /** @description Email to login */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.DevLoginRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.DevLoginResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Logout
-         * @description Destroy session and clear cookie.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            [key: string]: string;
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -171,68 +77,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.SetupVaultResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/signup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create account
-         * @description Register with client-generated crypto material. Server stores ciphertext only.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            /** @description Crypto material from client */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.SignupRequest"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.SignupResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -1381,16 +1225,6 @@ export interface components {
             /** @description shown exactly once — never stored */
             token?: string;
         };
-        "api_internal_handler.DevLoginRequest": {
-            email?: string;
-        };
-        "api_internal_handler.DevLoginResponse": {
-            /** @description base64 — client needs this to re-derive KEK */
-            salt?: string;
-            session_id?: string;
-            user_id?: string;
-            vault_key_type?: string;
-        };
         "api_internal_handler.ErrorResponse": {
             error?: string;
         };
@@ -1480,25 +1314,6 @@ export interface components {
         "api_internal_handler.SetupVaultResponse": {
             user_id?: string;
             vault_setup_complete?: boolean;
-        };
-        "api_internal_handler.SignupRequest": {
-            /** @description base64 */
-            auth_key_hash?: string;
-            email?: string;
-            /** @description base64 */
-            public_key?: string;
-            /** @description base64 */
-            salt?: string;
-            /** @description "pin" or "passphrase" */
-            vault_key_type?: string;
-            /** @description base64 */
-            wrapped_dek?: string;
-            /** @description base64 */
-            wrapped_private_key?: string;
-        };
-        "api_internal_handler.SignupResponse": {
-            session_id?: string;
-            user_id?: string;
         };
         "api_internal_handler.TokenListItem": {
             created_at?: string;
