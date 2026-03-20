@@ -29,11 +29,8 @@
 
 ### Docs site
 
-- [ ] Scaffold docs (Starlight or VitePress on CF Pages)
-- [ ] Quickstart guide
-- [ ] SDK + CLI reference
-- [ ] Self-hosting guide
-- [ ] Architecture overview (zero-knowledge explainer)
+- [ ] Deploy to Cloudflare Pages
+- [ ] Encryption API docs (after API is built)
 
 ### @zenv/vite-plugin — build-time injection (Phase 2)
 
@@ -194,6 +191,15 @@
 - [x] MIT license for tools (CLI, SDK, Amnesia)
 - [x] CONTRIBUTING.md + SECURITY.md
 - [x] Updated roadmap with encryption API and business model
+
+### Docs site (Starlight)
+
+- [x] Scaffold apps/docs/ with Astro Starlight
+- [x] Introduction, quickstart, how-it-works (architecture explainer)
+- [x] CLI reference: installation, configuration, all commands
+- [x] SDK reference: installation, usage with schema validation
+- [x] Self-hosting guide with docker-compose
+- [x] 11 pages, Pagefind search, all content from actual codebase
 
 ### Publishing prep + CI
 
