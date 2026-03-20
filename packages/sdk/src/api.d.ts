@@ -98,6 +98,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get auth state
+         * @description Returns identity, vault setup status, and vault lock state.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.MeResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/setup-vault": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup vault
+         * @description Store client-generated crypto material and link to authenticated identity.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Crypto material from client */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.SetupVaultRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SetupVaultResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -208,6 +309,306 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List organizations
+         * @description List all organizations the current user is a member of.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ListOrgsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create organization
+         * @description Create an organization. The creating user becomes the owner and is added as an admin member.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Organization name */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.CreateOrgRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.OrgResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{orgID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get organization
+         * @description Get a single organization by ID.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Organization UUID */
+                    orgID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.OrgResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{orgID}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List organization members
+         * @description List all members of an organization with their roles.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Organization UUID */
+                    orgID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ListMembersResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Add organization member
+         * @description Add a user to an organization with a specified role.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Organization UUID */
+                    orgID: string;
+                };
+                cookie?: never;
+            };
+            /** @description User and role */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.AddMemberRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.MemberResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{orgID}/members/{memberID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove organization member
+         * @description Remove a member from an organization.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Organization UUID */
+                    orgID: string;
+                    /** @description Member UUID */
+                    memberID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -676,6 +1077,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sdk/secrets/{nameHash}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rollback secret
+         * @description Revert a secret to a previous version. The current version is archived first.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            /** @description Target version */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sdk/secrets/{nameHash}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List secret versions
+         * @description Show version history for a secret. Returns version numbers and timestamps.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.VersionsResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tokens": {
         parameters: {
             query?: never;
@@ -808,11 +1326,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        "api_internal_handler.AddMemberRequest": {
+            /** @description admin, senior_dev, dev, contractor, ci_bot */
+            role?: string;
+            user_id?: string;
+        };
         "api_internal_handler.BulkFetchRequest": {
             environment?: string;
             /** @description base64-encoded HMAC hashes */
             name_hashes?: string[];
             project_id?: string;
+        };
+        "api_internal_handler.CreateOrgRequest": {
+            name?: string;
         };
         "api_internal_handler.CreateProjectRequest": {
             name?: string;
@@ -868,6 +1394,12 @@ export interface components {
         "api_internal_handler.ErrorResponse": {
             error?: string;
         };
+        "api_internal_handler.ListMembersResponse": {
+            members?: components["schemas"]["api_internal_handler.MemberResponse"][];
+        };
+        "api_internal_handler.ListOrgsResponse": {
+            organizations?: components["schemas"]["api_internal_handler.OrgResponse"][];
+        };
         "api_internal_handler.ListProjectsResponse": {
             projects?: components["schemas"]["api_internal_handler.ProjectResponse"][];
         };
@@ -876,6 +1408,27 @@ export interface components {
         };
         "api_internal_handler.ListTokensResponse": {
             tokens?: components["schemas"]["api_internal_handler.TokenListItem"][];
+        };
+        "api_internal_handler.MeResponse": {
+            email?: string;
+            /** @description base64 */
+            salt?: string;
+            vault_key_type?: string;
+            vault_setup_complete?: boolean;
+            vault_unlocked?: boolean;
+        };
+        "api_internal_handler.MemberResponse": {
+            email?: string;
+            id?: string;
+            joined_at?: string;
+            role?: string;
+            user_id?: string;
+        };
+        "api_internal_handler.OrgResponse": {
+            created_at?: string;
+            id?: string;
+            name?: string;
+            owner_id?: string;
         };
         "api_internal_handler.ProjectCryptoResponse": {
             /** @description base64 */
@@ -888,6 +1441,9 @@ export interface components {
             id?: string;
             name?: string;
             organization_id?: string;
+        };
+        "api_internal_handler.RollbackRequest": {
+            version?: number;
         };
         "api_internal_handler.SecretListItem": {
             environment?: string;
@@ -906,6 +1462,24 @@ export interface components {
             project_id?: string;
             updated_at?: string;
             version?: number;
+        };
+        "api_internal_handler.SetupVaultRequest": {
+            /** @description base64 */
+            auth_key_hash?: string;
+            /** @description base64 */
+            public_key?: string;
+            /** @description base64 */
+            salt?: string;
+            /** @description "pin" or "passphrase" */
+            vault_key_type?: string;
+            /** @description base64 */
+            wrapped_dek?: string;
+            /** @description base64 */
+            wrapped_private_key?: string;
+        };
+        "api_internal_handler.SetupVaultResponse": {
+            user_id?: string;
+            vault_setup_complete?: boolean;
         };
         "api_internal_handler.SignupRequest": {
             /** @description base64 */
@@ -953,6 +1527,14 @@ export interface components {
             ciphertext?: string;
             /** @description base64 */
             nonce?: string;
+        };
+        "api_internal_handler.VersionItem": {
+            created_at?: string;
+            version?: number;
+        };
+        "api_internal_handler.VersionsResponse": {
+            current_version?: number;
+            versions?: components["schemas"]["api_internal_handler.VersionItem"][];
         };
     };
     responses: never;
