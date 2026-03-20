@@ -18,7 +18,7 @@ func newLoginCmd() *cobra.Command {
 		Long: `Authenticate with zEnv by providing a service token.
 
 You can get a service token from the zEnv dashboard or by running:
-  zenv tokens create --name "cli" --project <project-id>
+  zenv tokens create --name <token-name> --project <project-id>
 
 After login, the token is stored in ~/.config/zenv/credentials
 and used automatically for subsequent commands.`,

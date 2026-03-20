@@ -67,16 +67,16 @@ func NewRootCmd() *cobra.Command {
 
 func requireConfig() error {
 	if cfg.Token == "" {
-		return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+		return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 	}
 	if cfg.VaultKey == "" {
-		return fmt.Errorf("ZENV_VAULT_KEY is not set.\nSet it: export ZENV_VAULT_KEY=...")
+		return fmt.Errorf("vault key not set.\nRun: zenv config set --global vault_key <your-vault-key>")
 	}
 	if cfg.Project == "" {
-		return fmt.Errorf("no project specified.\nUse --project, .zenv file, or ZENV_PROJECT")
+		return fmt.Errorf("no project specified.\nRun: zenv config set project <project-id>\n  or: zenv projects init")
 	}
 	if cfg.Env == "" {
-		return fmt.Errorf("no environment specified.\nUse --env, .zenv file, or ZENV_ENV")
+		return fmt.Errorf("no environment specified.\nRun: zenv config set env <environment>")
 	}
 	return nil
 }
