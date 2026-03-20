@@ -13,6 +13,7 @@ import (
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
@@ -273,7 +274,7 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.ServiceTokens.ProjectID.EQ(UUID(projectID)),
 	).ORDER_BY(table.ServiceTokens.CreatedAt.DESC())
 
-	if err := stmt.Query(h.db, &tokens); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := stmt.Query(h.db, &tokens); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("tokens.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list tokens"})
 		return

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
@@ -169,7 +170,7 @@ func (h *OrgsHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.OrganizationMembers.UserID.EQ(UUID(userID)),
 	).ORDER_BY(table.Organizations.Name.ASC())
 
-	if err := stmt.Query(h.db, &orgs); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := stmt.Query(h.db, &orgs); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("orgs.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list organizations"})
 		return
@@ -215,7 +216,7 @@ func (h *OrgsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	).FROM(table.Organizations).WHERE(table.Organizations.ID.EQ(UUID(orgID)))
 
 	if err := stmt.Query(h.db, &org); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "organization not found"})
 			return
 		}
@@ -286,7 +287,7 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		table.OrganizationMembers.OrganizationID.EQ(UUID(orgID)),
 	).ORDER_BY(table.OrganizationMembers.JoinedAt.ASC())
 
-	if err := stmt.Query(h.db, &rows); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := stmt.Query(h.db, &rows); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("orgs.list_members: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list members"})
 		return

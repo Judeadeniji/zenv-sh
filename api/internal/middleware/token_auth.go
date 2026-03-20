@@ -55,13 +55,13 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, `{"error":"missing or invalid Authorization header"}`, http.StatusUnauthorized)
+			jsonError(w, "missing or invalid Authorization header", http.StatusUnauthorized)
 			return
 		}
 
 		tokenPlaintext := strings.TrimPrefix(authHeader, "Bearer ")
 		if !strings.HasPrefix(tokenPlaintext, "ze_") {
-			http.Error(w, `{"error":"invalid token format"}`, http.StatusUnauthorized)
+			jsonError(w, "invalid token format", http.StatusUnauthorized)
 			return
 		}
 
@@ -81,19 +81,19 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 		)
 
 		if err := stmt.Query(ta.db, &token); err != nil {
-			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			jsonError(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
 
 		// Check revocation.
 		if token.RevokedAt != nil {
-			http.Error(w, `{"error":"token has been revoked"}`, http.StatusUnauthorized)
+			jsonError(w, "token has been revoked", http.StatusUnauthorized)
 			return
 		}
 
 		// Check expiry.
 		if token.ExpiresAt != nil && token.ExpiresAt.Before(time.Now()) {
-			http.Error(w, `{"error":"token has expired"}`, http.StatusUnauthorized)
+			jsonError(w, "token has expired", http.StatusUnauthorized)
 			return
 		}
 
@@ -114,7 +114,7 @@ func RequireWrite(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		info := GetTokenInfo(r.Context())
 		if info == nil || !info.IsWriteAllowed() {
-			http.Error(w, `{"error":"write permission required"}`, http.StatusForbidden)
+			jsonError(w, "write permission required", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)

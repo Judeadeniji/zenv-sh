@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"time"
 )
 
@@ -32,4 +34,12 @@ func (s *Session) IsVaultUnlocked() bool {
 func GetSession(ctx context.Context) *Session {
 	sess, _ := ctx.Value(sessionContextKey).(*Session)
 	return sess
+}
+
+// jsonError writes a JSON error response. Use instead of http.Error
+// to ensure Content-Type: application/json on all error responses.
+func jsonError(w http.ResponseWriter, msg string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

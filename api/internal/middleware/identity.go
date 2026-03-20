@@ -51,7 +51,7 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 
 		if token == "" {
 			slog.Debug("identity: no token found in cookie or header")
-			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
+			jsonError(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
 
@@ -69,11 +69,11 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 		if err != nil {
 			if err == sql.ErrNoRows {
 				slog.Debug("identity: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
-				http.Error(w, `{"error":"session expired or invalid"}`, http.StatusUnauthorized)
+				jsonError(w, "session expired or invalid", http.StatusUnauthorized)
 				return
 			}
 			slog.Error("identity: query session", "error", err)
-			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -85,7 +85,7 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 		).Scan(&zenvUserID)
 		if err != nil && err != sql.ErrNoRows {
 			slog.Error("identity: resolve zenv user", "error", err)
-			http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 		// zenvUserID may be empty if vault hasn't been set up yet — that's OK.
@@ -117,11 +117,11 @@ func (id *IdentitySession) RequireVaultUnlocked(next http.Handler) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess := GetSession(r.Context())
 		if sess == nil {
-			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
+			jsonError(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
 		if !sess.IsVaultUnlocked() {
-			http.Error(w, `{"error":"vault is locked — submit your Vault Key first"}`, http.StatusForbidden)
+			jsonError(w, "vault is locked — submit your Vault Key first", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)

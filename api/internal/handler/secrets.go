@@ -3,14 +3,15 @@ package handler
 import (
 	"database/sql"
 	"encoding/base64"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
@@ -184,7 +185,7 @@ func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err := stmt.Query(h.db, &item); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
 			return
 		}
@@ -475,7 +476,7 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 			AND(table.VaultItems.Environment.EQ(String(env))),
 	).ORDER_BY(table.VaultItems.UpdatedAt.DESC())
 
-	if err := stmt.Query(h.db, &items); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := stmt.Query(h.db, &items); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("secrets.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list secrets"})
 		return

@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
@@ -211,7 +212,7 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 	).ORDER_BY(table.Projects.Name.ASC())
 
 	err = stmt.Query(h.db, &projects)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("projects.list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list projects"})
 		return
@@ -258,7 +259,7 @@ func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &project)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project not found"})
 			return
 		}
@@ -307,7 +308,7 @@ func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 
 	err = stmt.Query(h.db, &vk)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project crypto not found"})
 			return
 		}
