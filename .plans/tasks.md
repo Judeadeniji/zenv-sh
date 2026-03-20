@@ -4,15 +4,36 @@
 
 ### Developer Dashboard
 
-- [ ] Scaffold apps/web/ — TanStack Start + Drizzle
-- [ ] Dashboard: vault-setup page (Amnesia TS in browser → crypto material → Go API)
-- [ ] Dashboard: vault-unlock page (Vault Key → derive → unlock)
-- [ ] Dashboard: _authed layout (redirect to login if no session)
-- [ ] Dashboard: _unlocked layout (redirect to unlock if vault locked)
-- [ ] Dashboard: secrets list/detail pages
-- [ ] Dashboard: project switcher
-- [ ] Dashboard: service token management
-- [ ] Dashboard: organization + member management
+- [ ] Scaffold apps/web/ — TanStack Start
+- [ ] Auth flow (login → vault setup → unlock)
+- [ ] Protected layouts (_authed, _unlocked)
+- [ ] Secrets list/detail pages
+- [ ] Project switcher
+- [ ] Service token management
+- [ ] Organization + member management
+
+### Deploy SaaS
+
+- [ ] Neon Postgres + Upstash Redis accounts
+- [ ] Fly.io apps (api + auth)
+- [ ] Cloudflare DNS for zenv.sh
+- [ ] Vercel project for dashboard
+- [ ] GitHub Actions deploy pipeline
+
+### Encryption API
+
+- [ ] New API routes: /v1/encrypt, /v1/decrypt, /v1/vaults
+- [ ] Usage metering middleware
+- [ ] SDK methods: zenv.encrypt(data), zenv.decrypt(ciphertext)
+- [ ] Encryption API docs
+
+### Docs site
+
+- [ ] Scaffold docs (Starlight or VitePress on CF Pages)
+- [ ] Quickstart guide
+- [ ] SDK + CLI reference
+- [ ] Self-hosting guide
+- [ ] Architecture overview (zero-knowledge explainer)
 
 ### @zenv/vite-plugin — build-time injection (Phase 2)
 
@@ -162,6 +183,17 @@
 - [x] Handler tests (37): auth (10), secrets (12), tokens (3), projects (5), orgs (7)
 - [x] CLI config tests (9): defaults, env overrides, flags, global/local files, credentials perms, set/unset
 - [x] All 93 tests passing via `make test`
+
+### Packaging + OSS
+
+- [x] Dockerfile for API (multi-stage Go build)
+- [x] Dockerfile for auth server (Node.js)
+- [x] docker-compose.prod.yml for self-hosting (API + auth + Postgres + Redis)
+- [x] .env.example for production config
+- [x] BSL 1.1 license for server components (API, auth, dashboard)
+- [x] MIT license for tools (CLI, SDK, Amnesia)
+- [x] CONTRIBUTING.md + SECURITY.md
+- [x] Updated roadmap with encryption API and business model
 
 ### Publishing prep + CI
 
