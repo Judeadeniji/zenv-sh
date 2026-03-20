@@ -152,6 +152,15 @@
 - [x] zenv() convenience factory function
 - [x] strict mode + disableValidation option
 
+### Test suites
+
+- [x] testutil package: Postgres + Redis testcontainers, migration runner, identity table DDL
+- [x] Test fixtures: CreateIdentityUser, CreateZenvUser, CreateProject, CreateServiceToken (real Amnesia crypto)
+- [x] httptest server helper with production router
+- [x] Middleware tests (13): identity session (cookie, Bearer, expired, missing, invalid), vault lock/unlock, token auth (valid, invalid, prefix, revoked), read/write permissions
+- [x] E2E integration tests (3): full secret lifecycle, read-only token rejection, invalid token rejection
+- [x] All 16 tests passing via `go test ./api/...`
+
 ### Publishing prep + CI
 
 - [x] TS packages: exports, files, engines, build config for npm
