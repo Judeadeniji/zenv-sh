@@ -17,17 +17,18 @@ type userTable struct {
 	postgres.Table
 
 	// Columns
-	ID            postgres.ColumnString
-	Name          postgres.ColumnString
-	Email         postgres.ColumnString
-	EmailVerified postgres.ColumnBool
-	Image         postgres.ColumnString
-	CreatedAt     postgres.ColumnTimestamp
-	UpdatedAt     postgres.ColumnTimestamp
-	Role          postgres.ColumnString
-	Banned        postgres.ColumnBool
-	BanReason     postgres.ColumnString
-	BanExpires    postgres.ColumnTimestamp
+	ID               postgres.ColumnString
+	Name             postgres.ColumnString
+	Email            postgres.ColumnString
+	EmailVerified    postgres.ColumnBool
+	Image            postgres.ColumnString
+	CreatedAt        postgres.ColumnTimestamp
+	UpdatedAt        postgres.ColumnTimestamp
+	Role             postgres.ColumnString
+	Banned           postgres.ColumnBool
+	BanReason        postgres.ColumnString
+	BanExpires       postgres.ColumnTimestamp
+	TwoFactorEnabled postgres.ColumnBool
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -69,37 +70,39 @@ func newUserTable(schemaName, tableName, alias string) *UserTable {
 
 func newUserTableImpl(schemaName, tableName, alias string) userTable {
 	var (
-		IDColumn            = postgres.StringColumn("id")
-		NameColumn          = postgres.StringColumn("name")
-		EmailColumn         = postgres.StringColumn("email")
-		EmailVerifiedColumn = postgres.BoolColumn("email_verified")
-		ImageColumn         = postgres.StringColumn("image")
-		CreatedAtColumn     = postgres.TimestampColumn("created_at")
-		UpdatedAtColumn     = postgres.TimestampColumn("updated_at")
-		RoleColumn          = postgres.StringColumn("role")
-		BannedColumn        = postgres.BoolColumn("banned")
-		BanReasonColumn     = postgres.StringColumn("ban_reason")
-		BanExpiresColumn    = postgres.TimestampColumn("ban_expires")
-		allColumns          = postgres.ColumnList{IDColumn, NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn}
-		mutableColumns      = postgres.ColumnList{NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn}
-		defaultColumns      = postgres.ColumnList{EmailVerifiedColumn, CreatedAtColumn, UpdatedAtColumn, BannedColumn}
+		IDColumn               = postgres.StringColumn("id")
+		NameColumn             = postgres.StringColumn("name")
+		EmailColumn            = postgres.StringColumn("email")
+		EmailVerifiedColumn    = postgres.BoolColumn("email_verified")
+		ImageColumn            = postgres.StringColumn("image")
+		CreatedAtColumn        = postgres.TimestampColumn("created_at")
+		UpdatedAtColumn        = postgres.TimestampColumn("updated_at")
+		RoleColumn             = postgres.StringColumn("role")
+		BannedColumn           = postgres.BoolColumn("banned")
+		BanReasonColumn        = postgres.StringColumn("ban_reason")
+		BanExpiresColumn       = postgres.TimestampColumn("ban_expires")
+		TwoFactorEnabledColumn = postgres.BoolColumn("two_factor_enabled")
+		allColumns             = postgres.ColumnList{IDColumn, NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn, TwoFactorEnabledColumn}
+		mutableColumns         = postgres.ColumnList{NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn, TwoFactorEnabledColumn}
+		defaultColumns         = postgres.ColumnList{EmailVerifiedColumn, CreatedAtColumn, UpdatedAtColumn, BannedColumn, TwoFactorEnabledColumn}
 	)
 
 	return userTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:            IDColumn,
-		Name:          NameColumn,
-		Email:         EmailColumn,
-		EmailVerified: EmailVerifiedColumn,
-		Image:         ImageColumn,
-		CreatedAt:     CreatedAtColumn,
-		UpdatedAt:     UpdatedAtColumn,
-		Role:          RoleColumn,
-		Banned:        BannedColumn,
-		BanReason:     BanReasonColumn,
-		BanExpires:    BanExpiresColumn,
+		ID:               IDColumn,
+		Name:             NameColumn,
+		Email:            EmailColumn,
+		EmailVerified:    EmailVerifiedColumn,
+		Image:            ImageColumn,
+		CreatedAt:        CreatedAtColumn,
+		UpdatedAt:        UpdatedAtColumn,
+		Role:             RoleColumn,
+		Banned:           BannedColumn,
+		BanReason:        BanReasonColumn,
+		BanExpires:       BanExpiresColumn,
+		TwoFactorEnabled: TwoFactorEnabledColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

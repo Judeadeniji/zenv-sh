@@ -12,15 +12,16 @@ import (
 )
 
 type User struct {
-	ID            string `sql:"primary_key"`
-	Name          string
-	Email         string
-	EmailVerified bool
-	Image         *string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	Role          *string
-	Banned        *bool
-	BanReason     *string
-	BanExpires    *time.Time
+	ID               string `sql:"primary_key"`
+	Name             string
+	Email            string
+	EmailVerified    bool
+	Image            *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Role             *string
+	Banned           *bool
+	BanReason        *string
+	BanExpires       *time.Time
+	TwoFactorEnabled *bool
 }

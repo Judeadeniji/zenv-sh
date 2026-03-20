@@ -36,6 +36,7 @@ func UseSchema(schema string) {
 	SchemaMigrations = SchemaMigrations.FromSchema(schema)
 	ServiceTokens = ServiceTokens.FromSchema(schema)
 	Session = Session.FromSchema(schema)
+	TwoFactor = TwoFactor.FromSchema(schema)
 	User = User.FromSchema(schema)
 	Users = Users.FromSchema(schema)
 	VaultItemVersions = VaultItemVersions.FromSchema(schema)
