@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	projectOrgID    string
-	projectName     string
-	projectPubKey   string
+	projectOrgID  string
+	projectName   string
+	projectPubKey string
 )
 
 func newProjectsCmd() *cobra.Command {
@@ -72,7 +72,7 @@ func newProjectsListCmd() *cobra.Command {
 				return fmt.Errorf("--org is required (or set ZENV_ORGANIZATION)")
 			}
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			projects, err := api.ListProjects(orgID)
@@ -105,7 +105,7 @@ func newProjectsGetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			p, err := api.GetProject(args[0])
@@ -141,7 +141,7 @@ func newProjectsCreateCmd() *cobra.Command {
 				return fmt.Errorf("--public-key is required (base64 X25519 public key from vault unlock)")
 			}
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			pubKeyBytes, err := base64.StdEncoding.DecodeString(projectPubKey)

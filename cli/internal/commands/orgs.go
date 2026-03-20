@@ -44,7 +44,7 @@ func newOrgsCreateCmd() *cobra.Command {
 				return fmt.Errorf("--name is required")
 			}
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			o, err := api.CreateOrg(orgName)
@@ -71,7 +71,7 @@ func newOrgsListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			orgs, err := api.ListOrgs()
@@ -102,7 +102,7 @@ func newOrgsGetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			o, err := api.GetOrg(args[0])
@@ -127,7 +127,7 @@ func newOrgsMembersCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			members, err := api.ListMembers(args[0])
@@ -165,7 +165,7 @@ func newOrgsAddMemberCmd() *cobra.Command {
 				memberRole = "dev"
 			}
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			m, err := api.AddMember(args[0], client.AddMemberRequest{
@@ -192,7 +192,7 @@ func newOrgsRemoveMemberCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if api == nil {
-				return fmt.Errorf("ZENV_TOKEN is not set.\nSet it: export ZENV_TOKEN=svc_...")
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			if err := api.RemoveMember(args[0], args[1]); err != nil {
