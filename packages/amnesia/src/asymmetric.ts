@@ -63,9 +63,9 @@ export function unwrapWithPrivateKey(
     throw new Error("amnesia: asymmetric decryption failed");
   }
 
-  const nonce = packed.slice(0, NACL_NONCE_SIZE);
-  const ephemeralPublic = packed.slice(NACL_NONCE_SIZE, NACL_HEADER_SIZE);
-  const sealed = packed.slice(NACL_HEADER_SIZE);
+  const nonce = packed.subarray(0, NACL_NONCE_SIZE);
+  const ephemeralPublic = packed.subarray(NACL_NONCE_SIZE, NACL_HEADER_SIZE);
+  const sealed = packed.subarray(NACL_HEADER_SIZE);
 
   const plaintext = nacl.box.open(sealed, nonce, ephemeralPublic, recipientPrivateKey);
   if (plaintext === null) {

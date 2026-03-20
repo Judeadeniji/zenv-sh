@@ -28,7 +28,7 @@ export async function deriveKeys(
 ): Promise<{ kek: Uint8Array; authKey: Uint8Array }> {
   const params = keyType === "pin" ? PIN_PARAMS : PASSPHRASE_PARAMS;
 
-  const hash = await argon2id({
+  const output = await argon2id({
     password: vaultKey,
     salt,
     parallelism: params.parallelism,
@@ -38,9 +38,8 @@ export async function deriveKeys(
     outputType: "binary",
   });
 
-  const output = new Uint8Array(hash);
   return {
-    kek: output.slice(0, KEY_SIZE),
-    authKey: output.slice(KEY_SIZE, DERIVED_KEY_SIZE),
+    kek: output.subarray(0, KEY_SIZE),
+    authKey: output.subarray(KEY_SIZE, DERIVED_KEY_SIZE),
   };
 }

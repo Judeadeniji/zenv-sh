@@ -11,6 +11,10 @@ import {
   AUTH_KEY_SALT_SIZE,
 } from "./constants.ts";
 
+const HMAC_ALGO: HmacImportParams = { name: "HMAC", hash: "SHA-256" };
+const SIGN_USAGE: KeyUsage[] = ["sign"];
+const encoder = new TextEncoder();
+
 /**
  * HMAC-SHA256 hash of a secret name for server-side indexed lookup.
  * Must produce byte-identical output to Go's amnesia.HashName().
@@ -22,13 +26,12 @@ export async function hashName(
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     toBuffer(hmacKey),
-    { name: "HMAC", hash: "SHA-256" },
+    HMAC_ALGO,
     false,
-    ["sign"],
+    SIGN_USAGE,
   );
 
-  const data = new TextEncoder().encode(name);
-  const sig = await crypto.subtle.sign("HMAC", cryptoKey, data);
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(name));
   return new Uint8Array(sig);
 }
 
@@ -43,7 +46,7 @@ export async function hashAuthKey(authKey: Uint8Array): Promise<Uint8Array> {
   const fullHash = new Uint8Array(
     await crypto.subtle.digest("SHA-256", toBuffer(authKey)),
   );
-  const salt = fullHash.slice(0, AUTH_KEY_SALT_SIZE);
+  const salt = fullHash.subarray(0, AUTH_KEY_SALT_SIZE);
 
   const hash = await argon2id({
     password: authKey,
@@ -55,5 +58,5 @@ export async function hashAuthKey(authKey: Uint8Array): Promise<Uint8Array> {
     outputType: "binary",
   });
 
-  return new Uint8Array(hash);
+  return hash;
 }

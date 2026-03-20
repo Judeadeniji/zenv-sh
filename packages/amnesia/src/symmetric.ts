@@ -7,14 +7,12 @@
 import { generateNonce } from "./random.ts";
 import { toBuffer } from "./util.ts";
 
+const AES_GCM = "AES-GCM";
+const AES_ALGO = { name: AES_GCM } as const;
+const KEY_USAGES: KeyUsage[] = ["encrypt", "decrypt"];
+
 async function importKey(key: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    toBuffer(key),
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"],
-  );
+  return crypto.subtle.importKey("raw", toBuffer(key), AES_ALGO, false, KEY_USAGES);
 }
 
 /**
@@ -29,7 +27,7 @@ export async function encrypt(
   const cryptoKey = await importKey(key);
 
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: toBuffer(nonce) },
+    { name: AES_GCM, iv: toBuffer(nonce) },
     cryptoKey,
     toBuffer(plaintext),
   );
@@ -52,7 +50,7 @@ export async function decrypt(
   const cryptoKey = await importKey(key);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: toBuffer(nonce) },
+    { name: AES_GCM, iv: toBuffer(nonce) },
     cryptoKey,
     toBuffer(ciphertext),
   );
