@@ -6,7 +6,7 @@
 
 - [ ] Scaffold apps/web/ — TanStack Start
 - [ ] Auth flow (login → vault setup → unlock)
-- [ ] Protected layouts (_authed, _unlocked)
+- [ ] Protected layouts (\_authed, \_unlocked)
 - [ ] Secrets list/detail pages
 - [ ] Project switcher
 - [ ] Service token management
@@ -200,6 +200,7 @@
 - [x] SDK reference: installation, usage with schema validation
 - [x] Self-hosting guide with docker-compose
 - [x] 11 pages, Pagefind search, all content from actual codebase
+- [x] Amnesia crypto engine docs: overview, key derivation, symmetric, hashing, asymmetric, random (6 pages, Go + TS examples)
 
 ### Publishing prep + CI
 
