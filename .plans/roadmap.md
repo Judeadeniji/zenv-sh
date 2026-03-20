@@ -4,47 +4,42 @@
 
 Goal: A developer can use zEnv for a real project end-to-end.
 
-- [x] Amnesia crypto engine (Go) — fully implemented and tested
-- [x] Monorepo scaffold — go.work, Makefile, docker-compose
-- [x] API server skeleton (Go, Chi) — health check, graceful shutdown
-- [x] CLI skeleton (Go, Cobra) — all subcommands stubbed
-- [ ] Amnesia TinyGo WASM build — compile to <500KB for TS SDK
-- [ ] Database migrations — users, vault_items, projects, service_tokens, audit_logs
-- [ ] API auth endpoints — OAuth callbacks, session management, Vault Key verification
-- [ ] API secrets CRUD — encrypted item storage with HMAC name lookup
-- [ ] API service tokens — create, scope, revoke (hashed before storage)
-- [ ] API audit log pipeline — Redis buffer → Postgres bulk insert
-- [ ] CLI implementation — login, secrets get/set/list, run, tokens
-- [ ] @zenv/sdk — TypeScript WASM wrapper, schema-driven load(), typed returns
-- [ ] Developer dashboard (TanStack Start) — basic, functional
-- [ ] Documentation — quickstart + API reference
-- [ ] Docker Compose local dev — Postgres + Redis running
+- [x] Amnesia crypto engine (Go + TypeScript, cross-language parity)
+- [x] Monorepo scaffold — go.work, pnpm workspaces, Makefile, docker-compose
+- [x] API server — secrets CRUD, service tokens, projects, orgs, audit logs
+- [x] Auth server — standalone identity server (email/password, OAuth, 2FA, orgs)
+- [x] CLI — secrets, tokens, projects, orgs, login, whoami, config
+- [x] @zenv/sdk — TypeScript SDK with Standard Schema support
+- [x] 93 tests (handler, middleware, E2E integration, CLI config)
+- [ ] Developer dashboard (TanStack Start)
+- [ ] Encryption API — encrypt/decrypt any data, not just env vars
+- [ ] Dockerfiles + self-hosting guide
+- [ ] Documentation site
+- [ ] Deploy SaaS (Fly.io + Neon + Upstash + Vercel)
 
 ## Phase 2 — Something Developers Will Adopt
 
 Goal: Developers choose zEnv over alternatives and integrate it into their pipeline.
 
+- [ ] @zenv/vite-plugin — build-time secret injection
 - [ ] GitHub Actions integration — published Action on Marketplace
-- [ ] Audit logs — Redis buffer + partitioned Postgres, dashboard viewer
-- [ ] Webhooks — register endpoints, HMAC-signed delivery, retry on failure
-- [ ] Secret versioning and rollback
-- [ ] @zenv/vite-plugin — build-time injection for edge runtimes
+- [ ] Webhooks — HMAC-signed delivery, retry on failure
 - [ ] Python SDK
+- [ ] Go SDK (shares Amnesia natively)
 - [ ] Full documentation site with framework guides
 - [ ] Status page (status.zenv.sh)
 - [ ] Discord community
 
 ## Phase 3 — Something Teams Will Pay For
 
-Goal: Close first paying team customers. Public launch.
+Goal: Close first paying customers. Public launch.
 
-- [ ] RBAC — Admin / Senior Dev / Dev / Contractor / CI Bot roles
-- [ ] Go SDK (shares Amnesia natively)
-- [ ] More CI/CD integrations — GitLab, Docker, Kubernetes
+- [ ] Billing integration (LemonSqueezy or Stripe)
+- [ ] Plan limits enforcement (free/pro/enterprise)
+- [ ] Usage metering for encryption API
 - [ ] Secret rotation with expiry alerts
 - [ ] SOC 2 audit process started
 - [ ] Security whitepaper published
-- [ ] Stripe billing integration
 - [ ] Public launch
 
 ## Phase 4 — Something Enterprises Will Approve
@@ -53,15 +48,15 @@ Goal: Land first enterprise accounts.
 
 - [ ] SSO / SAML integration
 - [ ] SOC 2 Type II report completed
-- [ ] Third-party security audit of Amnesia published
+- [ ] Third-party security audit of Amnesia
 - [ ] Bug bounty program
 - [ ] Uptime SLA (99.9% Team, 99.99% Enterprise)
 - [ ] Advanced auto-rotation (Stripe, AWS, Twilio)
-- [ ] On-premise deployment option
+- [ ] On-premise deployment support
 
-## Phase 5 — Consumer Product
+## Phase 5 — Consumer Product (zEnv Vault, closed-source)
 
-Goal: Launch consumer product after developer product is stable.
+Goal: Launch consumer product on the same Amnesia engine.
 
 - [ ] Browser extension (Chrome, Firefox, Safari, Edge)
 - [ ] iOS and Android mobile apps
