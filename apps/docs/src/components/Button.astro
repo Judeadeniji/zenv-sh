@@ -1,0 +1,53 @@
+---
+interface Props {
+	href: string;
+	variant?: 'solid' | 'outline';
+	external?: boolean;
+	class?: string;
+}
+
+const { href, variant = 'solid', external = false, class: className = '' } = Astro.props;
+const externalProps = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+---
+
+{variant === 'solid' ? (
+	<a
+		href={href}
+		class:list={[
+			/* base */
+			'group relative isolate inline-flex items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-md px-3 py-1.25 text-sm font-medium no-underline transition duration-300 ease-[cubic-bezier(0.4,0.36,0,1)]',
+			/* light */
+			'bg-gray-900 text-white ring-1 ring-gray-900 shadow-[0_1px_--theme(--color-white/0.07)_inset,0_1px_3px_--theme(--color-gray-900/0.2)]',
+			/* dark */
+			'dark:bg-white dark:text-gray-900 dark:ring-1 dark:ring-white dark:shadow-[0_1px_--theme(--color-black/0.1)_inset,0_1px_3px_--theme(--color-black/0.15)]',
+			/* ::before gradient highlight */
+			'before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-md before:bg-linear-to-b before:from-white/20 before:opacity-50 before:transition-opacity before:duration-300 before:ease-[cubic-bezier(0.4,0.36,0,1)]',
+			'dark:before:from-black/6',
+			/* ::after blend overlay */
+			'after:pointer-events-none after:absolute after:inset-0 after:-z-10 after:rounded-md after:bg-linear-to-b after:from-white/10 after:from-46% after:to-54% after:mix-blend-overlay',
+			'dark:after:from-black/4',
+			/* hover */
+			'hover:before:opacity-100',
+			className,
+		]}
+		{...externalProps}
+	>
+		<slot />
+	</a>
+) : (
+	<a
+		href={href}
+		class:list={[
+			/* base */
+			'inline-flex items-center gap-1.5 rounded-md px-3 py-1.25 text-sm font-medium no-underline transition duration-300 ease-[cubic-bezier(0.4,0.36,0,1)]',
+			/* light */
+			'text-gray-600 ring-1 ring-gray-200 shadow-[0_1px_2px_--theme(--color-gray-900/0.04)] hover:bg-gray-50',
+			/* dark */
+			'dark:text-gray-300 dark:ring-gray-700 dark:shadow-[0_1px_2px_--theme(--color-black/0.2)] dark:hover:bg-gray-800',
+			className,
+		]}
+		{...externalProps}
+	>
+		<slot />
+	</a>
+)}

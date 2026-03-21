@@ -26,7 +26,7 @@ import {
   hashName,
 } from "@zenv/amnesia";
 import { createApiClient, type ApiClient } from "./client.ts";
-import { extractKeys, validateValues, type InferSchema } from "./schema.ts";
+import { extractKeys, validateValues, pickSchema, type InferSchema } from "./schema.ts";
 
 export interface ZEnvConfig<S extends Record<string, unknown> = Record<string, unknown>> {
   /** Service token — authenticates with the API. */
@@ -201,45 +201,56 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
    * 5. Validates + transforms values via schema (unless disableValidation)
    * 6. Reports all errors at once — not one-at-a-time
    */
+  /**
+   * Load secrets.
+   *
+   * With a schema (constructor or argument): fetches only schema keys, validates.
+   * Without a schema: fetches ALL secrets for this project/environment as raw strings.
+   */
   async load(): Promise<InferSchema<S>>;
   async load<O extends Record<string, unknown>>(schema: O): Promise<InferSchema<O>>;
   async load<O extends Record<string, unknown>>(schema?: O): Promise<InferSchema<O>> {
     const activeSchema = (schema ?? this.schema) as O | undefined;
-
-    if (!activeSchema) {
-      throw new Error(
-        "[zEnv] load() requires a schema. Define it in the constructor or pass it to load():\n\n" +
-          "  // In constructor:\n" +
-          "  const vault = zenv({\n" +
-          "    schema: z.object({ STRIPE_API_KEY: z.string() }),\n" +
-          "    ...\n" +
-          "  });\n" +
-          "  const secrets = await vault.load();\n\n" +
-          "  // Or inline:\n" +
-          "  const secrets = await vault.load({ STRIPE_API_KEY: {} });\n\n" +
-          "  // For single keys without a schema, use get():\n" +
-          "  const key = await vault.get('STRIPE_API_KEY');",
-      );
-    }
-
     const { dek, hmacKey } = await this.initCrypto();
-    const keys = extractKeys(activeSchema);
 
-    if (keys.length === 0) {
-      throw new Error(
-        "[zEnv] Schema has no keys. Define the secrets your app needs.",
+    let nameHashes: { name: string; hash: string }[];
+
+    if (activeSchema) {
+      // Schema defined — use it as fetch manifest
+      const keys = extractKeys(activeSchema);
+      if (keys.length === 0) {
+        throw new Error("[zEnv] Schema has no keys. Define the secrets your app needs.");
+      }
+      nameHashes = await Promise.all(
+        keys.map(async (name) => ({
+          name,
+          hash: bytesToHex(await hashName(name, hmacKey)),
+        })),
       );
+    } else {
+      // No schema — list all secrets, then bulk fetch
+      const { data: listData, error: listError } = await this.client.GET("/sdk/secrets", {
+        params: {
+          query: { project_id: this.projectId, environment: this.environment },
+        },
+      });
+
+      if (listError || !listData) {
+        throw new Error(`[zEnv] Failed to list secrets: ${JSON.stringify(listError)}`);
+      }
+
+      const rows = listData.secrets ?? [];
+      nameHashes = rows.map((r: any) => ({
+        name: r.name_hash,
+        hash: r.name_hash,
+      }));
+
+      if (nameHashes.length === 0) {
+        return {} as InferSchema<O>;
+      }
     }
 
-    // Hash all names
-    const nameHashes = await Promise.all(
-      keys.map(async (name) => ({
-        name,
-        hash: bytesToHex(await hashName(name, hmacKey)),
-      })),
-    );
-
-    // Bulk fetch from API
+    // Bulk fetch ciphertext
     const { data, error } = await this.client.POST("/sdk/secrets/bulk", {
       body: {
         name_hashes: nameHashes.map((n) => n.hash),
@@ -249,13 +260,11 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     });
 
     if (error) {
-      throw new Error(
-        `[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`,
-      );
+      throw new Error(`[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`);
     }
 
-    const rows = (data) ?? [];
-    const rowMap = new Map<string, any>();
+    const rows = data ?? [];
+    const rowMap = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       rowMap.set(row.name_hash!, row);
     }
@@ -267,20 +276,20 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     for (const { name, hash } of nameHashes) {
       const row = rowMap.get(hash);
       if (!row) {
-        fetchErrors.push(
-          `  ${name} — secret not found in '${this.environment}'`,
-        );
+        fetchErrors.push(`  ${name} — secret not found in '${this.environment}'`);
         continue;
       }
 
       const plaintext = await decrypt(
-        base64ToBytes(row.ciphertext),
-        base64ToBytes(row.nonce),
+        base64ToBytes(row.ciphertext!),
+        base64ToBytes(row.nonce!),
         dek,
       );
 
       const item = JSON.parse(new TextDecoder().decode(plaintext));
-      decrypted[name] = item.value;
+      // When loading without schema, we don't know the original name (only the hash)
+      // so use the name from the decrypted item payload
+      decrypted[item.name ?? name] = item.value;
     }
 
     if (fetchErrors.length > 0) {
@@ -290,25 +299,140 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       );
     }
 
-    // Validate + transform (unless disabled)
-    if (this.disableValidation) {
-      return decrypted as InferSchema<O>;
+    // Validate + transform if schema present and validation not disabled
+    if (activeSchema && !this.disableValidation) {
+      const { result, errors: validationErrors } = await validateValues(
+        activeSchema,
+        decrypted,
+      );
+
+      if (validationErrors.length > 0) {
+        const lines = validationErrors.map((e) => `  ${e.key} — ${e.message}`);
+        throw new Error(
+          `[zEnv] Startup validation failed:\n${lines.join("\n")}\n\n` +
+            "Application did not start. Fix the above and retry.",
+        );
+      }
+
+      return result as InferSchema<O>;
     }
 
-    const { result, errors: validationErrors } = await validateValues(
-      activeSchema,
-      decrypted,
+    return decrypted as InferSchema<O>;
+  }
+
+  /**
+   * Fetch a subset of secrets in a single bulk request.
+   *
+   * Three calling styles:
+   *   vault.select('KEY1', 'KEY2')         — variadic strings
+   *   vault.select(['KEY1', 'KEY2'])        — string array
+   *   vault.select(z.object({ KEY1: ... })) — schema (extracts keys + validates)
+   *
+   * If the constructor has a schema, string-based calls validate against it.
+   */
+  async select(schema: Record<string, unknown>): Promise<Record<string, unknown>>;
+  async select(names: string[]): Promise<Record<string, string>>;
+  async select(...names: string[]): Promise<Record<string, string>>;
+  async select(...args: unknown[]): Promise<Record<string, unknown>> {
+    let names: string[];
+    let validationSchema: Record<string, unknown> | undefined;
+
+    if (args.length === 1 && typeof args[0] === "object" && !Array.isArray(args[0])) {
+      // select(schema)
+      validationSchema = args[0] as Record<string, unknown>;
+      names = extractKeys(validationSchema);
+    } else if (args.length === 1 && Array.isArray(args[0])) {
+      // select(['KEY1', 'KEY2'])
+      names = args[0] as string[];
+    } else {
+      // select('KEY1', 'KEY2')
+      names = args as string[];
+    }
+
+    if (names.length === 0) {
+      throw new Error("[zEnv] select() requires at least one key.");
+    }
+
+    // Strict mode: reject names not in constructor schema
+    if (this.strict && this.schema && !validationSchema) {
+      const schemaKeys = extractKeys(this.schema);
+      for (const name of names) {
+        if (!schemaKeys.includes(name)) {
+          throw new Error(
+            `[zEnv] '${name}' is not defined in your schema. ` +
+              `Either add it to your schema or set strict: false.`,
+          );
+        }
+      }
+    }
+
+    const { dek, hmacKey } = await this.initCrypto();
+
+    const nameHashes = await Promise.all(
+      names.map(async (name) => ({
+        name,
+        hash: bytesToHex(await hashName(name, hmacKey)),
+      })),
     );
 
-    if (validationErrors.length > 0) {
-      const lines = validationErrors.map((e) => `  ${e.key} — ${e.message}`);
+    const { data, error } = await this.client.POST("/sdk/secrets/bulk", {
+      body: {
+        name_hashes: nameHashes.map((n) => n.hash),
+        project_id: this.projectId,
+        environment: this.environment,
+      },
+    });
+
+    if (error) {
+      throw new Error(`[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`);
+    }
+
+    const rows = data ?? [];
+    const rowMap = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      rowMap.set(row.name_hash!, row);
+    }
+
+    const decrypted: Record<string, string> = {};
+    const missing: string[] = [];
+
+    for (const { name, hash } of nameHashes) {
+      const row = rowMap.get(hash);
+      if (!row) {
+        missing.push(name);
+        continue;
+      }
+
+      const plaintext = await decrypt(
+        base64ToBytes(row.ciphertext!),
+        base64ToBytes(row.nonce!),
+        dek,
+      );
+      decrypted[name] = JSON.parse(new TextDecoder().decode(plaintext)).value;
+    }
+
+    if (missing.length > 0) {
       throw new Error(
-        `[zEnv] Startup validation failed:\n${lines.join("\n")}\n\n` +
-          "Application did not start. Fix the above and retry.",
+        `[zEnv] Secrets not found in '${this.environment}': ${missing.join(", ")}`,
       );
     }
 
-    return result as InferSchema<O>;
+    // Determine validation schema:
+    // 1. Inline schema passed to select(schema)
+    // 2. Constructor schema (pick only requested keys)
+    const activeSchema = validationSchema
+      ?? (this.schema ? pickSchema(this.schema, names) : undefined);
+
+    if (activeSchema && !this.disableValidation) {
+      const { result, errors: valErrors } = await validateValues(activeSchema, decrypted);
+      if (valErrors.length > 0) {
+        const lines = valErrors.map((e) => `  ${e.key} — ${e.message}`);
+        throw new Error(`[zEnv] Validation failed:\n${lines.join("\n")}`);
+      }
+      return result;
+    }
+
+    return decrypted;
   }
 
   /** Fetch a single secret by name. */
@@ -348,7 +472,21 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     );
 
     const item = JSON.parse(new TextDecoder().decode(plaintext));
-    return item.value;
+    const rawValue: string = item.value;
+
+    // Validate against schema field if present and validation not disabled
+    if (this.schema && !this.disableValidation) {
+      const subSchema = pickSchema(this.schema, [name]);
+      const { result, errors } = await validateValues(subSchema, { [name]: rawValue });
+      if (errors.length > 0) {
+        throw new Error(
+          `[zEnv] Validation failed for '${name}': ${errors[0]?.message}`,
+        );
+      }
+      return result[name] as string;
+    }
+
+    return rawValue;
   }
 
   /** Store a secret. Encrypts locally, sends ciphertext to API. */

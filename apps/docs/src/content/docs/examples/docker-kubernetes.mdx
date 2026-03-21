@@ -1,0 +1,99 @@
+---
+title: Docker & Kubernetes
+description: Inject secrets into containers without writing .env files.
+---
+
+## Docker — runtime injection
+
+Install the CLI in your image and use `zenv run` as your entrypoint:
+
+```dockerfile
+FROM node:20-slim
+
+# Install zEnv CLI
+RUN apt-get update && apt-get install -y golang-go && \
+    go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest && \
+    mv ~/go/bin/zenv /usr/local/bin/zenv && \
+    apt-get remove -y golang-go && apt-get autoremove -y
+
+WORKDIR /app
+COPY . .
+RUN npm ci
+
+# Secrets injected at runtime, not baked into the image
+CMD ["zenv", "run", "--", "node", "server.js"]
+```
+
+Run the container with credentials passed as environment variables:
+
+```bash
+docker run \
+  -e ZENV_TOKEN=zenv_tk_... \
+  -e ZENV_VAULT_KEY=your-vault-key \
+  -e ZENV_API_URL=https://api.zenv.sh \
+  myapp
+```
+
+Secrets are decrypted inside the container at startup. They never appear in the image layers, Docker history, or build logs.
+
+## Docker — SDK approach
+
+If you prefer the SDK over the CLI:
+
+```typescript
+// entrypoint.ts
+import { zenv } from '@zenv/sdk';
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: 'production',
+});
+
+const secrets = await vault.load();
+// Start your app with decrypted secrets
+```
+
+## Kubernetes
+
+Pass `ZENV_TOKEN` and `ZENV_VAULT_KEY` via a Kubernetes Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zenv-credentials
+type: Opaque
+stringData:
+  ZENV_TOKEN: "zenv_tk_..."
+  ZENV_VAULT_KEY: "your-vault-key"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: myapp:latest
+          envFrom:
+            - secretRef:
+                name: zenv-credentials
+          env:
+            - name: ZENV_API_URL
+              value: "https://api.zenv.sh"
+            - name: ZENV_PROJECT_ID
+              value: "proj_..."
+```
+
+Only two values go in your K8s Secret — `ZENV_TOKEN` and `ZENV_VAULT_KEY`. All other secrets are fetched and decrypted at runtime by the app.
+
+## Why not just use K8s Secrets for everything?
+
+- K8s Secrets are base64-encoded, not encrypted
+- Anyone with cluster access can read them
+- No versioning, no audit trail, no rotation
+- zEnv encrypts secrets client-side — the server (and your cluster) never see plaintext

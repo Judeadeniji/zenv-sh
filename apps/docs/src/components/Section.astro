@@ -1,0 +1,16 @@
+---
+interface Props {
+	title?: string;
+	description?: string;
+	class?: string;
+}
+
+const { title, description, class: className = '' } = Astro.props;
+---
+
+<section class:list={['mt-16 max-w-5xl', className]}>
+	{title && <h2 class="text-[1.25rem] font-semibold text-gray-950 dark:text-white mb-2">{title}</h2>}
+	{description && <p class="text-[0.8125rem] text-gray-500 dark:text-gray-400 leading-[1.5] mb-6 max-w-2xl">{description}</p>}
+	{!description && title && <div class="mb-6" />}
+	<slot />
+</section>

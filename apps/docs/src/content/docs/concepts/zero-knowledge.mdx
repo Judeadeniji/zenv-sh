@@ -1,0 +1,53 @@
+---
+title: Zero-knowledge architecture
+description: How zEnv ensures that no one — not even the server — can read your secrets.
+---
+
+## What "zero-knowledge" means
+
+When you store a secret in zEnv, your client encrypts it before sending it to the server. The server stores ciphertext it cannot decrypt. It doesn't have your Vault Key, your KEK, or your DEKs. It's a ciphertext warehouse.
+
+This means:
+
+- A database breach exposes only encrypted blobs
+- Server operators can't read your secrets
+- Network interception gets only ciphertext (on top of TLS)
+- Even the secret _names_ are hidden behind HMAC hashes
+
+## The encryption flow
+
+Here's what happens when you run `zenv secrets set DATABASE_URL "postgres://..."`:
+
+```
+1. Client derives KEK + Auth Key from your Vault Key (Argon2id, once per session)
+2. Client generates a random DEK (32 bytes)
+3. Client encrypts the value: AES-256-GCM(DEK, plaintext) → ciphertext
+4. Client wraps the DEK: AES-256-GCM(KEK, DEK) → wrapped DEK
+5. Client hashes the name: HMAC-SHA256("DATABASE_URL") → name hash
+6. Client sends {name_hash, ciphertext, nonce, wrapped_dek} to server
+7. Server stores it — never sees plaintext
+```
+
+Reading a secret reverses steps 3–5: the server returns ciphertext, the client unwraps the DEK with the KEK, then decrypts.
+
+## Item-per-row storage
+
+Each secret is its own encrypted row. Unlike a single-blob vault (where all secrets are encrypted together), item-per-row means:
+
+- **Granular access control** — share specific secrets, not the whole vault
+- **Independent versioning** — each secret has its own version history
+- **Concurrent updates** — two team members can update different secrets simultaneously
+- **Smaller blast radius** — a corrupted row doesn't affect other secrets
+
+## What the server knows
+
+| Data | Server sees |
+|---|---|
+| Secret value | Ciphertext (encrypted) |
+| Secret name | HMAC hash (not reversible) |
+| Which project | Project ID (plaintext) |
+| Which environment | Environment name (plaintext) |
+| When it changed | Timestamps (plaintext) |
+| Who changed it | User/token ID (plaintext) |
+
+The server knows _metadata_ (who, when, which project) but never the _content_ (what the secret is or what it's called).

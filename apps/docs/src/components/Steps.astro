@@ -1,0 +1,62 @@
+---
+
+---
+
+<div class="steps-container my-4">
+	<slot />
+</div>
+
+<style>
+	.steps-container :global(ol) {
+		list-style: none;
+		padding-left: 0;
+		counter-reset: step-counter;
+		position: relative;
+	}
+
+	.steps-container :global(ol)::before {
+		content: '';
+		position: absolute;
+		left: 0.875rem;
+		top: 1.5rem;
+		bottom: 0.5rem;
+		width: 1px;
+		background-color: rgba(0, 0, 0, 0.07);
+	}
+
+	:global(.dark) .steps-container :global(ol)::before {
+		background-color: rgba(255, 255, 255, 0.07);
+	}
+
+	.steps-container :global(ol > li) {
+		counter-increment: step-counter;
+		position: relative;
+		padding-left: 2.75rem;
+		padding-bottom: 1.5rem;
+	}
+
+	.steps-container :global(ol > li)::before {
+		content: counter(step-counter);
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 9999px;
+		background-color: rgba(0, 0, 0, 0.03);
+		border: 1px solid rgba(0, 0, 0, 0.07);
+		color: #495057;
+		font-size: 0.75rem;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1;
+	}
+
+	:global(.dark) .steps-container :global(ol > li)::before {
+		background-color: rgba(255, 255, 255, 0.07);
+		border-color: rgba(255, 255, 255, 0.11);
+		color: rgba(255, 255, 255, 0.62);
+	}
+</style>

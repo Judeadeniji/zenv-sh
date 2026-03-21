@@ -1,0 +1,52 @@
+---
+title: Secret versioning & rollback
+description: Every secret update is versioned. Roll back to any previous version instantly.
+---
+
+## How versioning works
+
+Every time you update a secret, zEnv creates a new version. The previous value isn't deleted — it's retained as a version you can restore at any time.
+
+```bash
+zenv secrets set API_KEY "sk_live_abc123"
+# Later...
+zenv secrets set API_KEY "sk_live_def456"
+```
+
+Both values are stored. The latest version is returned by default.
+
+## View version history
+
+See all versions of a secret:
+
+```bash
+zenv secrets versions API_KEY
+```
+
+This returns each version with its timestamp, so you can identify when a change was made.
+
+## Roll back to a previous version
+
+Restore a secret to a specific version:
+
+```bash
+zenv secrets rollback API_KEY --version 1
+```
+
+This doesn't delete the current version — it creates a new version with the old value. Your version history is append-only.
+
+## Why this matters
+
+- **Bad deploy?** Roll back the secret that caused it, not the whole deployment.
+- **Audit trail** — see who changed what and when.
+- **No data loss** — every value is preserved until explicitly deleted.
+
+## Deleting a secret
+
+When you delete a secret, all versions are removed:
+
+```bash
+zenv secrets delete API_KEY
+```
+
+This is permanent. If you just need to rotate a value, use `set` instead — it preserves history.

@@ -1,0 +1,102 @@
+---
+title: Authentication
+description: API endpoints for vault setup, unlock, and user state.
+---
+
+Identity management (signup, login, logout) is handled by the standalone auth server. These endpoints manage the vault's cryptographic state.
+
+## Setup vault
+
+Initialize a user's vault with derived keys. Called once after first login.
+
+```
+POST /auth/setup-vault
+```
+
+```json
+{
+  "vault_key_type": "passphrase",
+  "salt": "base64-encoded-salt",
+  "auth_key_hash": "base64-encoded-argon2id-hash",
+  "wrapped_dek": "base64-encoded-wrapped-dek",
+  "public_key": "base64-encoded-x25519-public-key",
+  "wrapped_private_key": "base64-encoded-wrapped-private-key"
+}
+```
+
+**Auth:** Session cookie required.
+
+| Field | Type | Description |
+|---|---|---|
+| `vault_key_type` | string | `"pin"` or `"passphrase"` — determines Argon2id parameters |
+| `salt` | string | Base64-encoded salt for key derivation |
+| `auth_key_hash` | string | Base64-encoded Argon2id hash of the Auth Key |
+| `wrapped_dek` | string | Base64-encoded DEK wrapped with the KEK |
+| `public_key` | string | Base64-encoded X25519 public key for team key grants |
+| `wrapped_private_key` | string | Base64-encoded private key wrapped with the KEK |
+
+Returns `201 Created` on success.
+
+## Unlock vault
+
+Verify the Vault Key (via Auth Key hash) and retrieve wrapped keys.
+
+```
+POST /auth/unlock
+```
+
+```json
+{
+  "auth_key_hash": "base64-encoded-hash"
+}
+```
+
+**Auth:** Session cookie required.
+
+**Response:**
+
+```json
+{
+  "wrapped_dek": "base64-encoded-wrapped-dek",
+  "wrapped_private_key": "base64-encoded-wrapped-private-key",
+  "public_key": "base64-encoded-public-key"
+}
+```
+
+Returns `403 Forbidden` if the Auth Key hash doesn't match (wrong Vault Key).
+
+## Get current user
+
+Returns the authenticated user's state.
+
+```
+GET /auth/me
+```
+
+**Auth:** Session cookie required.
+
+**Response:**
+
+```json
+{
+  "id": "user-uuid",
+  "email": "user@example.com",
+  "vault_setup": true,
+  "created_at": "2026-01-15T10:30:00Z"
+}
+```
+
+## Authentication methods
+
+All API endpoints accept one of two authentication methods:
+
+1. **Session cookie** — set by the auth server after login. Used by the dashboard.
+2. **Service token** — passed as a `Bearer` token in the `Authorization` header. Used by the CLI and SDK.
+
+```bash
+# Session-based (browser)
+Cookie: session=...
+
+# Token-based (CLI/SDK)
+Authorization: Bearer zenv_tk_...
+```

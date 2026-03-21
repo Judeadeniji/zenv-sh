@@ -1,0 +1,34 @@
+---
+/**
+ * Inset sidebar layout — sidebar is the root split,
+ * everything else (header, content, footer) lives on the content side.
+ */
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+interface Props {
+	title: string;
+	description?: string;
+	currentSlug?: string;
+}
+
+const { title, description, currentSlug = '' } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+	<div class="flex min-h-screen">
+		<!-- Sidebar -->
+		<aside class="hidden lg:flex lg:flex-col w-sidebar shrink-0 sticky top-0 h-screen border-r border-gray-900/7 dark:border-white/7 overflow-y-auto">
+			<Sidebar currentSlug={currentSlug} />
+		</aside>
+
+		<!-- Content side -->
+		<div class="min-w-0 flex-1 flex flex-col">
+			<Header />
+			<slot />
+			<SiteFooter />
+		</div>
+	</div>
+</BaseLayout>

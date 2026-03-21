@@ -1,0 +1,97 @@
+---
+import InsetLayout from '../layouts/InsetLayout.astro';
+import Button from '../components/Button.astro';
+import Section from '../components/Section.astro';
+import QuickLinkCard from '../components/QuickLinkCard.astro';
+import LinkCard from '../components/LinkCard.astro';
+import CommunityCTA from '../components/CommunityCTA.astro';
+import { icons } from '../data/icons';
+---
+
+<InsetLayout title="zEnv - Zero-Knowledge Secret Manager" description="Your secrets, your keys, your data. Even we can't read it.">
+	<main class="flex-1 px-6 lg:px-10 py-8">
+		<!-- Hero -->
+		<section class="max-w-3xl">
+			<h1 class="text-[1.5rem] lg:text-[2rem] font-semibold tracking-[-0.02em] text-gray-950 dark:text-white leading-[1.33]">
+				Welcome to zEnv Docs
+			</h1>
+			<p class="mt-4 text-[0.9375rem] text-gray-500 dark:text-gray-400 leading-[1.6] max-w-2xl">
+				Zero-knowledge encryption platform. Your secrets, your keys, your data — even we can't read it. Find the right guide for your needs, whether you're just getting started or looking to implement advanced features.
+			</p>
+			<div class="mt-6 flex items-center gap-3">
+				<Button href="/getting-started/quickstart/">
+					Get Started
+					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+					</svg>
+				</Button>
+				<Button href="https://github.com/Judeadeniji/zenv-sh" variant="outline" external>
+					View on GitHub
+				</Button>
+			</div>
+		</section>
+
+		<!-- Quick links -->
+		<section class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl">
+			<QuickLinkCard href="/getting-started/quickstart/" title="Quickstart" description="Go from zero to your first encrypted secret in five minutes with the CLI." icon={icons.play} />
+			<QuickLinkCard href="/amnesia/overview/" title="Crypto Engine" description="Explore Amnesia — the pure-function crypto engine powering zEnv's zero-knowledge encryption." icon={icons.lock} />
+			<QuickLinkCard href="/cli/commands/" title="CLI Reference" description="Full command reference for the zEnv CLI. Manage secrets, tokens, orgs, and more." icon={icons.terminal} />
+			<QuickLinkCard href="/sdk/installation/" title="SDK" description="TypeScript SDK for loading secrets at runtime with schema validation and type safety." icon={icons.code} />
+		</section>
+
+		<!-- Explore by section -->
+		<Section title="Explore by section">
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<LinkCard href="/amnesia/overview/" title="Amnesia Crypto Engine" description="Pure-function crypto engine. Key derivation, symmetric encryption, hashing, and more." icon={icons.beaker} />
+				<LinkCard href="/cli/installation/" title="CLI" description="Manage secrets from the terminal. Install, configure, and use the full command reference." icon={icons.terminal} />
+				<LinkCard href="/sdk/installation/" title="TypeScript SDK" description="Load secrets at runtime with schema validation. Server-only, type-safe, zero-knowledge." icon={icons.code} />
+				<LinkCard href="/self-hosting/docker-compose/" title="Self-Hosting" description="Run the entire stack on your own infrastructure with Docker Compose. No vendor lock-in." icon={icons.server} />
+			</div>
+		</Section>
+
+		<!-- How it works -->
+		<Section title="How zEnv works" description="Understand the zero-knowledge architecture that keeps your secrets safe — even from us.">
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<div class="card-clerk">
+					<div class="w-8 h-8 mb-3 flex items-center justify-center rounded-full bg-accent-600/10 dark:bg-accent-400/10 text-accent-600 dark:text-accent-400 text-sm font-bold">1</div>
+					<h3 class="text-[0.8125rem] font-bold text-gray-950 dark:text-white mb-1 leading-[1.38]">Derive keys locally</h3>
+					<p class="text-[0.8125rem] text-gray-500 dark:text-gray-400 leading-normal m-0">Your Vault Key is run through Argon2id to produce a KEK and Auth Key. This happens on your machine — never on the server.</p>
+				</div>
+				<div class="card-clerk">
+					<div class="w-8 h-8 mb-3 flex items-center justify-center rounded-full bg-accent-600/10 dark:bg-accent-400/10 text-accent-600 dark:text-accent-400 text-sm font-bold">2</div>
+					<h3 class="text-[0.8125rem] font-bold text-gray-950 dark:text-white mb-1 leading-[1.38]">Encrypt each secret</h3>
+					<p class="text-[0.8125rem] text-gray-500 dark:text-gray-400 leading-normal m-0">Each secret gets its own DEK, encrypted with AES-256-GCM. The DEK is then wrapped with your KEK. Item-per-row storage.</p>
+				</div>
+				<div class="card-clerk">
+					<div class="w-8 h-8 mb-3 flex items-center justify-center rounded-full bg-accent-600/10 dark:bg-accent-400/10 text-accent-600 dark:text-accent-400 text-sm font-bold">3</div>
+					<h3 class="text-[0.8125rem] font-bold text-gray-950 dark:text-white mb-1 leading-[1.38]">Store ciphertext only</h3>
+					<p class="text-[0.8125rem] text-gray-500 dark:text-gray-400 leading-normal m-0">The server receives and stores only ciphertext. It authenticates you with a hashed Auth Key — it never sees your secrets.</p>
+				</div>
+			</div>
+		</Section>
+
+		<!-- Beyond the basics (flat variant) -->
+		<Section title="Beyond the basics">
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8">
+				<LinkCard variant="flat" href="/amnesia/asymmetric/" title="Asymmetric encryption" description="X25519 key exchange + NaCl box for team key grants. Share secrets without exposing the Vault Key." icon={icons.key} />
+				<LinkCard variant="flat" href="/amnesia/hashing/" title="Blind lookups with HMAC" description="HMAC-SHA256 name hashing lets the server find secrets by name without knowing what the names are." icon={icons.fingerprint} />
+				<LinkCard variant="flat" href="/cli/configuration/" title="CLI configuration" description="Resolution order, project files, global config, and environment variables. Fine-tune the CLI for your workflow." icon={icons.cog} />
+				<LinkCard variant="flat" href="/sdk/usage/" title="Schema validation" description="Validate secrets at load time with Zod, Valibot, or ArkType. Full TypeScript inference included." icon={icons.shield} />
+			</div>
+		</Section>
+
+		<!-- Learn the concepts (preview variant) -->
+		<Section title="Learn the concepts">
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<LinkCard variant="preview" href="/getting-started/how-it-works/" title="Key hierarchy" description="How Vault Key, KEK, Auth Key, and DEKs form the two-layer encryption model." icon={icons.arrowsLg} previewColor="accent" />
+				<LinkCard variant="preview" href="/amnesia/key-derivation/" title="Key derivation" description="Argon2id parameters, adaptive key types, and the one-derivation-per-unlock invariant." icon={icons.sparklesLg} previewColor="blue" />
+				<LinkCard variant="preview" href="/amnesia/symmetric/" title="Symmetric encryption" description="AES-256-GCM with 32-byte keys, 12-byte nonces, and 16-byte auth tags." icon={icons.lockLg} previewColor="emerald" />
+			</div>
+		</Section>
+
+		<!-- Community CTA -->
+		<Section>
+			<CommunityCTA />
+		</Section>
+	</main>
+</InsetLayout>

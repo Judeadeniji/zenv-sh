@@ -1,0 +1,93 @@
+---
+title: Organizations
+description: API endpoints for creating orgs and managing members.
+---
+
+Organizations group users and projects. Members have role-based access.
+
+## Create an organization
+
+```
+POST /orgs
+```
+
+```json
+{
+  "name": "Acme Corp"
+}
+```
+
+**Auth:** Session or Bearer token. The creator becomes the org owner.
+
+**Response:**
+
+```json
+{
+  "id": "org_...",
+  "name": "Acme Corp",
+  "owner_id": "user_...",
+  "created_at": "2026-01-15T10:30:00Z"
+}
+```
+
+## List organizations
+
+```
+GET /orgs
+```
+
+Returns all organizations the authenticated user belongs to.
+
+## Get an organization
+
+```
+GET /orgs/{orgID}
+```
+
+## List members
+
+```
+GET /orgs/{orgID}/members
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": "member_...",
+    "user_id": "user_...",
+    "role": "admin",
+    "joined_at": "2026-01-15T10:30:00Z"
+  }
+]
+```
+
+## Add a member
+
+```
+POST /orgs/{orgID}/members
+```
+
+```json
+{
+  "user_id": "user_...",
+  "role": "dev"
+}
+```
+
+| Role | Description |
+|---|---|
+| `admin` | Full access — manage members, projects, and secrets |
+| `senior_dev` | Create projects, manage secrets across all environments |
+| `dev` | Read/write secrets in assigned projects |
+| `contractor` | Read-only access to assigned projects |
+| `ci_bot` | Automated access — read secrets, no org management |
+
+## Remove a member
+
+```
+DELETE /orgs/{orgID}/members/{memberID}
+```
+
+The member's wrapped keys are deleted. They lose access on their next unlock.

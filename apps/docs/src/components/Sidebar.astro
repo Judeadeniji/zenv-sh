@@ -1,0 +1,99 @@
+---
+import { sidebar } from '../data/sidebar';
+
+interface Props {
+	currentSlug: string;
+}
+
+const { currentSlug } = Astro.props;
+---
+
+<div class="flex flex-col h-full">
+	{/* Sidebar header — logo */}
+	<div class="h-14 shrink-0 flex items-center gap-2 px-4">
+		<a href="/" class="flex items-center gap-2 text-gray-950 dark:text-white no-underline">
+			<svg class="w-5.5 h-5.5" viewBox="0 0 24 24" fill="none">
+				<rect width="24" height="24" rx="6" fill="currentColor" />
+				<path d="M7 8h10M7 12h6M7 16h8" stroke="white" stroke-width="1.5" stroke-linecap="round" class="dark:stroke-gray-950" />
+			</svg>
+			<span class="font-semibold text-[0.8125rem] tracking-[-0.01em]">zEnv</span>
+		</a>
+		<span class="inline-flex items-center px-1.5 py-px rounded text-[0.6875rem] font-medium bg-gray-900/3 dark:bg-white/7 text-gray-500 dark:text-gray-400 ring-1 ring-gray-900/7 dark:ring-white/7">
+			Docs
+		</span>
+	</div>
+
+	{/* Scrollable nav */}
+	<nav class="sidebar-scroll overflow-y-auto flex-1 py-4 px-3 text-[0.8125rem]">
+		{/* Top tabs — Guides + Reference */}
+		<div class="space-y-0.5 mb-2">
+			<a href="/" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[0.8125rem] font-medium no-underline bg-accent-600 text-white">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+				</svg>
+				Guides
+			</a>
+			<a href="#" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-[0.8125rem] font-medium no-underline text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-900/3 dark:hover:bg-white/5 transition-colors duration-200">
+				<span class="flex items-center gap-2.5">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 6h.008v.008H6V6Z" />
+					</svg>
+					Reference
+				</span>
+				<svg class="w-4 h-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+				</svg>
+			</a>
+		</div>
+
+		{/* Divider */}
+		<div class="border-t border-gray-900/7 dark:border-white/7 my-3"></div>
+
+		{/* Section list */}
+		<ul class="list-none pl-0 space-y-0.5">
+			{sidebar.map((section) => {
+				const sectionActive = section.items.some((item) => item.slug === currentSlug);
+				return (
+					<li>
+						<details class="group" open={sectionActive}>
+							<summary
+								class:list={[
+									'flex items-center justify-between w-full px-2.5 py-1.5 cursor-pointer text-[0.8125rem] font-normal select-none list-none [&::-webkit-details-marker]:hidden transition-colors duration-300 ease-[cubic-bezier(0.4,0.36,0,1)]',
+									sectionActive
+										? 'text-gray-950 dark:text-white'
+										: 'text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white',
+								]}
+							>
+								<span>{section.label}</span>
+								<svg class="w-4 h-4 shrink-0 opacity-40 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+								</svg>
+							</summary>
+							<ul class="list-none pl-0 mt-0.5 ml-2 border-l border-gray-900/7 dark:border-white/7 space-y-px">
+								{section.items.map((item) => {
+									const active = item.slug === currentSlug;
+									return (
+										<li>
+											<a
+												href={`/${item.slug}/`}
+												class:list={[
+													'flex items-center pl-4 pr-2.5 py-1.5 text-[0.8125rem] no-underline transition-colors duration-300 ease-[cubic-bezier(0.4,0.36,0,1)]',
+													active
+														? 'text-gray-950 dark:text-white font-medium'
+														: 'text-gray-500 dark:text-gray-500 hover:text-gray-950 dark:hover:text-white',
+												]}
+											>
+												{item.label}
+											</a>
+										</li>
+									);
+								})}
+							</ul>
+						</details>
+					</li>
+				);
+			})}
+		</ul>
+	</nav>
+</div>

@@ -1,0 +1,67 @@
+---
+title: Projects & environments
+description: How projects and environments organize your secrets.
+---
+
+## Projects
+
+A project maps to an application or service — your API server, your web app, your worker. Each project has:
+
+- Its own encryption keys (Project DEK, Project KEK)
+- Its own set of secrets
+- Its own member access list
+
+Create a project:
+
+```bash
+zenv projects create --org ORG_ID --name "api-server"
+```
+
+Link it to a directory:
+
+```bash
+zenv projects init PROJECT_ID --env development
+```
+
+This creates a `.zenv` file:
+
+```ini
+project=PROJECT_ID
+env=development
+```
+
+## Environments
+
+Each project supports multiple environments. Secrets are scoped per environment — `DATABASE_URL` in `development` is a different encrypted value from `DATABASE_URL` in `production`.
+
+```bash
+# Set a secret for development
+zenv projects init PROJECT_ID --env development
+zenv secrets set DATABASE_URL "postgres://localhost:5432/mydb"
+
+# Set a different value for production
+zenv projects init PROJECT_ID --env production
+zenv secrets set DATABASE_URL "postgres://prod-host:5432/mydb"
+```
+
+Common environments: `development`, `staging`, `production`. You can use any string.
+
+## Environment comparison
+
+Compare secrets across environments:
+
+```bash
+zenv env diff development production
+```
+
+This shows which secrets exist in one environment but not the other, without revealing values.
+
+## Pulling environment files
+
+Export secrets for a specific environment:
+
+```bash
+zenv env pull --env production --output .env.production
+```
+
+This decrypts all secrets for the environment and writes them to a file. Useful for local development or one-time exports — but prefer `zenv run` for production to avoid writing secrets to disk.

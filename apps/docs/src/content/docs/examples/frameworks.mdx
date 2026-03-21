@@ -1,0 +1,133 @@
+---
+title: Framework integration
+description: Load secrets at app startup in Next.js, Express, Hono, and plain Node.js.
+---
+
+## Next.js
+
+Load secrets in a server component or API route:
+
+```typescript
+// lib/secrets.ts
+import { zenv } from '@zenv/sdk';
+import { z } from 'zod';
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  schema: z.object({
+    DATABASE_URL: z.string().url(),
+    STRIPE_SECRET_KEY: z.string().startsWith('sk_'),
+    RESEND_API_KEY: z.string(),
+  }),
+});
+
+// Load once, reuse across requests
+export const secrets = await vault.load();
+```
+
+Use it in a server component:
+
+```typescript
+// app/page.tsx
+import { secrets } from '@/lib/secrets';
+
+export default async function Page() {
+  // secrets.DATABASE_URL is fully typed
+}
+```
+
+The SDK throws a hard error if `window` is defined — it will never run in the browser.
+
+## Express
+
+```typescript
+import express from 'express';
+import { zenv } from '@zenv/sdk';
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: 'production',
+});
+
+const secrets = await vault.load();
+const app = express();
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true });
+});
+
+app.listen(3000, () => {
+  console.log(`Server running. DB connected to ${secrets.DATABASE_URL}`);
+});
+```
+
+## Hono
+
+Load secrets into Hono's context so every handler has type-safe access via `c.var`:
+
+```typescript
+import { Hono } from 'hono';
+import { createMiddleware } from 'hono/factory';
+import { zenv } from '@zenv/sdk';
+import { z } from 'zod';
+
+const schema = z.object({
+  DATABASE_URL: z.string().url(),
+  STRIPE_SECRET_KEY: z.string(),
+});
+
+type Secrets = z.infer<typeof schema>;
+
+type Env = {
+  Variables: {
+    secrets: Secrets;
+  };
+};
+
+const app = new Hono<Env>();
+
+// Middleware: load secrets once, attach to context
+const secretsMiddleware = createMiddleware<Env>(async (c, next) => {
+  const vault = zenv({
+    token: process.env.ZENV_TOKEN!,
+    vaultKey: process.env.ZENV_VAULT_KEY!,
+    projectId: process.env.ZENV_PROJECT_ID!,
+    environment: 'production',
+    schema,
+  });
+
+  c.set('secrets', await vault.load());
+  await next();
+});
+
+app.use(secretsMiddleware);
+
+app.get('/', (c) => {
+  const { DATABASE_URL } = c.var.secrets; // fully typed
+  return c.json({ status: 'ok' });
+});
+
+export default app;
+```
+
+## Plain Node.js
+
+Skip the SDK entirely — use the CLI to inject secrets as environment variables:
+
+```bash
+zenv run -- node server.js
+```
+
+Inside `server.js`, secrets are available as `process.env`:
+
+```javascript
+const dbUrl = process.env.DATABASE_URL;
+const stripeKey = process.env.STRIPE_API_KEY;
+```
+
+The `run` command decrypts all secrets locally and replaces the current process via `exec`, so secrets are never written to disk.

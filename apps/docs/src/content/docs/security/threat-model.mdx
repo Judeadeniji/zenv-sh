@@ -1,0 +1,59 @@
+---
+title: Threat model & trust boundaries
+description: What zEnv protects against, what it doesn't, and where the trust boundaries are.
+---
+
+## Zero-knowledge guarantee
+
+The server is a ciphertext warehouse. It stores encrypted data and authenticates requests, but it can never decrypt your secrets. Here's what each party has access to:
+
+| | Client | Server | Database |
+|---|---|---|---|
+| Vault Key | Yes | No | No |
+| KEK | Yes (derived) | No | No |
+| Auth Key | Yes (derived) | Hashed only | Hashed only |
+| DEK | Yes (unwrapped) | No | Wrapped (encrypted) |
+| Secret plaintext | Yes | No | No |
+| Secret ciphertext | Transient | Yes | Yes |
+| Secret name | Yes | HMAC hash only | HMAC hash only |
+
+## What zEnv protects against
+
+- **Server compromise** — an attacker who gains full database access gets only ciphertext and HMAC-hashed names. Without the Vault Key, decryption is infeasible.
+- **Network interception** — all traffic is TLS-encrypted. Even if intercepted, the payload is encrypted ciphertext.
+- **Insider threats** — server operators (including zEnv's hosted platform) cannot read your secrets.
+- **Secret enumeration** — names are HMAC-hashed, so the server can't enumerate what secrets you have by name.
+
+## What zEnv does NOT protect against
+
+- **Client compromise** — if an attacker has your Vault Key and a valid token, they can decrypt everything. Protect your Vault Key like a master password.
+- **Weak Vault Keys** — short or predictable Vault Keys reduce Argon2id's effectiveness. Use a strong passphrase.
+- **Token theft** — a stolen service token grants API access. Rotate tokens regularly and set expiration dates.
+- **Application-level leaks** — if your app logs decrypted secrets or exposes them via an endpoint, zEnv can't prevent that.
+
+## Key hierarchy
+
+```
+Vault Key (user input, never stored)
+  └─ Argon2id → 64 bytes
+       ├─ bytes 0-31  → KEK (Key Encryption Key)
+       └─ bytes 32-63 → Auth Key (hashed, sent to server)
+
+Per secret:
+  DEK (random 32 bytes)
+    ├─ AES-256-GCM(DEK, plaintext) → ciphertext
+    └─ AES-256-GCM(KEK, DEK) → wrapped DEK (stored)
+```
+
+Argon2id runs **once per unlock**. The KEK and Auth Key are derived from a single 64-byte output. The server never receives the KEK — only a hashed Auth Key for authentication.
+
+## Encryption algorithms
+
+| Purpose | Algorithm | Key size | Notes |
+|---|---|---|---|
+| Key derivation | Argon2id | 64-byte output | Adaptive params (PIN vs Passphrase) |
+| Symmetric encryption | AES-256-GCM | 32 bytes | 12-byte nonce, 16-byte auth tag |
+| Key wrapping | AES-256-GCM | 32 bytes | DEK wrapped with KEK |
+| Name hashing | HMAC-SHA256 | 32 bytes | Deterministic, for blind lookups |
+| Auth key hashing | Argon2id | 32 bytes | Stored server-side for auth |
+| Team key grants | X25519 + NaCl box | 32 bytes | Per-member key wrapping |

@@ -1,0 +1,65 @@
+---
+title: Tokens
+description: API endpoints for creating and managing service tokens.
+---
+
+Service tokens provide programmatic access for the CLI, SDK, and CI/CD pipelines.
+
+## Create a token
+
+```
+POST /tokens
+```
+
+```json
+{
+  "project_id": "proj_...",
+  "name": "github-actions",
+  "environment": "production",
+  "permission": "read",
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+**Auth:** Session or Bearer token.
+
+| Field | Type | Description |
+|---|---|---|
+| `project_id` | string | Project this token is scoped to |
+| `name` | string | Human-readable name for identification |
+| `environment` | string | `development`, `staging`, or `production` |
+| `permission` | string | `read` or `read_write` |
+| `expires_at` | string? | Optional RFC 3339 expiration timestamp |
+
+**Response:**
+
+```json
+{
+  "id": "token_...",
+  "token": "zenv_tk_...",
+  "name": "github-actions",
+  "project_id": "proj_...",
+  "environment": "production",
+  "permission": "read",
+  "expires_at": "2026-12-31T23:59:59Z",
+  "created_at": "2026-01-15T10:30:00Z"
+}
+```
+
+The `token` value is shown **once** — store it securely. It cannot be retrieved again.
+
+## List tokens
+
+```
+GET /tokens
+```
+
+Returns all tokens for the authenticated user. The `token` field is not included — only metadata.
+
+## Revoke a token
+
+```
+DELETE /tokens/{tokenID}
+```
+
+Immediately invalidates the token. Any process using it will fail on its next API call.

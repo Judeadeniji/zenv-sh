@@ -1,0 +1,83 @@
+---
+title: Projects
+description: API endpoints for creating and managing projects.
+---
+
+Projects group secrets by application. Each project has its own encryption keys.
+
+## Create a project
+
+```
+POST /projects
+```
+
+```json
+{
+  "organization_id": "org_...",
+  "name": "api-server",
+  "project_salt": "base64-salt",
+  "wrapped_project_dek": "base64-wrapped-dek",
+  "wrapped_project_vault_key": "base64-wrapped-vault-key"
+}
+```
+
+**Auth:** Session or Bearer token.
+
+| Field | Type | Description |
+|---|---|---|
+| `organization_id` | string | Org this project belongs to |
+| `name` | string | Human-readable project name |
+| `project_salt` | string | Base64-encoded salt, generated client-side |
+| `wrapped_project_dek` | string | Base64-encoded Project DEK wrapped with the Project KEK |
+| `wrapped_project_vault_key` | string | Base64-encoded Project Vault Key wrapped with the user's public key |
+
+Returns `201 Created` with the project details.
+
+## List projects
+
+```
+GET /projects
+```
+
+Returns all projects the authenticated user has access to.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "proj_...",
+    "organization_id": "org_...",
+    "name": "api-server",
+    "created_at": "2026-01-15T10:30:00Z"
+  }
+]
+```
+
+## Get a project
+
+```
+GET /projects/{projectID}
+```
+
+Returns a single project by ID.
+
+## Get project crypto
+
+Used by the SDK to fetch the cryptographic material needed to decrypt secrets:
+
+```
+GET /sdk/projects/{projectID}/crypto
+```
+
+**Response:**
+
+```json
+{
+  "project_salt": "base64-salt",
+  "wrapped_project_dek": "base64-wrapped-dek",
+  "wrapped_project_vault_key": "base64-wrapped-vault-key"
+}
+```
+
+The SDK uses this to derive the project's KEK and unwrap the DEK locally.

@@ -1,0 +1,78 @@
+---
+title: Migrate from .env files
+description: Move your secrets from .env files to zEnv in minutes.
+---
+
+## Before you start
+
+You'll need the CLI installed and authenticated:
+
+```bash
+go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest
+zenv login
+```
+
+## Import secrets from .env
+
+Read your existing `.env` file and store each secret in zEnv:
+
+```bash
+while IFS='=' read -r key value; do
+  [[ -z "$key" || "$key" == \#* ]] && continue
+  zenv secrets set "$key" "$value"
+done < .env
+```
+
+## Verify everything imported
+
+```bash
+zenv secrets list
+```
+
+You should see all your secrets listed. Spot-check a few:
+
+```bash
+zenv secrets get DATABASE_URL
+zenv secrets get STRIPE_API_KEY
+```
+
+## Update your app
+
+Replace `dotenv` with the zEnv SDK:
+
+```typescript
+// Before
+import 'dotenv/config';
+const dbUrl = process.env.DATABASE_URL;
+
+// After
+import { zenv } from '@zenv/sdk';
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: 'production',
+});
+
+const secrets = await vault.load();
+const dbUrl = secrets.DATABASE_URL;
+```
+
+Or skip the SDK and inject secrets via the CLI:
+
+```bash
+# Instead of: node --env-file=.env server.js
+zenv run -- node server.js
+```
+
+## Clean up
+
+Once you've confirmed everything works, delete the `.env` file:
+
+```bash
+rm .env
+echo ".env" >> .gitignore
+```
+
+Your secrets are now encrypted, versioned, and access-controlled — no more plaintext files in your repo.

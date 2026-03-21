@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /*
+   * Clerk-derived neutral scale
+   * Light mode: foreground #131316, surface #ffffff
+   * Dark mode: foreground #ffffff, surface #212126
+   */
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f1f3f5;
+  --color-gray-150: #eceef0;
+  --color-gray-200: #e1e4e8;
+  --color-gray-300: #ced4da;
+  --color-gray-400: #adb5bd;
+  --color-gray-500: #868e96;
+  --color-gray-600: #495057;
+  --color-gray-700: #343a40;
+  --color-gray-800: #2f3037; /* Clerk primary light */
+  --color-gray-900: #212126; /* Clerk colorBackground dark */
+  --color-gray-950: #131316; /* Clerk colorInputForeground light */
+
+  /* Accent — subtle purple for docs, not Clerk's brand but fitting zEnv's identity */
+  --color-accent-50: #f5f3ff;
+  --color-accent-100: #ede9fe;
+  --color-accent-200: #ddd6fe;
+  --color-accent-300: #c4b5fd;
+  --color-accent-400: #a78bfa;
+  --color-accent-500: #8b5cf6;
+  --color-accent-600: #7c3aed;
+  --color-accent-700: #6d28d9;
+  --color-accent-800: #5b21b6;
+  --color-accent-900: #4c1d95;
+  --color-accent-950: #2e1065;
+
+  /* Clerk semantic colors */
+  --color-danger: #ef4444;
+  --color-success: #22c543;
+  --color-warning: #f36b16;
+
+  /* Layout tokens */
+  --width-sidebar: 17rem;
+  --width-content: 48rem;
+  --width-toc: 14rem;
+  --height-header: 3.5rem;
+
+  /* Clerk shadows adapted */
+  --shadow-card: 0px 0px 2px 0px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
+  --shadow-menu: 0px 5px 15px 0px rgba(0, 0, 0, 0.08), 0px 15px 35px -5px rgba(0, 0, 0, 0.2);
+  --shadow-button: 0px 1px 1px 0px rgba(255, 255, 255, 0.07) inset, 0px 2px 3px 0px rgba(34, 42, 53, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.24);
+
+  /* Clerk border radius: default 0.375rem */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+/* ── Clerk cards ────────────────────────────────────────── */
+
+.card-clerk {
+  display: block;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  text-decoration: none;
+  border: 0;
+  background: transparent;
+  box-shadow:
+    0 0 2px 0 rgba(0, 0, 0, 0.08),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.07);
+  transition-property: box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0.36, 0, 1);
+}
+.card-clerk:hover {
+  box-shadow:
+    0 1px 4px 0 rgba(0, 0, 0, 0.12),
+    0 4px 8px 0 rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.11);
+}
+
+.dark .card-clerk {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.dark .card-clerk:hover {
+  box-shadow:
+    0 1px 4px 0 rgba(0, 0, 0, 0.24),
+    0 4px 8px 0 rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.11);
+}
+
+/* ── Base ────────────────────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #ffffff;
+  color: #131316;
+}
+
+.dark body {
+  background-color: #131316;
+  color: white;
+}
+
+/* ── Prose (MDX content) ─────────────────────────────────── */
+
+.prose {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: #212126;
+}
+.dark .prose {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.prose h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  line-height: 1.33333;
+  color: #131316;
+}
+.dark .prose h1 { color: white; }
+
+.prose h2 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  line-height: 1.41176;
+  color: #131316;
+}
+.dark .prose h2 {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  color: white;
+}
+
+.prose h3 {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.38462;
+  color: #131316;
+}
+.dark .prose h3 { color: white; }
+
+.prose h4 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.38462;
+  color: #131316;
+}
+.dark .prose h4 { color: rgba(255, 255, 255, 0.84); }
+
+.prose p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.prose a {
+  color: #2F3037;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose a:hover { color: #131316; }
+.dark .prose a { color: rgba(255, 255, 255, 0.87); }
+.dark .prose a:hover { color: white; }
+
+.prose strong {
+  font-weight: 600;
+  color: #131316;
+}
+.dark .prose strong { color: white; }
+
+.prose ul,
+.prose ol {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.prose li { margin-bottom: 0.375rem; }
+.prose li > ul,
+.prose li > ol { margin-top: 0.375rem; margin-bottom: 0; }
+
+.prose code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 0.25rem;
+  padding: 0.0625rem 0.375rem;
+  color: #131316;
+}
+.dark .prose code:not(pre code) {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.11);
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.prose pre {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  border: 0;
+  box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.07);
+  overflow-x: auto;
+}
+.dark .prose pre {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.prose blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid rgba(0, 0, 0, 0.11);
+  background-color: rgba(0, 0, 0, 0.02);
+  color: #495057;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+.dark .prose blockquote {
+  border-left-color: rgba(255, 255, 255, 0.11);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.prose hr {
+  margin: 2rem 0;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+.dark .prose hr { border-top-color: rgba(255, 255, 255, 0.07); }
+
+.prose table {
+  width: 100%;
+  margin-bottom: 1rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  border: 0;
+  border-radius: 0.375rem;
+  box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(25, 28, 33, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+}
+.dark .prose table {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.prose th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  color: #131316;
+}
+.dark .prose th {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  color: white;
+}
+
+.prose td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.dark .prose td {
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Shiki dual themes ──────────────────────────────────── */
+
+.dark .astro-code,
+.dark .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-gray-300);
+  border-radius: 2px;
+}
+.dark .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-gray-700);
+}

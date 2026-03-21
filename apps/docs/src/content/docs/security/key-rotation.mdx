@@ -1,0 +1,62 @@
+---
+title: Key rotation & compromise response
+description: How to rotate keys and what to do if credentials are compromised.
+---
+
+## Rotating service tokens
+
+Rotate tokens regularly, especially for CI/CD and production services:
+
+```bash
+# Create a new token
+zenv tokens create --name "api-server-v2" --expires-at "2027-01-01T00:00:00Z"
+
+# Update your deployment with the new token
+# Then revoke the old one
+zenv tokens revoke OLD_TOKEN_ID
+```
+
+## Rotating the Vault Key
+
+Changing your Vault Key requires re-encrypting all secrets. This is a client-side operation — the server never sees either key.
+
+1. All secrets are decrypted with the current KEK (derived from the old Vault Key)
+2. A new KEK is derived from the new Vault Key
+3. Each secret's DEK is re-wrapped with the new KEK
+4. The new wrapped DEKs are uploaded to the server
+
+During this process, the server only sees new ciphertext replacing old ciphertext.
+
+## If a token is compromised
+
+A stolen token grants API access but **not** decryption capability (the attacker also needs the Vault Key):
+
+1. **Revoke the token immediately**: `zenv tokens revoke TOKEN_ID`
+2. **Create a replacement**: `zenv tokens create --name "replacement"`
+3. **Update your deployments** with the new token
+4. **Review access logs** for unauthorized API calls
+
+## If the Vault Key is compromised
+
+If you believe your Vault Key has been exposed:
+
+1. **Rotate the Vault Key** — this re-encrypts all secrets with a new KEK
+2. **Revoke all tokens** and create new ones
+3. **Rotate the secrets themselves** — change API keys, database passwords, etc. at their source
+4. **Review version history** for unauthorized changes
+
+The Vault Key alone isn't enough to access secrets — the attacker also needs a valid service token. But treat Vault Key exposure as a critical incident.
+
+## If the server is compromised
+
+Because of the zero-knowledge architecture:
+
+- The attacker gets ciphertext only — they cannot decrypt without the Vault Key
+- HMAC-hashed names prevent secret enumeration
+- Auth Keys are stored as Argon2id hashes — not reversible
+
+You should still:
+
+1. **Rotate your Vault Key** (re-encrypt all secrets)
+2. **Revoke and recreate all tokens**
+3. **Rotate sensitive secrets** at their source as a precaution

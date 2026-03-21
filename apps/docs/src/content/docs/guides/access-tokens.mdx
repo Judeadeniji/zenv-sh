@@ -1,0 +1,60 @@
+---
+title: Managing access tokens
+description: Create scoped tokens for CI/CD, automation, and team access.
+---
+
+## Create a token
+
+Generate a service token for programmatic access:
+
+```bash
+zenv tokens create --name "github-actions" --expires-at "2026-12-31T23:59:59Z"
+```
+
+The token is shown once — store it securely. It won't be displayed again.
+
+## Token scoping
+
+Tokens inherit the permissions of the user who created them. Use different tokens for different purposes:
+
+```bash
+# CI/CD — read-only, short-lived
+zenv tokens create --name "ci-deploy" --expires-at "2026-06-01T00:00:00Z"
+
+# Long-running service
+zenv tokens create --name "api-server"
+```
+
+## Set tokens as environment variables
+
+Your app or CI pipeline needs two environment variables:
+
+```bash
+export ZENV_TOKEN="zenv_tk_..."
+export ZENV_VAULT_KEY="your-vault-key"
+```
+
+The token authenticates with the server. The Vault Key decrypts secrets locally.
+
+## List active tokens
+
+```bash
+zenv tokens list
+```
+
+## Revoke a token
+
+Immediately invalidate a token:
+
+```bash
+zenv tokens revoke TOKEN_ID
+```
+
+The token stops working instantly. Any running process using it will fail on its next API call.
+
+## Best practices
+
+- **One token per service** — don't share tokens across environments
+- **Set expiration dates** — especially for CI/CD tokens
+- **Rotate regularly** — revoke old tokens and create new ones
+- **Never commit tokens** — use your CI provider's secret storage for `ZENV_TOKEN`

@@ -1,0 +1,28 @@
+---
+import InsetLayout from './InsetLayout.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+	title: string;
+	description?: string;
+	headings: { depth: number; slug: string; text: string }[];
+	slug: string;
+}
+
+const { title, description, headings, slug } = Astro.props;
+---
+
+<InsetLayout title={`${title} - zEnv Docs`} description={description} currentSlug={slug}>
+	<div class="flex flex-1">
+		<main class="min-w-0 flex-1 px-6 lg:px-10 py-8 max-w-3xl">
+			<article class="prose">
+				<h1>{title}</h1>
+				<slot />
+			</article>
+			<Footer currentSlug={slug} />
+		</main>
+
+		<TableOfContents headings={headings} />
+	</div>
+</InsetLayout>

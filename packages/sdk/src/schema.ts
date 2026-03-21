@@ -139,6 +139,34 @@ export async function validateValues(
 }
 
 /**
+ * Create a sub-schema containing only the requested keys.
+ * Used by select() to validate a subset of a larger schema.
+ */
+export function pickSchema(
+  schema: Record<string, unknown>,
+  keys: string[],
+): Record<string, unknown> {
+  // Zod: schema.pick({ key1: true, key2: true })
+  if ("pick" in schema && typeof (schema as any).pick === "function") {
+    return (schema as any).pick(
+      Object.fromEntries(keys.map((k) => [k, true])),
+    );
+  }
+
+  // Valibot/ArkType or plain objects: manually pick from shape
+  const shape = getObjectShape(schema);
+  if (shape) {
+    return Object.fromEntries(
+      keys.filter((k) => k in shape).map((k) => [k, shape[k]]),
+    );
+  }
+
+  return Object.fromEntries(
+    keys.filter((k) => k in schema).map((k) => [k, schema[k]]),
+  );
+}
+
+/**
  * Infer the output type from a schema.
  * Used for generic type inference in load<T>().
  */

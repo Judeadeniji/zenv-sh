@@ -1,0 +1,67 @@
+---
+title: Key hierarchy
+description: How Vault Key, KEK, Auth Key, and DEKs work together.
+---
+
+## The keys
+
+zEnv uses a layered key hierarchy. Each key has a specific purpose and never leaves the boundary it's designed for.
+
+```
+Vault Key (your input — a passphrase or PIN)
+  │
+  └─ Argon2id(vault_key, salt) → 64 bytes
+       │
+       ├─ bytes 0–31  → KEK (Key Encryption Key)
+       │                  Wraps/unwraps DEKs. Never leaves the client.
+       │
+       └─ bytes 32–63 → Auth Key
+                          Hashed with Argon2id, sent to server for auth.
+                          Server stores the hash, never the raw key.
+```
+
+## Per-secret encryption
+
+Each secret gets its own DEK (Data Encryption Key):
+
+```
+DEK (random 32 bytes, generated per secret)
+  │
+  ├─ AES-256-GCM(DEK, plaintext) → ciphertext + nonce
+  │    Sent to server for storage.
+  │
+  └─ AES-256-GCM(KEK, DEK) → wrapped DEK + nonce
+       Also sent to server. Only your KEK can unwrap it.
+```
+
+## Why not encrypt everything with the KEK directly?
+
+Using per-secret DEKs means:
+
+- **Key rotation is cheap** — rotate the KEK by re-wrapping DEKs, no need to re-encrypt every secret's ciphertext
+- **Team sharing works** — grant access by wrapping the DEK with a team member's public key (X25519), not by sharing the KEK
+- **Damage is contained** — a compromised DEK exposes one secret, not all of them
+
+## Argon2id runs once
+
+The Vault Key is processed through Argon2id exactly once per unlock session. The 64-byte output is split into KEK and Auth Key. This is a hard invariant — running Argon2id twice would mean two separate derivations could drift.
+
+Parameters adapt based on key type:
+
+| Key type | Memory | Iterations | Parallelism |
+|---|---|---|---|
+| Passphrase | 64 MB | 3 | 4 |
+| PIN | 256 MB | 4 | 4 |
+
+PINs get stronger parameters to compensate for lower entropy.
+
+## Team key grants (X25519)
+
+When you invite a team member to a project:
+
+1. Their X25519 public key is fetched from the server
+2. The project's DEK is wrapped with their public key using NaCl box
+3. The wrapped key is stored server-side
+4. When they unlock, their private key (unwrapped with their own KEK) decrypts the project DEK
+
+No one shares a Vault Key. Each member derives their own KEK independently.

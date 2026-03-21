@@ -1,0 +1,93 @@
+---
+title: CI/CD integration
+description: Inject secrets into GitHub Actions, GitLab CI, and other pipelines.
+---
+
+## GitHub Actions
+
+Add `ZENV_TOKEN` and `ZENV_VAULT_KEY` to your repository's secrets, then use the CLI in your workflow:
+
+```yaml title=".github/workflows/deploy.yml"
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ZENV_TOKEN: $\{{ secrets.ZENV_TOKEN }}
+      ZENV_VAULT_KEY: $\{{ secrets.ZENV_VAULT_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zEnv CLI
+        run: go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest
+
+      - name: Verify secrets exist
+        run: |
+          zenv config set api_url https://api.zenv.sh
+          zenv projects init $\{{ vars.ZENV_PROJECT_ID }} --env production
+          zenv check DATABASE_URL STRIPE_API_KEY REDIS_URL
+
+      - name: Deploy with secrets
+        run: zenv run -- ./deploy.sh
+```
+
+The `zenv check` step fails the pipeline if any required secret is missing — catch misconfigurations before they hit production.
+
+## GitLab CI
+
+```yaml title=".gitlab-ci.yml"
+variables:
+  ZENV_TOKEN: $ZENV_TOKEN
+  ZENV_VAULT_KEY: $ZENV_VAULT_KEY
+
+deploy:
+  stage: deploy
+  before_script:
+    - go install github.com/Judeadeniji/zenv-sh/cli/cmd/zenv@latest
+    - zenv config set api_url https://api.zenv.sh
+    - zenv projects init $ZENV_PROJECT_ID --env production
+  script:
+    - zenv check DATABASE_URL STRIPE_API_KEY
+    - zenv run -- ./deploy.sh
+```
+
+Store `ZENV_TOKEN` and `ZENV_VAULT_KEY` as masked CI/CD variables in GitLab's project settings.
+
+## Pre-deploy validation with `zenv check`
+
+`zenv check` validates that secrets exist without reading their values:
+
+```bash
+# Check specific secrets
+zenv check DATABASE_URL STRIPE_API_KEY REDIS_URL
+
+# Exit code 0 = all present, 1 = one or more missing
+```
+
+Use this in any CI system to fail fast on missing secrets.
+
+## Using the SDK in CI
+
+If your build step needs secrets at runtime (e.g., database migrations):
+
+```typescript
+import { zenv } from '@zenv/sdk';
+import { z } from 'zod';
+
+const vault = zenv({
+  token: process.env.ZENV_TOKEN!,
+  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectId: process.env.ZENV_PROJECT_ID!,
+  environment: 'production',
+  schema: z.object({
+    DATABASE_URL: z.string().url(),
+  }),
+});
+
+const { DATABASE_URL } = await vault.load();
+// Run migrations with DATABASE_URL
+```

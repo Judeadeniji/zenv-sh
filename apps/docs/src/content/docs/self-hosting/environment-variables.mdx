@@ -1,0 +1,52 @@
+---
+title: Environment variables reference
+description: All configuration options for the zEnv API server.
+---
+
+## API server
+
+The API server is configured entirely through environment variables. No config files.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | — | Postgres connection string. Example: `postgres://user:pass@localhost:5432/zenv?sslmode=disable` |
+| `REDIS_URL` | No | `redis://localhost:6379/0` | Redis connection string for caching |
+| `HMAC_KEY` | No | — | Server-side HMAC key for additional name hashing. If unset, name hashing is client-side only |
+| `PORT` | No | `8080` | HTTP port the API listens on |
+| `CORS_ORIGINS` | No | — | Comma-separated allowed CORS origins. Example: `https://app.zenv.sh,https://dashboard.zenv.sh` |
+| `VERBOSE` | No | `false` | Enable debug logging. Set to `1` or `true`. Also triggered by `LOG_LEVEL=debug` |
+
+## Client-side (CLI & SDK)
+
+These are used by the CLI and SDK, not the server:
+
+| Variable | Used by | Description |
+|---|---|---|
+| `ZENV_TOKEN` | CLI, SDK | Service token for API authentication |
+| `ZENV_VAULT_KEY` | CLI, SDK | Vault Key for client-side encryption/decryption |
+| `ZENV_API_URL` | CLI | API server URL. Default: `https://api.zenv.sh` |
+| `ZENV_PROJECT_ID` | SDK | Project ID for the SDK to load secrets from |
+
+## Docker Compose
+
+When self-hosting with Docker Compose, set these in your `.env` file:
+
+```bash
+# Database
+DATABASE_URL=postgres://zenv:your_db_password@postgres:5432/zenv?sslmode=disable
+POSTGRES_USER=zenv
+POSTGRES_PASSWORD=your_db_password
+POSTGRES_DB=zenv
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# API
+PORT=8080
+CORS_ORIGINS=https://your-domain.com
+
+# Optional
+VERBOSE=false
+```
+
+The `postgres` and `redis` hostnames resolve to the Docker Compose service names.
