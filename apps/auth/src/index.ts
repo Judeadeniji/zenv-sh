@@ -15,7 +15,7 @@ const trustedOrigins = env.TRUSTED_ORIGINS
 app.use(logger());
 
 app.use(
-  "/auth/**",
+  "/auth/*",
   cors({
     origin: trustedOrigins,
     credentials: true,
@@ -24,12 +24,12 @@ app.use(
   }),
 );
 
-app.all("/auth/**", (c) => auth.handler(c.req.raw));
+app.all("/auth/*", (c) => auth.handler(c.req.raw));
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 const port = env.PORT;
 
 serve({ fetch: app.fetch, port }, (i) => {
-  console.log(`zenv-auth listening on ${i.address}:${i.port}`);
+  console.log(`zenv-auth listening on ${process.env.PORTLESS_URL || "localhost:"+i.port}`);
 });

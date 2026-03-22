@@ -1,14 +1,14 @@
 import { create } from "zustand"
 
 /**
- * Client-only vault state store.
+ * Client-only crypto key store.
  *
- * Holds crypto keys in memory (never persisted) and vault lifecycle state.
- * All async data fetching goes through React Query — this store is for
- * client-only state that doesn't come from the server.
+ * Holds vault crypto keys in browser memory (never persisted, never sent to server).
+ * This store is ONLY for client-side state that can't exist on the server.
+ *
+ * Server-available auth state (session, vault_setup_complete, salt, etc.)
+ * lives in React Query via meQueryOptions — NOT here.
  */
-
-export type VaultState = "loading" | "needs-setup" | "locked" | "unlocked"
 
 interface CryptoMaterial {
 	kek: Uint8Array
@@ -17,36 +17,16 @@ interface CryptoMaterial {
 	privateKey: Uint8Array
 }
 
-interface MeData {
-	email: string
-	vault_setup_complete: boolean
-	vault_key_type: string
-	salt: string
-	vault_unlocked: boolean
-}
-
 interface AuthState {
-	vaultState: VaultState
-	me: MeData | null
 	crypto: CryptoMaterial | null
-
-	setMe: (me: MeData) => void
-	setVaultState: (state: VaultState) => void
 	setCrypto: (crypto: CryptoMaterial) => void
 	lock: () => void
-	reset: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-	vaultState: "loading",
-	me: null,
 	crypto: null,
 
-	setMe: (me) => set({ me }),
-	setVaultState: (vaultState) => set({ vaultState }),
-	setCrypto: (crypto) => set({ crypto, vaultState: "unlocked" }),
+	setCrypto: (crypto) => set({ crypto }),
 
-	lock: () => set({ vaultState: "locked", crypto: null }),
-
-	reset: () => set({ vaultState: "loading", me: null, crypto: null }),
+	lock: () => set({ crypto: null }),
 }))

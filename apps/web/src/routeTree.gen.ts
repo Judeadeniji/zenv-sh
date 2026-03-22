@@ -10,25 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as RecoverRouteImport } from './routes/recover'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as RecoverIndexRouteImport } from './routes/recover/index'
 import { Route as RecoverTrustedContactRouteImport } from './routes/recover/trusted-contact'
 import { Route as RecoverKitRouteImport } from './routes/recover/kit'
+import { Route as JoinTokenRouteImport } from './routes/join.$token'
 import { Route as AuthedVaultSetupRouteImport } from './routes/_authed/vault-setup'
 import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
 import { Route as AuthedUnlockedRouteImport } from './routes/_authed/_unlocked'
 import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
+import { Route as AuthedUnlockedOnboardingRouteImport } from './routes/_authed/_unlocked/onboarding'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecoverRoute = RecoverRouteImport.update({
-  id: '/recover',
-  path: '/recover',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -45,15 +42,25 @@ const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecoverIndexRoute = RecoverIndexRouteImport.update({
+  id: '/recover/',
+  path: '/recover/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecoverTrustedContactRoute = RecoverTrustedContactRouteImport.update({
-  id: '/trusted-contact',
-  path: '/trusted-contact',
-  getParentRoute: () => RecoverRoute,
+  id: '/recover/trusted-contact',
+  path: '/recover/trusted-contact',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RecoverKitRoute = RecoverKitRouteImport.update({
-  id: '/kit',
-  path: '/kit',
-  getParentRoute: () => RecoverRoute,
+  id: '/recover/kit',
+  path: '/recover/kit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinTokenRoute = JoinTokenRouteImport.update({
+  id: '/join/$token',
+  path: '/join/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedVaultSetupRoute = AuthedVaultSetupRouteImport.update({
   id: '/vault-setup',
@@ -74,41 +81,53 @@ const AuthedUnlockedIndexRoute = AuthedUnlockedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedUnlockedRoute,
 } as any)
+const AuthedUnlockedOnboardingRoute =
+  AuthedUnlockedOnboardingRouteImport.update({
+    id: '/onboarding',
+    path: '/onboarding',
+    getParentRoute: () => AuthedUnlockedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
   '/login': typeof LoginRoute
-  '/recover': typeof RecoverRouteWithChildren
   '/signup': typeof SignupRoute
   '/unlock': typeof AuthedUnlockRoute
   '/vault-setup': typeof AuthedVaultSetupRoute
+  '/join/$token': typeof JoinTokenRoute
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
+  '/recover/': typeof RecoverIndexRoute
+  '/onboarding': typeof AuthedUnlockedOnboardingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
   '/login': typeof LoginRoute
-  '/recover': typeof RecoverRouteWithChildren
   '/signup': typeof SignupRoute
   '/unlock': typeof AuthedUnlockRoute
   '/vault-setup': typeof AuthedVaultSetupRoute
+  '/join/$token': typeof JoinTokenRoute
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
+  '/recover': typeof RecoverIndexRoute
+  '/onboarding': typeof AuthedUnlockedOnboardingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/components': typeof ComponentsRoute
   '/login': typeof LoginRoute
-  '/recover': typeof RecoverRouteWithChildren
   '/signup': typeof SignupRoute
   '/_authed/_unlocked': typeof AuthedUnlockedRouteWithChildren
   '/_authed/unlock': typeof AuthedUnlockRoute
   '/_authed/vault-setup': typeof AuthedVaultSetupRoute
+  '/join/$token': typeof JoinTokenRoute
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
+  '/recover/': typeof RecoverIndexRoute
+  '/_authed/_unlocked/onboarding': typeof AuthedUnlockedOnboardingRoute
   '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
 }
 export interface FileRouteTypes {
@@ -117,35 +136,41 @@ export interface FileRouteTypes {
     | '/'
     | '/components'
     | '/login'
-    | '/recover'
     | '/signup'
     | '/unlock'
     | '/vault-setup'
+    | '/join/$token'
     | '/recover/kit'
     | '/recover/trusted-contact'
+    | '/recover/'
+    | '/onboarding'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/components'
     | '/login'
-    | '/recover'
     | '/signup'
     | '/unlock'
     | '/vault-setup'
+    | '/join/$token'
     | '/recover/kit'
     | '/recover/trusted-contact'
+    | '/recover'
+    | '/onboarding'
   id:
     | '__root__'
     | '/_authed'
     | '/components'
     | '/login'
-    | '/recover'
     | '/signup'
     | '/_authed/_unlocked'
     | '/_authed/unlock'
     | '/_authed/vault-setup'
+    | '/join/$token'
     | '/recover/kit'
     | '/recover/trusted-contact'
+    | '/recover/'
+    | '/_authed/_unlocked/onboarding'
     | '/_authed/_unlocked/'
   fileRoutesById: FileRoutesById
 }
@@ -153,8 +178,11 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
   LoginRoute: typeof LoginRoute
-  RecoverRoute: typeof RecoverRouteWithChildren
   SignupRoute: typeof SignupRoute
+  JoinTokenRoute: typeof JoinTokenRoute
+  RecoverKitRoute: typeof RecoverKitRoute
+  RecoverTrustedContactRoute: typeof RecoverTrustedContactRoute
+  RecoverIndexRoute: typeof RecoverIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -164,13 +192,6 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recover': {
-      id: '/recover'
-      path: '/recover'
-      fullPath: '/recover'
-      preLoaderRoute: typeof RecoverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -194,19 +215,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recover/': {
+      id: '/recover/'
+      path: '/recover'
+      fullPath: '/recover/'
+      preLoaderRoute: typeof RecoverIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recover/trusted-contact': {
       id: '/recover/trusted-contact'
-      path: '/trusted-contact'
+      path: '/recover/trusted-contact'
       fullPath: '/recover/trusted-contact'
       preLoaderRoute: typeof RecoverTrustedContactRouteImport
-      parentRoute: typeof RecoverRoute
+      parentRoute: typeof rootRouteImport
     }
     '/recover/kit': {
       id: '/recover/kit'
-      path: '/kit'
+      path: '/recover/kit'
       fullPath: '/recover/kit'
       preLoaderRoute: typeof RecoverKitRouteImport
-      parentRoute: typeof RecoverRoute
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/$token': {
+      id: '/join/$token'
+      path: '/join/$token'
+      fullPath: '/join/$token'
+      preLoaderRoute: typeof JoinTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/vault-setup': {
       id: '/_authed/vault-setup'
@@ -236,14 +271,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUnlockedIndexRouteImport
       parentRoute: typeof AuthedUnlockedRoute
     }
+    '/_authed/_unlocked/onboarding': {
+      id: '/_authed/_unlocked/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthedUnlockedOnboardingRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
   }
 }
 
 interface AuthedUnlockedRouteChildren {
+  AuthedUnlockedOnboardingRoute: typeof AuthedUnlockedOnboardingRoute
   AuthedUnlockedIndexRoute: typeof AuthedUnlockedIndexRoute
 }
 
 const AuthedUnlockedRouteChildren: AuthedUnlockedRouteChildren = {
+  AuthedUnlockedOnboardingRoute: AuthedUnlockedOnboardingRoute,
   AuthedUnlockedIndexRoute: AuthedUnlockedIndexRoute,
 }
 
@@ -266,25 +310,15 @@ const AuthedRouteChildren: AuthedRouteChildren = {
 const AuthedRouteWithChildren =
   AuthedRoute._addFileChildren(AuthedRouteChildren)
 
-interface RecoverRouteChildren {
-  RecoverKitRoute: typeof RecoverKitRoute
-  RecoverTrustedContactRoute: typeof RecoverTrustedContactRoute
-}
-
-const RecoverRouteChildren: RecoverRouteChildren = {
-  RecoverKitRoute: RecoverKitRoute,
-  RecoverTrustedContactRoute: RecoverTrustedContactRoute,
-}
-
-const RecoverRouteWithChildren =
-  RecoverRoute._addFileChildren(RecoverRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
   LoginRoute: LoginRoute,
-  RecoverRoute: RecoverRouteWithChildren,
   SignupRoute: SignupRoute,
+  JoinTokenRoute: JoinTokenRoute,
+  RecoverKitRoute: RecoverKitRoute,
+  RecoverTrustedContactRoute: RecoverTrustedContactRoute,
+  RecoverIndexRoute: RecoverIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

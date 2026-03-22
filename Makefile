@@ -68,10 +68,10 @@ sdk-types: swagger
 
 # --- Dev (Portless) ---
 dev-api:
-	env $$(grep -v '^#' api/.env | xargs) portless zenv go run ./api/cmd/zenv-api
+	env $$(grep -v '^#' api/.env | xargs) portless api.zenv go run ./api/cmd/zenv-api
 
 dev-auth:
-	portless zenv-auth pnpm -C apps/auth run dev
+	portless auth.zenv pnpm -C apps/auth run dev
 
 # --- Auth server ---
 auth-build:

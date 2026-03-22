@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -44,7 +45,7 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 		// the cookie from the auth server isn't automatically forwarded.
 		var token string
 		if cookie, err := r.Cookie(IdentitySessionCookie); err == nil && cookie.Value != "" {
-			token = cookie.Value
+			token = strings.Split(cookie.Value, ".")[0]
 		} else if h := r.Header.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
 			token = h[7:]
 		}

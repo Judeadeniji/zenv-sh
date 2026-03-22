@@ -13,6 +13,7 @@ import {
 } from "@zenv/amnesia"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
+import { queryKeys, mutationKeys } from "#/lib/keys"
 
 // ── Helpers ──
 
@@ -43,17 +44,11 @@ function unpack(data: Uint8Array) {
 // ── Queries ──
 
 export const meQueryOptions = queryOptions({
-	queryKey: ["auth", "me"],
+	queryKey: queryKeys.auth.me,
 	queryFn: async () => {
-		const { data, error } = await api.GET("/auth/me")
+		const { data, error } = await api().GET("/auth/me")
 		if (error || !data) throw new Error("Failed to fetch auth state")
-		return data as {
-			email: string
-			vault_setup_complete: boolean
-			vault_key_type: string
-			salt: string
-			vault_unlocked: boolean
-		}
+		return data;
 	},
 	staleTime: 30_000,
 })
@@ -62,6 +57,7 @@ export const meQueryOptions = queryOptions({
 
 export function useSetupVault() {
 	return useMutation({
+		mutationKey: mutationKeys.auth.setupVault,
 		mutationFn: async ({
 			vaultKey,
 			keyType,
@@ -98,7 +94,7 @@ export function useSetupVault() {
 				body.recovery_wrapped_dek = toBase64(pack(rNonce, rCt))
 			}
 
-			const { error } = await api.POST("/auth/setup-vault", { body: body as never })
+			const { error } = await api().POST("/auth/setup-vault", { body: body as never })
 			if (error) throw new Error("Vault setup failed")
 
 			return { kek, dek, publicKey, privateKey }
@@ -111,16 +107,21 @@ export function useSetupVault() {
 
 export function useUnlockVault() {
 	return useMutation({
-		mutationFn: async ({ vaultKey }: { vaultKey: string }) => {
-			const { me } = useAuthStore.getState()
-			if (!me) throw new Error("No user data")
-
-			const salt = fromBase64(me.salt)
-			const keyType = me.vault_key_type as KeyType
+		mutationKey: mutationKeys.auth.unlockVault,
+		mutationFn: async ({
+			vaultKey,
+			salt: saltB64,
+			keyType,
+		}: {
+			vaultKey: string
+			salt: string
+			keyType: KeyType
+		}) => {
+			const salt = fromBase64(saltB64)
 			const { kek, authKey } = await deriveKeys(vaultKey, salt, keyType)
 			const authKeyHash = await hashAuthKey(authKey)
 
-			const { data, error } = await api.POST("/auth/unlock", {
+			const { data, error } = await api().POST("/auth/unlock", {
 				body: { auth_key_hash: toBase64(authKeyHash) } as never,
 			})
 			if (error || !data) throw new Error("Wrong Vault Key")

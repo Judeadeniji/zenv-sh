@@ -1,13 +1,14 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { CardBox, Card, CardContent } from "#/components/ui/card"
+import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Spinner } from "#/components/ui/spinner"
 import { NewVaultKeyForm } from "#/components/NewVaultKeyForm"
 import { RecoveryKitModal } from "#/components/RecoveryKitModal"
-import { useSetupVault } from "#/lib/queries/auth"
-import { useAuthStore } from "#/lib/stores/auth"
+import { useQuery } from "@tanstack/react-query"
+import { meQueryOptions, useSetupVault } from "#/lib/queries/auth"
 import { generateRecoveryKey, recoveryKeyToMnemonic } from "#/lib/recovery"
+import { storageKeys } from "#/lib/keys"
 import { AlertCircle, Lock } from "lucide-react"
 import type { KeyType } from "@zenv/amnesia"
 
@@ -19,7 +20,7 @@ type Step = "key-input" | "deriving" | "recovery-gate"
 
 function VaultSetupPage() {
 	const navigate = useNavigate()
-	const me = useAuthStore((s) => s.me)
+	const { data: me } = useQuery(meQueryOptions)
 	const setupVault = useSetupVault()
 
 	const [step, setStep] = useState<Step>("key-input")
@@ -40,9 +41,17 @@ function VaultSetupPage() {
 		}
 	}
 
-	const handleRecoveryConfirm = () => {
-		// Zero the mnemonic from state
+	const handleRecoveryConfirm = async () => {
 		setMnemonic("")
+
+		// Check for pending invite token from signup flow
+		const inviteToken = sessionStorage.getItem(storageKeys.inviteToken)
+		if (inviteToken) {
+			sessionStorage.removeItem(storageKeys.inviteToken)
+			navigate({ to: "/join/$token", params: { token: inviteToken } })
+			return
+		}
+
 		navigate({ to: "/" })
 	}
 
@@ -73,42 +82,55 @@ function VaultSetupPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen items-center justify-center px-4">
-			<div className="w-full max-w-sm">
-				<div className="mb-6 text-center">
-					<div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-						<Lock className="size-4" />
-					</div>
-					<h1 className="text-lg font-semibold">Create your Vault Key</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						This key encrypts your secrets. It never leaves your device.
-					</p>
+		<div className="flex min-h-screen flex-col bg-background">
+			<div className="flex flex-1 items-center justify-center px-4 py-8">
+				<div className="w-full max-w-100">
+					<CardBox>
+						<Card className="p-0">
+							<CardHeader className="px-6 pt-6 text-center">
+								<div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+									<Lock className="size-4" />
+								</div>
+								<CardTitle>Create your Vault Key</CardTitle>
+								<CardDescription className="text-xs">
+									This key encrypts your secrets. It never leaves your device.
+								</CardDescription>
+							</CardHeader>
+
+							<CardContent className="px-6 pt-4 pb-6">
+								{setupVault.error && (
+									<Alert variant="danger" className="mb-4">
+										<AlertCircle />
+										<AlertDescription>{setupVault.error.message}</AlertDescription>
+									</Alert>
+								)}
+
+								<NewVaultKeyForm
+									onSubmit={handleKeySubmit}
+									isLoading={setupVault.isPending}
+									loadingText="Deriving keys..."
+									submitLabel="Create Vault"
+								/>
+							</CardContent>
+
+							<div className="border-t border-border bg-muted/30 px-6 py-3 text-center text-xs text-muted-foreground">
+								zEnv never sees your Vault Key. If you forget it, you'll need your Recovery Kit.
+							</div>
+						</Card>
+					</CardBox>
 				</div>
-
-				<CardBox>
-					<Card>
-						<CardContent className="pt-5">
-							{setupVault.error && (
-								<Alert variant="danger" className="mb-4">
-									<AlertCircle />
-									<AlertDescription>{setupVault.error.message}</AlertDescription>
-								</Alert>
-							)}
-
-							<NewVaultKeyForm
-								onSubmit={handleKeySubmit}
-								isLoading={setupVault.isPending}
-								loadingText="Deriving keys..."
-								submitLabel="Create Vault"
-							/>
-						</CardContent>
-					</Card>
-				</CardBox>
-
-				<p className="mt-4 text-center text-xs text-muted-foreground">
-					zEnv never sees your Vault Key. If you forget it, you'll need your Recovery Kit.
-				</p>
 			</div>
+
+			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
+				<span>&copy; {new Date().getFullYear()} zEnv</span>
+				<div className="flex items-center gap-1">
+					<a href="/support" className="hover:text-foreground">Support</a>
+					<span>&middot;</span>
+					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<span>&middot;</span>
+					<a href="/terms" className="hover:text-foreground">Terms</a>
+				</div>
+			</footer>
 		</div>
 	)
 }
