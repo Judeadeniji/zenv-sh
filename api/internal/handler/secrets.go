@@ -62,6 +62,7 @@ type SecretResponse struct {
 //	@Failure		409		{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets [post]
+//	@Router			/secrets [post]
 func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Auth is enforced by middleware (session or token) before this handler runs.
 	var req CreateSecretRequest
@@ -161,6 +162,7 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404			{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/{nameHash} [get]
+//	@Router			/secrets/{nameHash} [get]
 func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -218,6 +220,7 @@ type BulkFetchResponse struct {
 //	@Success		200		{array}		SecretResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/bulk [post]
+//	@Router			/secrets/bulk [post]
 func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 	var req BulkFetchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -290,6 +293,7 @@ type UpdateSecretRequest struct {
 //	@Failure		404			{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/{nameHash} [put]
+//	@Router			/secrets/{nameHash} [put]
 func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -398,6 +402,7 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/{nameHash} [delete]
+//	@Router			/secrets/{nameHash} [delete]
 func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -457,6 +462,7 @@ type SecretListItem struct {
 //	@Success		200			{object}	ListSecretsResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets [get]
+//	@Router			/secrets [get]
 func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -519,6 +525,7 @@ type VersionsResponse struct {
 //	@Failure		404			{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/{nameHash}/versions [get]
+//	@Router			/secrets/{nameHash}/versions [get]
 func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -592,6 +599,7 @@ type RollbackRequest struct {
 //	@Failure		404			{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/secrets/{nameHash}/rollback [post]
+//	@Router			/secrets/{nameHash}/rollback [post]
 func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {

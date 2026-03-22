@@ -8,6 +8,44 @@ definitions:
       user_id:
         type: string
     type: object
+  api_internal_handler.AuditLogEntry:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      ip:
+        type: string
+      metadata:
+        description: JSON string
+        type: string
+      project_id:
+        type: string
+      result:
+        type: string
+      secret_hash:
+        description: base64
+        type: string
+      token_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  api_internal_handler.AuditLogListResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/api_internal_handler.AuditLogEntry'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+    type: object
   api_internal_handler.BulkFetchRequest:
     properties:
       environment:
@@ -18,6 +56,27 @@ definitions:
           type: string
         type: array
       project_id:
+        type: string
+    type: object
+  api_internal_handler.ChangeVaultKeyRequest:
+    properties:
+      current_auth_key_hash:
+        description: base64
+        type: string
+      new_auth_key_hash:
+        description: base64
+        type: string
+      new_salt:
+        description: base64
+        type: string
+      new_vault_key_type:
+        description: '"pin" or "passphrase"'
+        type: string
+      new_wrapped_dek:
+        description: base64
+        type: string
+      new_wrapped_private_key:
+        description: base64
         type: string
     type: object
   api_internal_handler.CreateOrgRequest:
@@ -328,6 +387,133 @@ info:
   title: zEnv API
   version: 0.1.0
 paths:
+  /audit-logs:
+    get:
+      description: Query audit log entries with filters. Requires project_id.
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Start date (RFC3339)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by action (e.g. secret.read)
+        in: query
+        name: action
+        type: string
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by result (success, denied, error)
+        in: query
+        name: result
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 50, max 100)
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.AuditLogListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: List audit logs
+      tags:
+      - audit
+  /audit-logs/export:
+    get:
+      description: Export filtered audit log entries as a CSV file.
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Start date (RFC3339)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by result
+        in: query
+        name: result
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth: []
+      summary: Export audit logs as CSV
+      tags:
+      - audit
+  /auth/change-vault-key:
+    put:
+      consumes:
+      - application/json
+      description: 'Rotate vault key: verify current auth key, store new crypto material.
+        O(1) — no item rows touched.'
+      parameters:
+      - description: Current auth proof + new crypto material
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.ChangeVaultKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "403":
+          description: Wrong current Vault Key
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Change vault key
+      tags:
+      - auth
   /auth/me:
     get:
       description: Returns identity, vault setup status, and vault lock state.
@@ -925,6 +1111,279 @@ paths:
       tags:
       - secrets
   /sdk/secrets/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Fetch multiple secrets by name hashes. Used by SDK for schema manifest
+        loading.
+      parameters:
+      - description: Name hashes to fetch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.BulkFetchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_internal_handler.SecretResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Bulk fetch secrets
+      tags:
+      - secrets
+  /secrets:
+    get:
+      description: List secret metadata (name hash, version, updated_at). Never returns
+        ciphertext.
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListSecretsResponse'
+      security:
+      - BearerAuth: []
+      summary: List secrets
+      tags:
+      - secrets
+    post:
+      consumes:
+      - application/json
+      description: Store an encrypted vault item. Server stores opaque ciphertext
+        only.
+      parameters:
+      - description: Encrypted secret
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateSecretRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create secret
+      tags:
+      - secrets
+  /secrets/{nameHash}:
+    delete:
+      description: Remove a secret from the vault.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete secret
+      tags:
+      - secrets
+    get:
+      description: Retrieve a single encrypted secret by name hash.
+      parameters:
+      - description: HMAC-SHA256 name hash (base64)
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment (development/staging/production)
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get secret
+      tags:
+      - secrets
+    put:
+      consumes:
+      - application/json
+      description: Update ciphertext and nonce. Version auto-incremented.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      - description: New ciphertext
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.UpdateSecretRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update secret
+      tags:
+      - secrets
+  /secrets/{nameHash}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Revert a secret to a previous version. The current version is archived
+        first.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      - description: Target version
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.RollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rollback secret
+      tags:
+      - secrets
+  /secrets/{nameHash}/versions:
+    get:
+      description: Show version history for a secret. Returns version numbers and
+        timestamps.
+      parameters:
+      - description: HMAC-SHA256 name hash
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment
+        in: query
+        name: environment
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.VersionsResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List secret versions
+      tags:
+      - secrets
+  /secrets/bulk:
     post:
       consumes:
       - application/json

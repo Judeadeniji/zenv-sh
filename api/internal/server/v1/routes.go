@@ -19,6 +19,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
 	orgs := handler.NewOrgsHandler(db)
+	audit := handler.NewAuditHandler(db)
 
 	// Identity session routes — verified via session cookie or Bearer token
 	r.Group(func(r chi.Router) {
@@ -27,6 +28,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Get("/auth/me", auth.Me)
 		r.Post("/auth/setup-vault", auth.SetupVault)
 		r.Post("/auth/unlock", auth.Unlock)
+		r.Put("/auth/change-vault-key", auth.ChangeVaultKey)
 	})
 
 	// Dashboard routes — require identity session + vault unlock
@@ -65,6 +67,9 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 			r.Post("/{orgID}/members", orgs.AddMember)
 			r.Delete("/{orgID}/members/{memberID}", orgs.RemoveMember)
 		})
+
+		r.Get("/audit-logs", audit.List)
+		r.Get("/audit-logs/export", audit.Export)
 	})
 
 	// SDK/CLI routes — authenticate via service token (machine access)

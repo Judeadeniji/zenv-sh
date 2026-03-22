@@ -4,6 +4,185 @@
  */
 
 export interface paths {
+    "/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List audit logs
+         * @description Query audit log entries with filters. Requires project_id.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Start date (RFC3339) */
+                    start_date?: string;
+                    /** @description End date (RFC3339) */
+                    end_date?: string;
+                    /** @description Filter by action (e.g. secret.read) */
+                    action?: string;
+                    /** @description Filter by user ID */
+                    user_id?: string;
+                    /** @description Filter by result (success, denied, error) */
+                    result?: string;
+                    /** @description Page number (default 1) */
+                    page?: number;
+                    /** @description Items per page (default 50, max 100) */
+                    per_page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.AuditLogListResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export audit logs as CSV
+         * @description Export filtered audit log entries as a CSV file.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Start date (RFC3339) */
+                    start_date?: string;
+                    /** @description End date (RFC3339) */
+                    end_date?: string;
+                    /** @description Filter by action */
+                    action?: string;
+                    /** @description Filter by user ID */
+                    user_id?: string;
+                    /** @description Filter by result */
+                    result?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/change-vault-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change vault key
+         * @description Rotate vault key: verify current auth key, store new crypto material. O(1) — no item rows touched.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Current auth proof + new crypto material */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.ChangeVaultKeyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Wrong current Vault Key */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -696,12 +875,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Encrypted secret */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.CreateSecretRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["api_internal_handler.CreateSecretRequest"];
             responses: {
                 /** @description Created */
                 201: {
@@ -758,12 +932,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Name hashes to fetch */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.BulkFetchRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["api_internal_handler.BulkFetchRequest"];
             responses: {
                 /** @description OK */
                 200: {
@@ -849,12 +1018,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            /** @description New ciphertext */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.UpdateSecretRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["api_internal_handler.UpdateSecretRequest"];
             responses: {
                 /** @description OK */
                 200: {
@@ -949,12 +1113,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            /** @description Target version */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["api_internal_handler.RollbackRequest"];
             responses: {
                 /** @description OK */
                 200: {
@@ -983,6 +1142,376 @@ export interface paths {
         trace?: never;
     };
     "/sdk/secrets/{nameHash}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List secret versions
+         * @description Show version history for a secret. Returns version numbers and timestamps.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.VersionsResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List secrets
+         * @description List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ListSecretsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create secret
+         * @description Store an encrypted vault item. Server stores opaque ciphertext only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.CreateSecretRequest"];
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk fetch secrets
+         * @description Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.BulkFetchRequest"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"][];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/{nameHash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get secret
+         * @description Retrieve a single encrypted secret by name hash.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment (development/staging/production) */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash (base64) */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update secret
+         * @description Update ciphertext and nonce. Version auto-incremented.
+         */
+        put: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.UpdateSecretRequest"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Delete secret
+         * @description Remove a secret from the vault.
+         */
+        delete: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/{nameHash}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rollback secret
+         * @description Revert a secret to a previous version. The current version is archived first.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.RollbackRequest"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/{nameHash}/versions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1175,11 +1704,45 @@ export interface components {
             role?: string;
             user_id?: string;
         };
+        "api_internal_handler.AuditLogEntry": {
+            action?: string;
+            created_at?: string;
+            id?: string;
+            ip?: string;
+            /** @description JSON string */
+            metadata?: string;
+            project_id?: string;
+            result?: string;
+            /** @description base64 */
+            secret_hash?: string;
+            token_id?: string;
+            user_id?: string;
+        };
+        "api_internal_handler.AuditLogListResponse": {
+            entries?: components["schemas"]["api_internal_handler.AuditLogEntry"][];
+            page?: number;
+            per_page?: number;
+            total?: number;
+        };
         "api_internal_handler.BulkFetchRequest": {
             environment?: string;
             /** @description base64-encoded HMAC hashes */
             name_hashes?: string[];
             project_id?: string;
+        };
+        "api_internal_handler.ChangeVaultKeyRequest": {
+            /** @description base64 */
+            current_auth_key_hash?: string;
+            /** @description base64 */
+            new_auth_key_hash?: string;
+            /** @description base64 */
+            new_salt?: string;
+            /** @description "pin" or "passphrase" */
+            new_vault_key_type?: string;
+            /** @description base64 */
+            new_wrapped_dek?: string;
+            /** @description base64 */
+            new_wrapped_private_key?: string;
         };
         "api_internal_handler.CreateOrgRequest": {
             name?: string;
@@ -1354,7 +1917,32 @@ export interface components {
     };
     responses: never;
     parameters: never;
-    requestBodies: never;
+    requestBodies: {
+        /** @description Target version */
+        "api_internal_handler.RollbackRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
+            };
+        };
+        /** @description Encrypted secret */
+        "api_internal_handler.CreateSecretRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.CreateSecretRequest"];
+            };
+        };
+        /** @description Name hashes to fetch */
+        "api_internal_handler.BulkFetchRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.BulkFetchRequest"];
+            };
+        };
+        /** @description New ciphertext */
+        "api_internal_handler.UpdateSecretRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.UpdateSecretRequest"];
+            };
+        };
+    };
     headers: never;
     pathItems: never;
 }

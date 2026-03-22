@@ -7,6 +7,239 @@
         "version": "0.1.0"
     },
     "paths": {
+        "/audit-logs": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Query audit log entries with filters. Requires project_id.",
+                "tags": [
+                    "audit"
+                ],
+                "summary": "List audit logs",
+                "parameters": [
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Start date (RFC3339)",
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "End date (RFC3339)",
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by action (e.g. secret.read)",
+                        "name": "action",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by user ID",
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by result (success, denied, error)",
+                        "name": "result",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page (default 50, max 100)",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.AuditLogListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/audit-logs/export": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Export filtered audit log entries as a CSV file.",
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Export audit logs as CSV",
+                "parameters": [
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Start date (RFC3339)",
+                        "name": "start_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "End date (RFC3339)",
+                        "name": "end_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by action",
+                        "name": "action",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by user ID",
+                        "name": "user_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by result",
+                        "name": "result",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/auth/change-vault-key": {
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Rotate vault key: verify current auth key, store new crypto material. O(1) — no item rows touched.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change vault key",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/api_internal_handler.ChangeVaultKeyRequest"
+                            }
+                        }
+                    },
+                    "description": "Current auth proof + new crypto material",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Wrong current Vault Key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/me": {
             "get": {
                 "security": [
@@ -690,15 +923,7 @@
                 ],
                 "summary": "Create secret",
                 "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.CreateSecretRequest"
-                            }
-                        }
-                    },
-                    "description": "Encrypted secret",
-                    "required": true
+                    "$ref": "#/components/requestBodies/api_internal_handler.CreateSecretRequest"
                 },
                 "responses": {
                     "201": {
@@ -747,15 +972,7 @@
                 ],
                 "summary": "Bulk fetch secrets",
                 "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.BulkFetchRequest"
-                            }
-                        }
-                    },
-                    "description": "Name hashes to fetch",
-                    "required": true
+                    "$ref": "#/components/requestBodies/api_internal_handler.BulkFetchRequest"
                 },
                 "responses": {
                     "200": {
@@ -879,15 +1096,7 @@
                     }
                 ],
                 "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.UpdateSecretRequest"
-                            }
-                        }
-                    },
-                    "description": "New ciphertext",
-                    "required": true
+                    "$ref": "#/components/requestBodies/api_internal_handler.UpdateSecretRequest"
                 },
                 "responses": {
                     "200": {
@@ -1011,15 +1220,7 @@
                     }
                 ],
                 "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/api_internal_handler.RollbackRequest"
-                            }
-                        }
-                    },
-                    "description": "Target version",
-                    "required": true
+                    "$ref": "#/components/requestBodies/api_internal_handler.RollbackRequest"
                 },
                 "responses": {
                     "200": {
@@ -1046,6 +1247,451 @@
             }
         },
         "/sdk/secrets/{nameHash}/versions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "List secret versions",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.VersionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List secret metadata (name hash, version, updated_at). Never returns ciphertext.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "List secrets",
+                "parameters": [
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ListSecretsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Store an encrypted vault item. Server stores opaque ciphertext only.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Create secret",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/api_internal_handler.CreateSecretRequest"
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/bulk": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Bulk fetch secrets",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/api_internal_handler.BulkFetchRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{nameHash}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a single encrypted secret by name hash.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Get secret",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash (base64)",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment (development/staging/production)",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update ciphertext and nonce. Version auto-incremented.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Update secret",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/api_internal_handler.UpdateSecretRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a secret from the vault.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Delete secret",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{nameHash}/rollback": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Rollback secret",
+                "parameters": [
+                    {
+                        "description": "HMAC-SHA256 name hash",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Environment",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/api_internal_handler.RollbackRequest"
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{nameHash}/versions": {
             "get": {
                 "security": [
                     {
@@ -1239,6 +1885,52 @@
         }
     ],
     "components": {
+        "requestBodies": {
+            "api_internal_handler.RollbackRequest": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/api_internal_handler.RollbackRequest"
+                        }
+                    }
+                },
+                "description": "Target version",
+                "required": true
+            },
+            "api_internal_handler.CreateSecretRequest": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/api_internal_handler.CreateSecretRequest"
+                        }
+                    }
+                },
+                "description": "Encrypted secret",
+                "required": true
+            },
+            "api_internal_handler.BulkFetchRequest": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/api_internal_handler.BulkFetchRequest"
+                        }
+                    }
+                },
+                "description": "Name hashes to fetch",
+                "required": true
+            },
+            "api_internal_handler.UpdateSecretRequest": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/api_internal_handler.UpdateSecretRequest"
+                        }
+                    }
+                },
+                "description": "New ciphertext",
+                "required": true
+            }
+        },
         "securitySchemes": {
             "BearerAuth": {
                 "description": "Service token: \"Bearer ze_...\"",
@@ -1265,6 +1957,63 @@
                     }
                 }
             },
+            "api_internal_handler.AuditLogEntry": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "ip": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "description": "JSON string",
+                        "type": "string"
+                    },
+                    "project_id": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "type": "string"
+                    },
+                    "secret_hash": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "token_id": {
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "api_internal_handler.AuditLogListResponse": {
+                "type": "object",
+                "properties": {
+                    "entries": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/api_internal_handler.AuditLogEntry"
+                        }
+                    },
+                    "page": {
+                        "type": "integer"
+                    },
+                    "per_page": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                }
+            },
             "api_internal_handler.BulkFetchRequest": {
                 "type": "object",
                 "properties": {
@@ -1279,6 +2028,35 @@
                         }
                     },
                     "project_id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "api_internal_handler.ChangeVaultKeyRequest": {
+                "type": "object",
+                "properties": {
+                    "current_auth_key_hash": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "new_auth_key_hash": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "new_salt": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "new_vault_key_type": {
+                        "description": "\"pin\" or \"passphrase\"",
+                        "type": "string"
+                    },
+                    "new_wrapped_dek": {
+                        "description": "base64",
+                        "type": "string"
+                    },
+                    "new_wrapped_private_key": {
+                        "description": "base64",
                         "type": "string"
                     }
                 }
