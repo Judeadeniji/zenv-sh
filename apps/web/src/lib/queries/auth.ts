@@ -13,6 +13,7 @@ import {
 } from "@zenv/amnesia"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
+import { wrapDekForRecovery } from "#/lib/recovery"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 
 // ── Helpers ──
@@ -88,10 +89,10 @@ export function useSetupVault() {
 				wrapped_private_key: toBase64(wrappedPrivateKey),
 			}
 
-			// Wrap DEK for recovery if a recovery key is provided
+			// Wrap DEK for recovery if entropy is provided (16 bytes → SHA-256 → 32-byte key)
 			if (recoveryKey) {
-				const { ciphertext: rCt, nonce: rNonce } = await wrapKey(dek, recoveryKey)
-				body.recovery_wrapped_dek = toBase64(pack(rNonce, rCt))
+				const recoveryBlob = await wrapDekForRecovery(dek, recoveryKey)
+				body.recovery_wrapped_dek = toBase64(recoveryBlob)
 			}
 
 			const { error } = await api().POST("/auth/setup-vault", { body: body as never })

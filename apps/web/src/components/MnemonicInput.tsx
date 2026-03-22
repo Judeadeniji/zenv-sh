@@ -1,5 +1,6 @@
 import { useRef, useCallback } from "react"
 import { Input } from "#/components/ui/input"
+import { MNEMONIC_WORD_COUNT } from "#/lib/recovery"
 
 interface MnemonicInputProps {
 	words: string[]
@@ -8,10 +9,12 @@ interface MnemonicInputProps {
 }
 
 /**
- * 24-field grid for entering BIP39 mnemonic recovery words.
- * Supports paste of all 24 words at once (space or newline separated).
+ * Grid for entering BIP39 mnemonic recovery words.
+ * Supports paste of all words at once (space or newline separated).
  */
 export function MnemonicInput({ words, onChange, disabled }: MnemonicInputProps) {
+	const count = MNEMONIC_WORD_COUNT
+	const lastIdx = count - 1
 	const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
 	const setRef = useCallback((el: HTMLInputElement | null, i: number) => {
@@ -24,8 +27,7 @@ export function MnemonicInput({ words, onChange, disabled }: MnemonicInputProps)
 		next[i] = cleaned
 		onChange(next)
 
-		// Auto-advance on complete word (most BIP39 words are 3-8 chars)
-		if (cleaned.length >= 3 && i < 23) {
+		if (cleaned.length >= 3 && i < lastIdx) {
 			inputRefs.current[i + 1]?.focus()
 		}
 	}
@@ -37,13 +39,12 @@ export function MnemonicInput({ words, onChange, disabled }: MnemonicInputProps)
 		if (pasted.length > 1) {
 			e.preventDefault()
 			const next = [...words]
-			for (let j = 0; j < pasted.length && i + j < 24; j++) {
+			for (let j = 0; j < pasted.length && i + j < count; j++) {
 				next[i + j] = pasted[j].toLowerCase().replace(/[^a-z]/g, "")
 			}
 			onChange(next)
 
-			// Focus the field after the last pasted word
-			const focusIdx = Math.min(i + pasted.length, 23)
+			const focusIdx = Math.min(i + pasted.length, lastIdx)
 			inputRefs.current[focusIdx]?.focus()
 		}
 	}
@@ -55,13 +56,16 @@ export function MnemonicInput({ words, onChange, disabled }: MnemonicInputProps)
 		}
 		if (e.key === " " || e.key === "Tab") {
 			if (e.key === " ") e.preventDefault()
-			if (i < 23) inputRefs.current[i + 1]?.focus()
+			if (i < lastIdx) inputRefs.current[i + 1]?.focus()
 		}
 	}
 
+	// 12 words → 3 cols, 24 words → 4 cols
+	const cols = count <= 12 ? "grid-cols-3" : "grid-cols-4"
+
 	return (
-		<div className="grid grid-cols-3 gap-2">
-			{Array.from({ length: 24 }, (_, i) => (
+		<div className={`grid ${cols} gap-2`}>
+			{Array.from({ length: count }, (_, i) => (
 				<div key={i} className="flex items-center gap-1.5">
 					<span className="w-5 text-right text-[10px] tabular-nums text-muted-foreground">
 						{(i + 1).toString().padStart(2, "0")}

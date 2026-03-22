@@ -148,8 +148,8 @@ function OnboardingWizard() {
 										</Alert>
 									)}
 
-									<div className="space-y-1.5">
-										<Label htmlFor="org-name" className="text-xs">Organization name</Label>
+									<div className="space-y-2">
+										<Label htmlFor="org-name" className="text-xs block">Organization name</Label>
 										<Input
 											id="org-name"
 											placeholder="Acme Inc"

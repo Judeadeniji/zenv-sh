@@ -33,7 +33,7 @@ function RecoverPage() {
 										<div>
 											<p className="text-sm font-medium text-foreground">Recovery Kit</p>
 											<p className="mt-0.5 text-xs text-muted-foreground">
-												Enter the 24-word recovery phrase from your Recovery Kit PDF.
+												Enter the 12-word recovery phrase from your Recovery Kit PDF.
 											</p>
 										</div>
 									</ActionCard>

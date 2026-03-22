@@ -21,7 +21,12 @@ import { Route as AuthedVaultSetupRouteImport } from './routes/_authed/vault-set
 import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
 import { Route as AuthedUnlockedRouteImport } from './routes/_authed/_unlocked'
 import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
+import { Route as AuthedUnlockedTokensRouteImport } from './routes/_authed/_unlocked/tokens'
+import { Route as AuthedUnlockedSettingsRouteImport } from './routes/_authed/_unlocked/settings'
+import { Route as AuthedUnlockedSecretsRouteImport } from './routes/_authed/_unlocked/secrets'
 import { Route as AuthedUnlockedOnboardingRouteImport } from './routes/_authed/_unlocked/onboarding'
+import { Route as AuthedUnlockedMembersRouteImport } from './routes/_authed/_unlocked/members'
+import { Route as AuthedUnlockedAuditRouteImport } from './routes/_authed/_unlocked/audit'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -81,12 +86,37 @@ const AuthedUnlockedIndexRoute = AuthedUnlockedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedUnlockedRoute,
 } as any)
+const AuthedUnlockedTokensRoute = AuthedUnlockedTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => AuthedUnlockedRoute,
+} as any)
+const AuthedUnlockedSettingsRoute = AuthedUnlockedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthedUnlockedRoute,
+} as any)
+const AuthedUnlockedSecretsRoute = AuthedUnlockedSecretsRouteImport.update({
+  id: '/secrets',
+  path: '/secrets',
+  getParentRoute: () => AuthedUnlockedRoute,
+} as any)
 const AuthedUnlockedOnboardingRoute =
   AuthedUnlockedOnboardingRouteImport.update({
     id: '/onboarding',
     path: '/onboarding',
     getParentRoute: () => AuthedUnlockedRoute,
   } as any)
+const AuthedUnlockedMembersRoute = AuthedUnlockedMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AuthedUnlockedRoute,
+} as any)
+const AuthedUnlockedAuditRoute = AuthedUnlockedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthedUnlockedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedUnlockedIndexRoute
@@ -99,7 +129,12 @@ export interface FileRoutesByFullPath {
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
+  '/audit': typeof AuthedUnlockedAuditRoute
+  '/members': typeof AuthedUnlockedMembersRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/secrets': typeof AuthedUnlockedSecretsRoute
+  '/settings': typeof AuthedUnlockedSettingsRoute
+  '/tokens': typeof AuthedUnlockedTokensRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedUnlockedIndexRoute
@@ -112,7 +147,12 @@ export interface FileRoutesByTo {
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover': typeof RecoverIndexRoute
+  '/audit': typeof AuthedUnlockedAuditRoute
+  '/members': typeof AuthedUnlockedMembersRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/secrets': typeof AuthedUnlockedSecretsRoute
+  '/settings': typeof AuthedUnlockedSettingsRoute
+  '/tokens': typeof AuthedUnlockedTokensRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -127,7 +167,12 @@ export interface FileRoutesById {
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
+  '/_authed/_unlocked/audit': typeof AuthedUnlockedAuditRoute
+  '/_authed/_unlocked/members': typeof AuthedUnlockedMembersRoute
   '/_authed/_unlocked/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/_authed/_unlocked/secrets': typeof AuthedUnlockedSecretsRoute
+  '/_authed/_unlocked/settings': typeof AuthedUnlockedSettingsRoute
+  '/_authed/_unlocked/tokens': typeof AuthedUnlockedTokensRoute
   '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
 }
 export interface FileRouteTypes {
@@ -143,7 +188,12 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover/'
+    | '/audit'
+    | '/members'
     | '/onboarding'
+    | '/secrets'
+    | '/settings'
+    | '/tokens'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,7 +206,12 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover'
+    | '/audit'
+    | '/members'
     | '/onboarding'
+    | '/secrets'
+    | '/settings'
+    | '/tokens'
   id:
     | '__root__'
     | '/_authed'
@@ -170,7 +225,12 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover/'
+    | '/_authed/_unlocked/audit'
+    | '/_authed/_unlocked/members'
     | '/_authed/_unlocked/onboarding'
+    | '/_authed/_unlocked/secrets'
+    | '/_authed/_unlocked/settings'
+    | '/_authed/_unlocked/tokens'
     | '/_authed/_unlocked/'
   fileRoutesById: FileRoutesById
 }
@@ -271,6 +331,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUnlockedIndexRouteImport
       parentRoute: typeof AuthedUnlockedRoute
     }
+    '/_authed/_unlocked/tokens': {
+      id: '/_authed/_unlocked/tokens'
+      path: '/tokens'
+      fullPath: '/tokens'
+      preLoaderRoute: typeof AuthedUnlockedTokensRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
+    '/_authed/_unlocked/settings': {
+      id: '/_authed/_unlocked/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthedUnlockedSettingsRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
+    '/_authed/_unlocked/secrets': {
+      id: '/_authed/_unlocked/secrets'
+      path: '/secrets'
+      fullPath: '/secrets'
+      preLoaderRoute: typeof AuthedUnlockedSecretsRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
     '/_authed/_unlocked/onboarding': {
       id: '/_authed/_unlocked/onboarding'
       path: '/onboarding'
@@ -278,16 +359,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUnlockedOnboardingRouteImport
       parentRoute: typeof AuthedUnlockedRoute
     }
+    '/_authed/_unlocked/members': {
+      id: '/_authed/_unlocked/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AuthedUnlockedMembersRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
+    '/_authed/_unlocked/audit': {
+      id: '/_authed/_unlocked/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthedUnlockedAuditRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
+    }
   }
 }
 
 interface AuthedUnlockedRouteChildren {
+  AuthedUnlockedAuditRoute: typeof AuthedUnlockedAuditRoute
+  AuthedUnlockedMembersRoute: typeof AuthedUnlockedMembersRoute
   AuthedUnlockedOnboardingRoute: typeof AuthedUnlockedOnboardingRoute
+  AuthedUnlockedSecretsRoute: typeof AuthedUnlockedSecretsRoute
+  AuthedUnlockedSettingsRoute: typeof AuthedUnlockedSettingsRoute
+  AuthedUnlockedTokensRoute: typeof AuthedUnlockedTokensRoute
   AuthedUnlockedIndexRoute: typeof AuthedUnlockedIndexRoute
 }
 
 const AuthedUnlockedRouteChildren: AuthedUnlockedRouteChildren = {
+  AuthedUnlockedAuditRoute: AuthedUnlockedAuditRoute,
+  AuthedUnlockedMembersRoute: AuthedUnlockedMembersRoute,
   AuthedUnlockedOnboardingRoute: AuthedUnlockedOnboardingRoute,
+  AuthedUnlockedSecretsRoute: AuthedUnlockedSecretsRoute,
+  AuthedUnlockedSettingsRoute: AuthedUnlockedSettingsRoute,
+  AuthedUnlockedTokensRoute: AuthedUnlockedTokensRoute,
   AuthedUnlockedIndexRoute: AuthedUnlockedIndexRoute,
 }
 

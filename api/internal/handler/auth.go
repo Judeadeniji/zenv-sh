@@ -260,6 +260,15 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mark vault as unlocked — the user just derived keys during setup.
+	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
+	if cookie != nil {
+		sessionToken := strings.Split(cookie.Value, ".")[0]
+		if err := h.identity.SetVaultUnlocked(r.Context(), sessionToken, time.Now().Add(24*time.Hour)); err != nil {
+			slog.Error("setup-vault: set vault unlocked", "error", err)
+		}
+	}
+
 	writeJSON(w, http.StatusCreated, SetupVaultResponse{
 		UserID:             userID.String(),
 		VaultSetupComplete: true,

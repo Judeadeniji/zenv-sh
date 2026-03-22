@@ -7,7 +7,7 @@ import { NewVaultKeyForm } from "#/components/NewVaultKeyForm"
 import { RecoveryKitModal } from "#/components/RecoveryKitModal"
 import { useQuery } from "@tanstack/react-query"
 import { meQueryOptions, useSetupVault } from "#/lib/queries/auth"
-import { generateRecoveryKey, recoveryKeyToMnemonic } from "#/lib/recovery"
+import { generateRecoveryEntropy, entropyToWords } from "#/lib/recovery"
 import { storageKeys } from "#/lib/keys"
 import { AlertCircle, Lock } from "lucide-react"
 import type { KeyType } from "@zenv/amnesia"
@@ -29,12 +29,12 @@ function VaultSetupPage() {
 	const handleKeySubmit = async (vaultKey: string, keyType: KeyType) => {
 		setStep("deriving")
 
-		const recoveryKey = generateRecoveryKey()
-		const mnemonicWords = recoveryKeyToMnemonic(recoveryKey)
+		const entropy = generateRecoveryEntropy()
+		const mnemonicWords = entropyToWords(entropy)
 		setMnemonic(mnemonicWords)
 
 		try {
-			await setupVault.mutateAsync({ vaultKey, keyType, recoveryKey })
+			await setupVault.mutateAsync({ vaultKey, keyType, recoveryKey: entropy })
 			setStep("recovery-gate")
 		} catch {
 			setStep("key-input")

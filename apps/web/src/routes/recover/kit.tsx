@@ -8,7 +8,7 @@ import { Spinner } from "#/components/ui/spinner"
 import { MnemonicInput } from "#/components/MnemonicInput"
 import { NewVaultKeyForm } from "#/components/NewVaultKeyForm"
 import { RecoveryKitModal } from "#/components/RecoveryKitModal"
-import { mnemonicToRecoveryKey, unwrapDekFromRecovery, generateRecoveryKey, recoveryKeyToMnemonic, wrapDekForRecovery } from "#/lib/recovery"
+import { wordsToEntropy, unwrapDekFromRecovery, generateRecoveryEntropy, entropyToWords, wrapDekForRecovery, MNEMONIC_WORD_COUNT } from "#/lib/recovery"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { api } from "#/lib/api-client"
 import { deriveKeys, hashAuthKey, wrapKey, generateSalt } from "@zenv/amnesia"
@@ -27,7 +27,7 @@ function RecoverKitPage() {
 	const { data: me } = useQuery(meQueryOptions)
 
 	const [step, setStep] = useState<Step>("enter-words")
-	const [words, setWords] = useState<string[]>(Array(24).fill(""))
+	const [words, setWords] = useState<string[]>(Array(MNEMONIC_WORD_COUNT).fill(""))
 	const [dek, setDek] = useState<Uint8Array | null>(null)
 	const [newMnemonic, setNewMnemonic] = useState("")
 	const [error, setError] = useState("")
@@ -38,7 +38,7 @@ function RecoverKitPage() {
 		mutationKey: mutationKeys.recovery.recoverWithKit,
 		mutationFn: async () => {
 			const mnemonic = words.join(" ")
-			const recoveryKey = mnemonicToRecoveryKey(mnemonic)
+			const recoveryKey = wordsToEntropy(mnemonic)
 
 			const { data, error: fetchErr } = await api().GET("/auth/recovery/kit")
 			if (fetchErr || !data) throw new Error("Failed to fetch recovery material")
@@ -73,11 +73,11 @@ function RecoverKitPage() {
 			wrappedDEK.set(wdNonce, 0)
 			wrappedDEK.set(wdCt, wdNonce.length)
 
-			const newRecoveryKey = generateRecoveryKey()
-			const newMnemonicWords = recoveryKeyToMnemonic(newRecoveryKey)
+			const newEntropy = generateRecoveryEntropy()
+			const newMnemonicWords = entropyToWords(newEntropy)
 			setNewMnemonic(newMnemonicWords)
 
-			const newRecoveryWrappedDEK = await wrapDekForRecovery(dek, newRecoveryKey)
+			const newRecoveryWrappedDEK = await wrapDekForRecovery(dek, newEntropy)
 
 			const toBase64 = (bytes: Uint8Array) => {
 				let binary = ""
@@ -214,7 +214,7 @@ function RecoverKitPage() {
 								</div>
 								<CardTitle>Enter your recovery words</CardTitle>
 								<CardDescription className="text-xs">
-									Type or paste the 24 words from your Recovery Kit PDF.
+									Type or paste the 12 words from your Recovery Kit PDF.
 								</CardDescription>
 							</CardHeader>
 

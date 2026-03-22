@@ -1,4 +1,6 @@
 import * as React from "react"
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "#/lib/utils"
@@ -68,42 +70,44 @@ const buttonVariants = cva(
 )
 
 interface ButtonProps
-	extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+	extends useRender.ComponentProps<"button">,
 		VariantProps<typeof buttonVariants> {
 	isLoading?: boolean
 	loadingText?: string
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-	({ className, variant, size, isLoading, loadingText, children, disabled, ...props }, ref) => {
-		return (
-			<button
-				ref={ref}
-				data-slot="button"
-				className={cn(buttonVariants({ variant, size, className }))}
-				disabled={disabled || isLoading}
-				{...props}
-			>
-				{isLoading ? (
-					<span className="relative inline-flex items-center gap-1.5">
-						<span
-							className={cn(
-								"inline-block size-3.5 animate-spin rounded-full",
-								"border-[1.5px] border-current border-b-transparent border-l-transparent",
-								loadingText ? "" : "absolute",
-							)}
-							aria-busy
-							aria-live="polite"
-						/>
-						{loadingText || <span className="invisible">{children}</span>}
-					</span>
-				) : (
-					children
+function Button({ className, variant, size, isLoading, loadingText, children, disabled, render, ...props }: ButtonProps) {
+	const content = isLoading ? (
+		<span className="relative inline-flex items-center gap-1.5">
+			<span
+				className={cn(
+					"inline-block size-3.5 animate-spin rounded-full",
+					"border-[1.5px] border-current border-b-transparent border-l-transparent",
+					loadingText ? "" : "absolute",
 				)}
-			</button>
-		)
-	},
-)
-Button.displayName = "Button"
+				aria-busy
+				aria-live="polite"
+			/>
+			{loadingText || <span className="invisible">{children}</span>}
+		</span>
+	) : (
+		children
+	)
+
+	return useRender({
+		defaultTagName: "button",
+		render,
+		props: mergeProps<"button">(
+			{
+				"data-slot": "button",
+				className: cn(buttonVariants({ variant, size, className })),
+				disabled: disabled || isLoading,
+			},
+			props,
+			{ children: content },
+		),
+		state: {},
+	})
+}
 
 export { Button, buttonVariants }
