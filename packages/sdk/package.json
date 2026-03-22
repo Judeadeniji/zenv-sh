@@ -10,6 +10,9 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./api": {
+      "types": "./src/api.d.ts"
     }
   },
   "files": [

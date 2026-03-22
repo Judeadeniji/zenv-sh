@@ -8,6 +8,12 @@ definitions:
       user_id:
         type: string
     type: object
+  api_internal_handler.ApproveRecoveryRequest:
+    properties:
+      recovery_payload:
+        description: base64
+        type: string
+    type: object
   api_internal_handler.AuditLogEntry:
     properties:
       action:
@@ -77,6 +83,23 @@ definitions:
         type: string
       new_wrapped_private_key:
         description: base64
+        type: string
+    type: object
+  api_internal_handler.CompleteRecoveryRequest:
+    properties:
+      new_auth_key_hash:
+        type: string
+      new_recovery_wrapped_dek:
+        type: string
+      new_salt:
+        type: string
+      new_vault_key_type:
+        type: string
+      new_wrapped_dek:
+        type: string
+      new_wrapped_private_key:
+        type: string
+      request_id:
         type: string
     type: object
   api_internal_handler.CreateOrgRequest:
@@ -155,6 +178,25 @@ definitions:
   api_internal_handler.ErrorResponse:
     properties:
       error:
+        type: string
+    type: object
+  api_internal_handler.IncomingRequest:
+    properties:
+      eligible_at:
+        type: string
+      request_id:
+        type: string
+      requested_at:
+        type: string
+      status:
+        type: string
+      user_email:
+        type: string
+    type: object
+  api_internal_handler.InitiateRecoveryRequest:
+    properties:
+      recovery_public_key:
+        description: base64
         type: string
     type: object
   api_internal_handler.ListMembersResponse:
@@ -250,6 +292,59 @@ definitions:
       organization_id:
         type: string
     type: object
+  api_internal_handler.PublicKeyResponse:
+    properties:
+      email:
+        type: string
+      public_key:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.RecoverWithKitRequest:
+    properties:
+      new_auth_key_hash:
+        type: string
+      new_recovery_wrapped_dek:
+        type: string
+      new_salt:
+        type: string
+      new_vault_key_type:
+        type: string
+      new_wrapped_dek:
+        type: string
+      new_wrapped_private_key:
+        type: string
+    type: object
+  api_internal_handler.RecoveryKitResponse:
+    properties:
+      recovery_wrapped_dek:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.RecoveryRequestStatusResponse:
+    properties:
+      eligible_at:
+        type: string
+      has_payload:
+        type: boolean
+      request_id:
+        type: string
+      requested_at:
+        type: string
+      status:
+        type: string
+    type: object
+  api_internal_handler.RecoveryStatusResponse:
+    properties:
+      contact_email:
+        type: string
+      has_contact:
+        type: boolean
+      has_kit:
+        type: boolean
+      recovery_disabled:
+        type: boolean
+    type: object
   api_internal_handler.RollbackRequest:
     properties:
       version:
@@ -289,6 +384,14 @@ definitions:
       version:
         type: integer
     type: object
+  api_internal_handler.SetTrustedContactRequest:
+    properties:
+      contact_email:
+        type: string
+      trusted_wrapped_dek:
+        description: base64
+        type: string
+    type: object
   api_internal_handler.SetupVaultRequest:
     properties:
       auth_key_hash:
@@ -296,6 +399,12 @@ definitions:
         type: string
       public_key:
         description: base64
+        type: string
+      recovery_disabled:
+        description: enterprise opt-in to disable recovery
+        type: boolean
+      recovery_wrapped_dek:
+        description: base64, optional — DEK wrapped with recovery key
         type: string
       salt:
         description: base64
@@ -529,6 +638,248 @@ paths:
       summary: Get auth state
       tags:
       - auth
+  /auth/recovery/incoming-requests:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_internal_handler.IncomingRequest'
+            type: array
+      security:
+      - SessionAuth: []
+      summary: Incoming recovery requests
+      tags:
+      - recovery
+  /auth/recovery/kit:
+    get:
+      description: Returns the recovery-wrapped DEK so the client can attempt recovery.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.RecoveryKitResponse'
+        "403":
+          description: Recovery disabled
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: No recovery kit
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get recovery kit material
+      tags:
+      - recovery
+  /auth/recovery/kit/recover:
+    post:
+      consumes:
+      - application/json
+      description: Client verified recovery words, unwrapped DEK, set new Vault Key.
+        Submit new crypto material.
+      parameters:
+      - description: New crypto material
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.RecoverWithKitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Recover with Recovery Kit
+      tags:
+      - recovery
+  /auth/recovery/request:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Cancel recovery request
+      tags:
+      - recovery
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.RecoveryRequestStatusResponse'
+      security:
+      - SessionAuth: []
+      summary: Recovery request status
+      tags:
+      - recovery
+    post:
+      consumes:
+      - application/json
+      description: Start 72-hour waiting period for trusted contact recovery.
+      parameters:
+      - description: Ephemeral public key
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.InitiateRecoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Initiate recovery request
+      tags:
+      - recovery
+  /auth/recovery/request/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Trusted contact provides DEK re-wrapped with recovering user's
+        ephemeral key.
+      parameters:
+      - description: Recovery request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Recovery payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.ApproveRecoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Approve recovery request
+      tags:
+      - recovery
+  /auth/recovery/request/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Recovery request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New crypto material
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CompleteRecoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Complete trusted contact recovery
+      tags:
+      - recovery
+  /auth/recovery/status:
+    get:
+      description: Returns which recovery methods are available for this user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.RecoveryStatusResponse'
+      security:
+      - SessionAuth: []
+      summary: Recovery status
+      tags:
+      - recovery
+  /auth/recovery/trusted-contact:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Remove trusted contact
+      tags:
+      - recovery
+    post:
+      consumes:
+      - application/json
+      description: Wrap DEK with contact's public key and store. Requires unlocked
+        vault.
+      parameters:
+      - description: Contact email + wrapped DEK
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.SetTrustedContactRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Set trusted contact
+      tags:
+      - recovery
   /auth/setup-vault:
     post:
       consumes:
@@ -1480,6 +1831,26 @@ paths:
       summary: Revoke service token
       tags:
       - tokens
+  /users/public-key:
+    get:
+      parameters:
+      - description: User email
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.PublicKeyResponse'
+      security:
+      - SessionAuth: []
+      summary: Lookup user public key
+      tags:
+      - recovery
 securityDefinitions:
   BearerAuth:
     description: 'Service token: "Bearer ze_..."'

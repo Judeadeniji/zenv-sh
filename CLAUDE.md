@@ -73,3 +73,8 @@ Each directory has its own LICENSE file. New directories default to MIT unless t
 - SQL: migrations written by hand, Go-Jet for type-safe query building (codegen from DB schema).
 - Config: environment variables only (12-factor). No YAML/TOML config files.
 - Tests: stdlib `testing` package. Known-answer tests for crypto operations.
+- **No `useEffect`** — Never use `useEffect` in the React codebase. Use TanStack Router loaders (`beforeLoad`, `loader`), TanStack Query, or event handlers instead.
+- **React Query for async data** — All async data fetching must go through TanStack Query (`useQuery`/`useMutation`). Never use raw fetch/api calls in components or zustand stores. Zustand is for client-only state (crypto keys, UI state).
+- **Forms** — Use `react-hook-form` + `@hookform/resolvers/zod` for all forms. Define schemas with Zod.
+- **Tables** — Use `@tanstack/react-table` for all data tables.
+- **Validation** — Use Zod for all runtime validation (form schemas, API response parsing, env vars).

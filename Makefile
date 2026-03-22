@@ -64,6 +64,7 @@ swagger:
 sdk-types: swagger
 	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
 	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
+	cp packages/sdk/src/api.d.ts apps/web/src/lib/api.d.ts
 
 # --- Dev (Portless) ---
 dev-api:

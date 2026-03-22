@@ -9,48 +9,177 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as RecoverRouteImport } from './routes/recover'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComponentsRouteImport } from './routes/components'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as RecoverTrustedContactRouteImport } from './routes/recover/trusted-contact'
+import { Route as RecoverKitRouteImport } from './routes/recover/kit'
+import { Route as AuthedVaultSetupRouteImport } from './routes/_authed/vault-setup'
+import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
+import { Route as AuthedUnlockedRouteImport } from './routes/_authed/_unlocked'
+import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecoverRoute = RecoverRouteImport.update({
+  id: '/recover',
+  path: '/recover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ComponentsRoute = ComponentsRouteImport.update({
   id: '/components',
   path: '/components',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecoverTrustedContactRoute = RecoverTrustedContactRouteImport.update({
+  id: '/trusted-contact',
+  path: '/trusted-contact',
+  getParentRoute: () => RecoverRoute,
+} as any)
+const RecoverKitRoute = RecoverKitRouteImport.update({
+  id: '/kit',
+  path: '/kit',
+  getParentRoute: () => RecoverRoute,
+} as any)
+const AuthedVaultSetupRoute = AuthedVaultSetupRouteImport.update({
+  id: '/vault-setup',
+  path: '/vault-setup',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedUnlockRoute = AuthedUnlockRouteImport.update({
+  id: '/unlock',
+  path: '/unlock',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedUnlockedRoute = AuthedUnlockedRouteImport.update({
+  id: '/_unlocked',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedUnlockedIndexRoute = AuthedUnlockedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedUnlockedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
+  '/login': typeof LoginRoute
+  '/recover': typeof RecoverRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/unlock': typeof AuthedUnlockRoute
+  '/vault-setup': typeof AuthedVaultSetupRoute
+  '/recover/kit': typeof RecoverKitRoute
+  '/recover/trusted-contact': typeof RecoverTrustedContactRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
+  '/login': typeof LoginRoute
+  '/recover': typeof RecoverRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/unlock': typeof AuthedUnlockRoute
+  '/vault-setup': typeof AuthedVaultSetupRoute
+  '/recover/kit': typeof RecoverKitRoute
+  '/recover/trusted-contact': typeof RecoverTrustedContactRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
   '/components': typeof ComponentsRoute
+  '/login': typeof LoginRoute
+  '/recover': typeof RecoverRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/_authed/_unlocked': typeof AuthedUnlockedRouteWithChildren
+  '/_authed/unlock': typeof AuthedUnlockRoute
+  '/_authed/vault-setup': typeof AuthedVaultSetupRoute
+  '/recover/kit': typeof RecoverKitRoute
+  '/recover/trusted-contact': typeof RecoverTrustedContactRoute
+  '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/components'
+  fullPaths:
+    | '/'
+    | '/components'
+    | '/login'
+    | '/recover'
+    | '/signup'
+    | '/unlock'
+    | '/vault-setup'
+    | '/recover/kit'
+    | '/recover/trusted-contact'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/components'
-  id: '__root__' | '/' | '/components'
+  to:
+    | '/'
+    | '/components'
+    | '/login'
+    | '/recover'
+    | '/signup'
+    | '/unlock'
+    | '/vault-setup'
+    | '/recover/kit'
+    | '/recover/trusted-contact'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/components'
+    | '/login'
+    | '/recover'
+    | '/signup'
+    | '/_authed/_unlocked'
+    | '/_authed/unlock'
+    | '/_authed/vault-setup'
+    | '/recover/kit'
+    | '/recover/trusted-contact'
+    | '/_authed/_unlocked/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
+  LoginRoute: typeof LoginRoute
+  RecoverRoute: typeof RecoverRouteWithChildren
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recover': {
+      id: '/recover'
+      path: '/recover'
+      fullPath: '/recover'
+      preLoaderRoute: typeof RecoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/components': {
       id: '/components'
       path: '/components'
@@ -58,19 +187,104 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComponentsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recover/trusted-contact': {
+      id: '/recover/trusted-contact'
+      path: '/trusted-contact'
+      fullPath: '/recover/trusted-contact'
+      preLoaderRoute: typeof RecoverTrustedContactRouteImport
+      parentRoute: typeof RecoverRoute
+    }
+    '/recover/kit': {
+      id: '/recover/kit'
+      path: '/kit'
+      fullPath: '/recover/kit'
+      preLoaderRoute: typeof RecoverKitRouteImport
+      parentRoute: typeof RecoverRoute
+    }
+    '/_authed/vault-setup': {
+      id: '/_authed/vault-setup'
+      path: '/vault-setup'
+      fullPath: '/vault-setup'
+      preLoaderRoute: typeof AuthedVaultSetupRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/unlock': {
+      id: '/_authed/unlock'
+      path: '/unlock'
+      fullPath: '/unlock'
+      preLoaderRoute: typeof AuthedUnlockRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/_unlocked': {
+      id: '/_authed/_unlocked'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedUnlockedRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/_unlocked/': {
+      id: '/_authed/_unlocked/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedUnlockedIndexRouteImport
+      parentRoute: typeof AuthedUnlockedRoute
     }
   }
 }
 
+interface AuthedUnlockedRouteChildren {
+  AuthedUnlockedIndexRoute: typeof AuthedUnlockedIndexRoute
+}
+
+const AuthedUnlockedRouteChildren: AuthedUnlockedRouteChildren = {
+  AuthedUnlockedIndexRoute: AuthedUnlockedIndexRoute,
+}
+
+const AuthedUnlockedRouteWithChildren = AuthedUnlockedRoute._addFileChildren(
+  AuthedUnlockedRouteChildren,
+)
+
+interface AuthedRouteChildren {
+  AuthedUnlockedRoute: typeof AuthedUnlockedRouteWithChildren
+  AuthedUnlockRoute: typeof AuthedUnlockRoute
+  AuthedVaultSetupRoute: typeof AuthedVaultSetupRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedUnlockedRoute: AuthedUnlockedRouteWithChildren,
+  AuthedUnlockRoute: AuthedUnlockRoute,
+  AuthedVaultSetupRoute: AuthedVaultSetupRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
+interface RecoverRouteChildren {
+  RecoverKitRoute: typeof RecoverKitRoute
+  RecoverTrustedContactRoute: typeof RecoverTrustedContactRoute
+}
+
+const RecoverRouteChildren: RecoverRouteChildren = {
+  RecoverKitRoute: RecoverKitRoute,
+  RecoverTrustedContactRoute: RecoverTrustedContactRoute,
+}
+
+const RecoverRouteWithChildren =
+  RecoverRoute._addFileChildren(RecoverRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
+  LoginRoute: LoginRoute,
+  RecoverRoute: RecoverRouteWithChildren,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

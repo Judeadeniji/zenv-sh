@@ -122,12 +122,14 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 // --- Vault Setup ---
 
 type SetupVaultRequest struct {
-	VaultKeyType      string `json:"vault_key_type"`      // "pin" or "passphrase"
-	Salt              string `json:"salt"`                // base64
-	AuthKeyHash       string `json:"auth_key_hash"`       // base64
-	WrappedDEK        string `json:"wrapped_dek"`         // base64
-	PublicKey         string `json:"public_key"`          // base64
-	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
+	VaultKeyType       string `json:"vault_key_type"`       // "pin" or "passphrase"
+	Salt               string `json:"salt"`                 // base64
+	AuthKeyHash        string `json:"auth_key_hash"`        // base64
+	WrappedDEK         string `json:"wrapped_dek"`          // base64
+	PublicKey          string `json:"public_key"`           // base64
+	WrappedPrivateKey  string `json:"wrapped_private_key"`  // base64
+	RecoveryWrappedDEK string `json:"recovery_wrapped_dek"` // base64, optional — DEK wrapped with recovery key
+	RecoveryDisabled   bool   `json:"recovery_disabled"`    // enterprise opt-in to disable recovery
 }
 
 type SetupVaultResponse struct {
@@ -208,6 +210,16 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decode optional recovery material.
+	var recoveryWrappedDEK []byte
+	if req.RecoveryWrappedDEK != "" {
+		recoveryWrappedDEK, err = base64.StdEncoding.DecodeString(req.RecoveryWrappedDEK)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in recovery_wrapped_dek"})
+			return
+		}
+	}
+
 	userID := uuid.New()
 	now := time.Now().UTC()
 
@@ -221,6 +233,8 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		table.Users.PublicKey,
 		table.Users.WrappedPrivateKey,
 		table.Users.IdentityID,
+		table.Users.RecoveryWrappedDek,
+		table.Users.RecoveryDisabled,
 		table.Users.CreatedAt,
 		table.Users.UpdatedAt,
 	).VALUES(
@@ -233,6 +247,8 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		publicKey,
 		wrappedPrivateKey,
 		sess.IdentityID,
+		recoveryWrappedDEK,
+		req.RecoveryDisabled,
 		now,
 		now,
 	)

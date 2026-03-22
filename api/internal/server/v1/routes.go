@@ -15,6 +15,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	identity := middleware.NewIdentitySession(db, rdb)
 	ta := middleware.NewTokenAuth(db)
 	auth := handler.NewAuthHandler(db, identity)
+	recovery := handler.NewRecoveryHandler(db, identity)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
@@ -29,6 +30,16 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Post("/auth/setup-vault", auth.SetupVault)
 		r.Post("/auth/unlock", auth.Unlock)
 		r.Put("/auth/change-vault-key", auth.ChangeVaultKey)
+
+		// Recovery — session only (no vault unlock required)
+		r.Get("/auth/recovery/status", recovery.Status)
+		r.Get("/auth/recovery/kit", recovery.GetKit)
+		r.Post("/auth/recovery/kit/recover", recovery.RecoverWithKit)
+		r.Get("/auth/recovery/trusted-contact", recovery.Status) // reuses status for now
+		r.Get("/auth/recovery/request", recovery.GetRecoveryRequest)
+		r.Post("/auth/recovery/request", recovery.InitiateRecovery)
+		r.Delete("/auth/recovery/request", recovery.CancelRecovery)
+		r.Get("/users/public-key", recovery.GetPublicKey)
 	})
 
 	// Dashboard routes — require identity session + vault unlock
@@ -67,6 +78,13 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 			r.Post("/{orgID}/members", orgs.AddMember)
 			r.Delete("/{orgID}/members/{memberID}", orgs.RemoveMember)
 		})
+
+		// Recovery — requires vault unlocked
+		r.Post("/auth/recovery/trusted-contact", recovery.SetTrustedContact)
+		r.Delete("/auth/recovery/trusted-contact", recovery.RemoveTrustedContact)
+		r.Get("/auth/recovery/incoming-requests", recovery.GetIncomingRequests)
+		r.Post("/auth/recovery/request/{id}/approve", recovery.ApproveRecovery)
+		r.Post("/auth/recovery/request/{id}/complete", recovery.CompleteRecovery)
 
 		r.Get("/audit-logs", audit.List)
 		r.Get("/audit-logs/export", audit.Export)

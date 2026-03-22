@@ -1,0 +1,148 @@
+import { queryOptions, useMutation } from "@tanstack/react-query"
+import {
+	deriveKeys,
+	encrypt,
+	decrypt,
+	wrapKey,
+	unwrapKey,
+	hashAuthKey,
+	generateKeypair,
+	generateKey,
+	generateSalt,
+	type KeyType,
+} from "@zenv/amnesia"
+import { api } from "#/lib/api-client"
+import { useAuthStore } from "#/lib/stores/auth"
+
+// ── Helpers ──
+
+function toBase64(bytes: Uint8Array): string {
+	let binary = ""
+	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+	return btoa(binary)
+}
+
+function fromBase64(str: string): Uint8Array {
+	const binary = atob(str)
+	const bytes = new Uint8Array(binary.length)
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+	return bytes
+}
+
+function pack(nonce: Uint8Array, ciphertext: Uint8Array): Uint8Array {
+	const out = new Uint8Array(nonce.length + ciphertext.length)
+	out.set(nonce, 0)
+	out.set(ciphertext, nonce.length)
+	return out
+}
+
+function unpack(data: Uint8Array) {
+	return { nonce: data.slice(0, 12), ciphertext: data.slice(12) }
+}
+
+// ── Queries ──
+
+export const meQueryOptions = queryOptions({
+	queryKey: ["auth", "me"],
+	queryFn: async () => {
+		const { data, error } = await api.GET("/auth/me")
+		if (error || !data) throw new Error("Failed to fetch auth state")
+		return data as {
+			email: string
+			vault_setup_complete: boolean
+			vault_key_type: string
+			salt: string
+			vault_unlocked: boolean
+		}
+	},
+	staleTime: 30_000,
+})
+
+// ── Mutations ──
+
+export function useSetupVault() {
+	return useMutation({
+		mutationFn: async ({
+			vaultKey,
+			keyType,
+			recoveryKey,
+		}: {
+			vaultKey: string
+			keyType: KeyType
+			recoveryKey?: Uint8Array
+		}) => {
+			const salt = generateSalt()
+			const dek = generateKey()
+			const { publicKey, privateKey } = await generateKeypair()
+			const { kek, authKey } = await deriveKeys(vaultKey, salt, keyType)
+			const authKeyHash = await hashAuthKey(authKey)
+
+			const { ciphertext: wdCt, nonce: wdNonce } = await wrapKey(dek, kek)
+			const wrappedDEK = pack(wdNonce, wdCt)
+
+			const { ciphertext: wpCt, nonce: wpNonce } = await encrypt(privateKey, dek)
+			const wrappedPrivateKey = pack(wpNonce, wpCt)
+
+			const body: Record<string, unknown> = {
+				vault_key_type: keyType,
+				salt: toBase64(salt),
+				auth_key_hash: toBase64(authKeyHash),
+				wrapped_dek: toBase64(wrappedDEK),
+				public_key: toBase64(publicKey),
+				wrapped_private_key: toBase64(wrappedPrivateKey),
+			}
+
+			// Wrap DEK for recovery if a recovery key is provided
+			if (recoveryKey) {
+				const { ciphertext: rCt, nonce: rNonce } = await wrapKey(dek, recoveryKey)
+				body.recovery_wrapped_dek = toBase64(pack(rNonce, rCt))
+			}
+
+			const { error } = await api.POST("/auth/setup-vault", { body: body as never })
+			if (error) throw new Error("Vault setup failed")
+
+			return { kek, dek, publicKey, privateKey }
+		},
+		onSuccess: (crypto) => {
+			useAuthStore.getState().setCrypto(crypto)
+		},
+	})
+}
+
+export function useUnlockVault() {
+	return useMutation({
+		mutationFn: async ({ vaultKey }: { vaultKey: string }) => {
+			const { me } = useAuthStore.getState()
+			if (!me) throw new Error("No user data")
+
+			const salt = fromBase64(me.salt)
+			const keyType = me.vault_key_type as KeyType
+			const { kek, authKey } = await deriveKeys(vaultKey, salt, keyType)
+			const authKeyHash = await hashAuthKey(authKey)
+
+			const { data, error } = await api.POST("/auth/unlock", {
+				body: { auth_key_hash: toBase64(authKeyHash) } as never,
+			})
+			if (error || !data) throw new Error("Wrong Vault Key")
+
+			const res = data as {
+				wrapped_dek: string
+				wrapped_private_key: string
+				public_key: string
+			}
+
+			const wd = unpack(fromBase64(res.wrapped_dek))
+			const dek = await unwrapKey(wd.ciphertext, wd.nonce, kek)
+
+			const wp = unpack(fromBase64(res.wrapped_private_key))
+			const privateKey = await decrypt(wp.ciphertext, wp.nonce, dek)
+
+			const publicKey = fromBase64(res.public_key)
+
+			return { kek, dek, publicKey, privateKey }
+		},
+		onSuccess: (crypto) => {
+			useAuthStore.getState().setCrypto(crypto)
+		},
+	})
+}

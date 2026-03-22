@@ -17,17 +17,19 @@ type usersTable struct {
 	postgres.Table
 
 	// Columns
-	ID                postgres.ColumnString
-	Email             postgres.ColumnString
-	AuthKeyHash       postgres.ColumnBytea
-	VaultKeyType      postgres.ColumnString
-	Salt              postgres.ColumnBytea
-	WrappedDek        postgres.ColumnBytea
-	PublicKey         postgres.ColumnBytea
-	WrappedPrivateKey postgres.ColumnBytea
-	CreatedAt         postgres.ColumnTimestampz
-	UpdatedAt         postgres.ColumnTimestampz
-	IdentityID        postgres.ColumnString
+	ID                 postgres.ColumnString
+	Email              postgres.ColumnString
+	AuthKeyHash        postgres.ColumnBytea
+	VaultKeyType       postgres.ColumnString
+	Salt               postgres.ColumnBytea
+	WrappedDek         postgres.ColumnBytea
+	PublicKey          postgres.ColumnBytea
+	WrappedPrivateKey  postgres.ColumnBytea
+	CreatedAt          postgres.ColumnTimestampz
+	UpdatedAt          postgres.ColumnTimestampz
+	IdentityID         postgres.ColumnString
+	RecoveryWrappedDek postgres.ColumnBytea
+	RecoveryDisabled   postgres.ColumnBool
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -69,37 +71,41 @@ func newUsersTable(schemaName, tableName, alias string) *UsersTable {
 
 func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 	var (
-		IDColumn                = postgres.StringColumn("id")
-		EmailColumn             = postgres.StringColumn("email")
-		AuthKeyHashColumn       = postgres.ByteaColumn("auth_key_hash")
-		VaultKeyTypeColumn      = postgres.StringColumn("vault_key_type")
-		SaltColumn              = postgres.ByteaColumn("salt")
-		WrappedDekColumn        = postgres.ByteaColumn("wrapped_dek")
-		PublicKeyColumn         = postgres.ByteaColumn("public_key")
-		WrappedPrivateKeyColumn = postgres.ByteaColumn("wrapped_private_key")
-		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		UpdatedAtColumn         = postgres.TimestampzColumn("updated_at")
-		IdentityIDColumn        = postgres.StringColumn("identity_id")
-		allColumns              = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn}
-		mutableColumns          = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn}
-		defaultColumns          = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn}
+		IDColumn                 = postgres.StringColumn("id")
+		EmailColumn              = postgres.StringColumn("email")
+		AuthKeyHashColumn        = postgres.ByteaColumn("auth_key_hash")
+		VaultKeyTypeColumn       = postgres.StringColumn("vault_key_type")
+		SaltColumn               = postgres.ByteaColumn("salt")
+		WrappedDekColumn         = postgres.ByteaColumn("wrapped_dek")
+		PublicKeyColumn          = postgres.ByteaColumn("public_key")
+		WrappedPrivateKeyColumn  = postgres.ByteaColumn("wrapped_private_key")
+		CreatedAtColumn          = postgres.TimestampzColumn("created_at")
+		UpdatedAtColumn          = postgres.TimestampzColumn("updated_at")
+		IdentityIDColumn         = postgres.StringColumn("identity_id")
+		RecoveryWrappedDekColumn = postgres.ByteaColumn("recovery_wrapped_dek")
+		RecoveryDisabledColumn   = postgres.BoolColumn("recovery_disabled")
+		allColumns               = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn}
+		mutableColumns           = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn}
+		defaultColumns           = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn, RecoveryDisabledColumn}
 	)
 
 	return usersTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:                IDColumn,
-		Email:             EmailColumn,
-		AuthKeyHash:       AuthKeyHashColumn,
-		VaultKeyType:      VaultKeyTypeColumn,
-		Salt:              SaltColumn,
-		WrappedDek:        WrappedDekColumn,
-		PublicKey:         PublicKeyColumn,
-		WrappedPrivateKey: WrappedPrivateKeyColumn,
-		CreatedAt:         CreatedAtColumn,
-		UpdatedAt:         UpdatedAtColumn,
-		IdentityID:        IdentityIDColumn,
+		ID:                 IDColumn,
+		Email:              EmailColumn,
+		AuthKeyHash:        AuthKeyHashColumn,
+		VaultKeyType:       VaultKeyTypeColumn,
+		Salt:               SaltColumn,
+		WrappedDek:         WrappedDekColumn,
+		PublicKey:          PublicKeyColumn,
+		WrappedPrivateKey:  WrappedPrivateKeyColumn,
+		CreatedAt:          CreatedAtColumn,
+		UpdatedAt:          UpdatedAtColumn,
+		IdentityID:         IdentityIDColumn,
+		RecoveryWrappedDek: RecoveryWrappedDekColumn,
+		RecoveryDisabled:   RecoveryDisabledColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

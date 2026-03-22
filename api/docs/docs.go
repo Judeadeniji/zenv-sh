@@ -237,6 +237,394 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/recovery/incoming-requests": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Incoming recovery requests",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_internal_handler.IncomingRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/kit": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns the recovery-wrapped DEK so the client can attempt recovery.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Get recovery kit material",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.RecoveryKitResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Recovery disabled",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No recovery kit",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/kit/recover": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Client verified recovery words, unwrapped DEK, set new Vault Key. Submit new crypto material.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Recover with Recovery Kit",
+                "parameters": [
+                    {
+                        "description": "New crypto material",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.RecoverWithKitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/request": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Recovery request status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.RecoveryRequestStatusResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Start 72-hour waiting period for trusted contact recovery.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Initiate recovery request",
+                "parameters": [
+                    {
+                        "description": "Ephemeral public key",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.InitiateRecoveryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Cancel recovery request",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/request/{id}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Trusted contact provides DEK re-wrapped with recovering user's ephemeral key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Approve recovery request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Recovery request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Recovery payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ApproveRecoveryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/request/{id}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Complete trusted contact recovery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Recovery request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New crypto material",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.CompleteRecoveryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/status": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns which recovery methods are available for this user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Recovery status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.RecoveryStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/recovery/trusted-contact": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Wrap DEK with contact's public key and store. Requires unlocked vault.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Set trusted contact",
+                "parameters": [
+                    {
+                        "description": "Contact email + wrapped DEK",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.SetTrustedContactRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Remove trusted contact",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/setup-vault": {
             "post": {
                 "security": [
@@ -1704,6 +2092,39 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/public-key": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Lookup user public key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User email",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.PublicKeyResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1715,6 +2136,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.ApproveRecoveryRequest": {
+            "type": "object",
+            "properties": {
+                "recovery_payload": {
+                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -1819,6 +2249,32 @@ const docTemplate = `{
                 },
                 "new_wrapped_private_key": {
                     "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.CompleteRecoveryRequest": {
+            "type": "object",
+            "properties": {
+                "new_auth_key_hash": {
+                    "type": "string"
+                },
+                "new_recovery_wrapped_dek": {
+                    "type": "string"
+                },
+                "new_salt": {
+                    "type": "string"
+                },
+                "new_vault_key_type": {
+                    "type": "string"
+                },
+                "new_wrapped_dek": {
+                    "type": "string"
+                },
+                "new_wrapped_private_key": {
+                    "type": "string"
+                },
+                "request_id": {
                     "type": "string"
                 }
             }
@@ -1934,6 +2390,35 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.IncomingRequest": {
+            "type": "object",
+            "properties": {
+                "eligible_at": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "requested_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.InitiateRecoveryRequest": {
+            "type": "object",
+            "properties": {
+                "recovery_public_key": {
+                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -2081,6 +2566,87 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.PublicKeyResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "public_key": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.RecoverWithKitRequest": {
+            "type": "object",
+            "properties": {
+                "new_auth_key_hash": {
+                    "type": "string"
+                },
+                "new_recovery_wrapped_dek": {
+                    "type": "string"
+                },
+                "new_salt": {
+                    "type": "string"
+                },
+                "new_vault_key_type": {
+                    "type": "string"
+                },
+                "new_wrapped_dek": {
+                    "type": "string"
+                },
+                "new_wrapped_private_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.RecoveryKitResponse": {
+            "type": "object",
+            "properties": {
+                "recovery_wrapped_dek": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.RecoveryRequestStatusResponse": {
+            "type": "object",
+            "properties": {
+                "eligible_at": {
+                    "type": "string"
+                },
+                "has_payload": {
+                    "type": "boolean"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "requested_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.RecoveryStatusResponse": {
+            "type": "object",
+            "properties": {
+                "contact_email": {
+                    "type": "string"
+                },
+                "has_contact": {
+                    "type": "boolean"
+                },
+                "has_kit": {
+                    "type": "boolean"
+                },
+                "recovery_disabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "api_internal_handler.RollbackRequest": {
             "type": "object",
             "properties": {
@@ -2141,6 +2707,18 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.SetTrustedContactRequest": {
+            "type": "object",
+            "properties": {
+                "contact_email": {
+                    "type": "string"
+                },
+                "trusted_wrapped_dek": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
         "api_internal_handler.SetupVaultRequest": {
             "type": "object",
             "properties": {
@@ -2150,6 +2728,14 @@ const docTemplate = `{
                 },
                 "public_key": {
                     "description": "base64",
+                    "type": "string"
+                },
+                "recovery_disabled": {
+                    "description": "enterprise opt-in to disable recovery",
+                    "type": "boolean"
+                },
+                "recovery_wrapped_dek": {
+                    "description": "base64, optional — DEK wrapped with recovery key",
                     "type": "string"
                 },
                 "salt": {
