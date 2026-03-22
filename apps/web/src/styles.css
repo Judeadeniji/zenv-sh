@@ -1,0 +1,293 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+@plugin "@tailwindcss/typography";
+
+/*
+ * zEnv Design System
+ * Ported from Clerk UI foundations — shadow-based borders, alpha color scales,
+ * polished focus rings. Adapted for Tailwind v4 + shadcn/ui.
+ */
+
+/* ──────────────────────────────────────────
+   Color Tokens (Light)
+   ────────────────────────────────────────── */
+:root {
+	/* Base palette */
+	--background: oklch(0.99 0 0);
+	--foreground: oklch(0.145 0 0);
+
+	/* Card */
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.145 0 0);
+
+	/* Popover */
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.145 0 0);
+
+	/* Primary — Clerk default (near-black / white) */
+	--primary: oklch(0.205 0.006 286);
+	--primary-foreground: oklch(0.985 0 0);
+
+	/* Secondary */
+	--secondary: oklch(0.97 0.002 250);
+	--secondary-foreground: oklch(0.205 0 0);
+
+	/* Muted */
+	--muted: oklch(0.965 0.001 260);
+	--muted-foreground: oklch(0.51 0.015 260);
+
+	/* Accent */
+	--accent: oklch(0.96 0.002 250);
+	--accent-foreground: oklch(0.205 0 0);
+
+	/* Destructive / Danger */
+	--destructive: oklch(0.577 0.245 27.325);
+
+	/* Border / Input / Ring */
+	--border: oklch(0.905 0.005 260);
+	--input: oklch(0.97 0.002 260);
+	--ring: oklch(0.205 0.006 286);
+
+	/* Base radius */
+	--radius: 0.5rem;
+
+	/* Sidebar */
+	--sidebar: oklch(0.98 0.002 260);
+	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-primary: oklch(0.205 0.006 286);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.96 0.002 250);
+	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-border: oklch(0.92 0.004 260);
+	--sidebar-ring: oklch(0.205 0.006 286);
+
+	/* ── Alpha scales (Clerk pattern) ── */
+
+	/* Neutral alpha */
+	--neutral-alpha-50: rgba(0, 0, 0, 0.024);
+	--neutral-alpha-100: rgba(0, 0, 0, 0.05);
+	--neutral-alpha-150: rgba(0, 0, 0, 0.09);
+	--neutral-alpha-200: rgba(0, 0, 0, 0.12);
+	--neutral-alpha-300: rgba(0, 0, 0, 0.2);
+	--neutral-alpha-400: rgba(0, 0, 0, 0.3);
+	--neutral-alpha-500: rgba(0, 0, 0, 0.44);
+	--neutral-alpha-600: rgba(0, 0, 0, 0.56);
+	--neutral-alpha-700: rgba(0, 0, 0, 0.68);
+	--neutral-alpha-800: rgba(0, 0, 0, 0.8);
+	--neutral-alpha-900: rgba(0, 0, 0, 0.9);
+
+	/* Border alpha */
+	--border-alpha-50: rgba(0, 0, 0, 0.04);
+	--border-alpha-100: rgba(0, 0, 0, 0.06);
+	--border-alpha-150: rgba(0, 0, 0, 0.1);
+	--border-alpha-200: rgba(0, 0, 0, 0.13);
+	--border-alpha-300: rgba(0, 0, 0, 0.2);
+
+	/* White alpha */
+	--white-alpha-150: rgba(255, 255, 255, 0.11);
+	--white-alpha-200: rgba(255, 255, 255, 0.15);
+
+	/* Primary alpha (#2F3037) */
+	--primary-alpha-50: rgba(47, 48, 55, 0.06);
+	--primary-alpha-100: rgba(47, 48, 55, 0.1);
+	--primary-alpha-200: rgba(47, 48, 55, 0.16);
+
+	/* Danger alpha */
+	--danger-alpha-200: rgba(239, 68, 68, 0.16);
+	--danger-alpha-300: rgba(239, 68, 68, 0.24);
+	--danger-alpha-400: rgba(239, 68, 68, 0.32);
+	--danger-alpha-500: rgba(239, 68, 68, 0.44);
+
+	/* Success alpha */
+	--success-alpha-200: rgba(34, 197, 67, 0.16);
+	--success-alpha-300: rgba(34, 197, 67, 0.24);
+	--success-alpha-400: rgba(34, 197, 67, 0.32);
+	--success-alpha-500: rgba(34, 197, 67, 0.44);
+
+	/* Warning alpha */
+	--warning-alpha-200: rgba(243, 107, 22, 0.16);
+	--warning-alpha-300: rgba(243, 107, 22, 0.24);
+	--warning-alpha-400: rgba(243, 107, 22, 0.32);
+	--warning-alpha-500: rgba(243, 107, 22, 0.44);
+
+	/* ── Semantic colors ── */
+	--success: oklch(0.62 0.19 145);
+	--warning: oklch(0.65 0.18 50);
+
+	/* ── Shadows (Clerk baseTheme pattern) ── */
+	--shadow-card: 0px 5px 15px 0px rgba(0, 0, 0, 0.08), 0px 15px 35px -5px rgba(0, 0, 0, 0.2);
+	--shadow-card-content: 0px 0px 2px 0px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
+	--shadow-menu: 0px 5px 15px 0px rgba(0, 0, 0, 0.08), 0px 15px 35px -5px rgba(0, 0, 0, 0.2);
+	--shadow-action-card: 0px 1px 4px 0px rgba(0, 0, 0, 0.12), 0px 4px 8px 0px rgba(0, 0, 0, 0.12);
+	--shadow-input: 0px 0px 1px 0px var(--border-alpha-100);
+	--shadow-focus-ring: 0px 0px 0px 3px var(--primary-alpha-200);
+	--shadow-button: 0px 1px 1px 0px rgba(255, 255, 255, 0.07) inset, 0px 2px 3px 0px rgba(34, 42, 53, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.24);
+	--shadow-button-outline: 0px 2px 3px -1px rgba(0, 0, 0, 0.08), 0px 1px 0px 0px rgba(0, 0, 0, 0.02);
+	--shadow-badge: 0px 2px 0px -1px rgba(0, 0, 0, 0.04);
+	--shadow-table: 0px 0px 2px 0px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(25, 28, 33, 0.12);
+
+	/* ── Chart colors ── */
+	--chart-1: oklch(0.205 0.006 286);
+	--chart-2: oklch(0.51 0.015 260);
+	--chart-3: oklch(0.65 0.01 260);
+	--chart-4: oklch(0.577 0.245 27.325);
+	--chart-5: oklch(0.62 0.19 145);
+}
+
+/* ──────────────────────────────────────────
+   Color Tokens (Dark)
+   ────────────────────────────────────────── */
+.dark {
+	--background: oklch(0.13 0.005 260);
+	--foreground: oklch(0.96 0 0);
+
+	--card: oklch(0.17 0.005 260);
+	--card-foreground: oklch(0.96 0 0);
+
+	--popover: oklch(0.17 0.005 260);
+	--popover-foreground: oklch(0.96 0 0);
+
+	--primary: oklch(0.985 0 0);
+	--primary-foreground: oklch(0.205 0.006 286);
+
+	--secondary: oklch(0.22 0.005 260);
+	--secondary-foreground: oklch(0.96 0 0);
+
+	--muted: oklch(0.22 0.005 260);
+	--muted-foreground: oklch(0.65 0.01 260);
+
+	--accent: oklch(0.22 0.005 260);
+	--accent-foreground: oklch(0.96 0 0);
+
+	--destructive: oklch(0.704 0.191 22.216);
+
+	--border: oklch(1 0 0 / 10%);
+	--input: oklch(1 0 0 / 12%);
+	--ring: oklch(0.985 0 0);
+
+	--sidebar: oklch(0.15 0.005 260);
+	--sidebar-foreground: oklch(0.96 0 0);
+	--sidebar-primary: oklch(0.985 0 0);
+	--sidebar-primary-foreground: oklch(0.205 0.006 286);
+	--sidebar-accent: oklch(0.22 0.005 260);
+	--sidebar-accent-foreground: oklch(0.96 0 0);
+	--sidebar-border: oklch(1 0 0 / 10%);
+	--sidebar-ring: oklch(0.985 0 0);
+
+	/* Alpha overrides for dark */
+	--neutral-alpha-50: rgba(255, 255, 255, 0.03);
+	--neutral-alpha-100: rgba(255, 255, 255, 0.06);
+	--neutral-alpha-150: rgba(255, 255, 255, 0.1);
+	--neutral-alpha-200: rgba(255, 255, 255, 0.14);
+	--neutral-alpha-300: rgba(255, 255, 255, 0.22);
+	--neutral-alpha-400: rgba(255, 255, 255, 0.32);
+	--neutral-alpha-500: rgba(255, 255, 255, 0.45);
+	--neutral-alpha-600: rgba(255, 255, 255, 0.58);
+	--neutral-alpha-700: rgba(255, 255, 255, 0.72);
+	--neutral-alpha-800: rgba(255, 255, 255, 0.82);
+	--neutral-alpha-900: rgba(255, 255, 255, 0.92);
+
+	--border-alpha-50: rgba(255, 255, 255, 0.04);
+	--border-alpha-100: rgba(255, 255, 255, 0.07);
+	--border-alpha-150: rgba(255, 255, 255, 0.12);
+	--border-alpha-200: rgba(255, 255, 255, 0.16);
+	--border-alpha-300: rgba(255, 255, 255, 0.24);
+
+	--white-alpha-150: rgba(255, 255, 255, 0.11);
+	--white-alpha-200: rgba(255, 255, 255, 0.15);
+
+	--primary-alpha-50: rgba(255, 255, 255, 0.06);
+	--primary-alpha-100: rgba(255, 255, 255, 0.1);
+	--primary-alpha-200: rgba(255, 255, 255, 0.16);
+
+	--shadow-card: 0px 5px 15px 0px rgba(0, 0, 0, 0.3), 0px 15px 35px -5px rgba(0, 0, 0, 0.4);
+	--shadow-card-content: 0px 0px 2px 0px rgba(0, 0, 0, 0.2), 0px 1px 2px 0px rgba(0, 0, 0, 0.16);
+	--shadow-menu: 0px 5px 15px 0px rgba(0, 0, 0, 0.3), 0px 15px 35px -5px rgba(0, 0, 0, 0.4);
+	--shadow-focus-ring: 0px 0px 0px 3px var(--primary-alpha-200);
+	--shadow-button: 0px 1px 1px 0px rgba(255, 255, 255, 0.04) inset, 0px 2px 3px 0px rgba(0, 0, 0, 0.4), 0px 1px 1px 0px rgba(0, 0, 0, 0.5);
+	--shadow-button-outline: 0px 2px 3px -1px rgba(0, 0, 0, 0.2), 0px 1px 0px 0px rgba(0, 0, 0, 0.08);
+
+	--success: oklch(0.7 0.17 150);
+	--warning: oklch(0.75 0.16 55);
+}
+
+/* ──────────────────────────────────────────
+   Tailwind Theme Mapping
+   ────────────────────────────────────────── */
+@theme inline {
+	--font-heading: var(--font-sans);
+	--font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+
+	/* Colors → Tailwind utilities */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+
+	/* Sidebar */
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+
+	/* Chart */
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+
+	/* Radii */
+	--radius-sm: calc(var(--radius) * 0.667);
+	--radius-md: var(--radius);
+	--radius-lg: calc(var(--radius) * 1.333);
+	--radius-xl: calc(var(--radius) * 2);
+	--radius-2xl: calc(var(--radius) * 2.667);
+	--radius-3xl: calc(var(--radius) * 3.333);
+
+	/* Shadows → Tailwind utilities */
+	--shadow-sm: var(--shadow-card-content);
+	--shadow-md: var(--shadow-action-card);
+	--shadow-lg: var(--shadow-card);
+	--shadow-xl: var(--shadow-menu);
+}
+
+/* ──────────────────────────────────────────
+   Base Layer
+   ────────────────────────────────────────── */
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	html {
+		@apply font-sans antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+}
