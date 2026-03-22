@@ -58,6 +58,15 @@ GenerateNonce() []byte
 GenerateKey() []byte
 ```
 
+## Licensing
+
+Dual-licensed. See root `LICENSE` for the full mapping.
+
+- **AGPL-3.0** — `api/`, `apps/auth/`, `apps/web/` (core API, auth server, dashboard)
+- **MIT** — everything else (`amnesia/`, `cli/`, `packages/`, `apps/docs/`, `apps/consumer/`)
+
+Each directory has its own LICENSE file. New directories default to MIT unless they are part of the core hosted platform.
+
 ## Style
 
 - Go: standard library conventions, `log/slog` for logging, errors returned not panicked (except crypto/rand failure).
