@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
@@ -95,19 +96,19 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hash the submitted Auth Key the same way it was hashed at signup.
-	rehashedSubmitted := amnesia.HashAuthKey(submittedHash)
-
 	// Constant-time comparison to prevent timing attacks.
-	if subtle.ConstantTimeCompare(rehashedSubmitted, user.AuthKeyHash) != 1 {
+	// The client already ran HashAuthKey(authKey) — we compare directly.
+	if subtle.ConstantTimeCompare(submittedHash, user.AuthKeyHash) != 1 {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "wrong Vault Key"})
 		return
 	}
 
 	// Auth Key verified — mark vault as unlocked in Redis.
+	// Use the token part of the cookie (before ".") to match how RequireSession looks it up.
 	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
 	if cookie != nil {
-		if err := h.identity.SetVaultUnlocked(r.Context(), cookie.Value, time.Now().Add(24*time.Hour)); err != nil {
+		sessionToken := strings.Split(cookie.Value, ".")[0]
+		if err := h.identity.SetVaultUnlocked(r.Context(), sessionToken, time.Now().Add(24*time.Hour)); err != nil {
 			slog.Error("unlock: set vault state", "error", err)
 		}
 	}
