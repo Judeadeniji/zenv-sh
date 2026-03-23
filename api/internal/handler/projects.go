@@ -275,6 +275,440 @@ func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// --- Delete Project ---
+
+// @Summary		Delete project
+// @Description	Delete a project and all associated data (secrets, tokens, key grants).
+// @Tags			projects
+// @Produce		json
+// @Param			projectID	path		string	true	"Project UUID"
+// @Success		200			{object}	map[string]string
+// @Failure		404			{object}	ErrorResponse
+// @Failure		500			{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/projects/{projectID} [delete]
+func (h *ProjectsHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	var project model.Projects
+	checkStmt := SELECT(table.Projects.ID).FROM(table.Projects).WHERE(table.Projects.ID.EQ(UUID(projectID)))
+	if err := checkStmt.Query(h.db, &project); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "project not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to check project"})
+		return
+	}
+
+	deleteStmt := table.Projects.DELETE().WHERE(table.Projects.ID.EQ(UUID(projectID)))
+	if _, err = deleteStmt.Exec(h.db); err != nil {
+		slog.Error("delete project", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to delete project"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"deleted": projectID.String()})
+}
+
+// --- Rotation: Two-Phase Commit Re-encryption ---
+
+type StartRotationRequest struct {
+	TotalItems int `json:"total_items"`
+}
+
+type StartRotationResponse struct {
+	RotationID string `json:"rotation_id"`
+	Status     string `json:"status"`
+}
+
+// StartRotation initiates a DEK rotation for a project.
+//
+//	@Summary		Start DEK rotation
+//	@Description	Initiates a two-phase DEK rotation. Returns a rotation_id for staging and committing.
+//	@Tags			rotation
+//	@Accept			json
+//	@Produce		json
+//	@Param			projectID	path		string					true	"Project UUID"
+//	@Param			body		body		StartRotationRequest	true	"Rotation parameters"
+//	@Success		201			{object}	StartRotationResponse
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		409			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/rotation/start [post]
+func (h *ProjectsHandler) StartRotation(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	sess := middleware.GetSession(r.Context())
+	if sess == nil || sess.UserID == "" {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	var req StartRotationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.TotalItems <= 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "total_items is required and must be positive"})
+		return
+	}
+
+	// Check no active rotation exists for this project.
+	var existing int
+	err = h.db.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM project_rotations WHERE project_id = $1 AND status IN ('staging', 'committing')`,
+		projectID,
+	).Scan(&existing)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to check rotations"})
+		return
+	}
+	if existing > 0 {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "a rotation is already in progress for this project"})
+		return
+	}
+
+	rotationID := uuid.New()
+	_, err = h.db.ExecContext(r.Context(),
+		`INSERT INTO project_rotations (project_id, rotation_id, total_items, initiated_by)
+		 VALUES ($1, $2, $3, $4)`,
+		projectID, rotationID, req.TotalItems, sess.UserID,
+	)
+	if err != nil {
+		slog.Error("start rotation: insert", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to start rotation"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, StartRotationResponse{
+		RotationID: rotationID.String(),
+		Status:     "staging",
+	})
+}
+
+type StageItem struct {
+	VaultItemID   string `json:"vault_item_id"`
+	NewCiphertext string `json:"new_ciphertext"` // base64
+	NewNonce      string `json:"new_nonce"`       // base64
+}
+
+type StageRequest struct {
+	Items []StageItem `json:"items"`
+}
+
+type StageResponse struct {
+	Staged      int `json:"staged"`
+	TotalStaged int `json:"total_staged"`
+	Total       int `json:"total"`
+}
+
+// StageRotation stages a batch of re-encrypted items (Phase 1).
+//
+//	@Summary		Stage re-encrypted items
+//	@Description	Uploads a batch of re-encrypted ciphertexts to the staging table. Call repeatedly until all items are staged.
+//	@Tags			rotation
+//	@Accept			json
+//	@Produce		json
+//	@Param			projectID	path		string			true	"Project UUID"
+//	@Param			rotationID	path		string			true	"Rotation UUID"
+//	@Param			body		body		StageRequest	true	"Batch of re-encrypted items"
+//	@Success		200			{object}	StageResponse
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Failure		409			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/rotation/{rotationID}/stage [post]
+func (h *ProjectsHandler) StageRotation(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+	rotationID, err := uuid.Parse(chi.URLParam(r, "rotationID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid rotation ID"})
+		return
+	}
+
+	var req StageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Items) == 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "items array is required"})
+		return
+	}
+
+	// Verify rotation exists and is in staging state.
+	var status string
+	var totalItems int
+	err = h.db.QueryRowContext(r.Context(),
+		`SELECT status, total_items FROM project_rotations WHERE rotation_id = $1 AND project_id = $2`,
+		rotationID, projectID,
+	).Scan(&status, &totalItems)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "rotation not found"})
+		return
+	}
+	if status != "staging" {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "rotation is not in staging state"})
+		return
+	}
+
+	// Bulk insert staged items.
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to begin transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	for _, item := range req.Items {
+		itemID, err := uuid.Parse(item.VaultItemID)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid vault_item_id: " + item.VaultItemID})
+			return
+		}
+		ct, err := base64.StdEncoding.DecodeString(item.NewCiphertext)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 ciphertext"})
+			return
+		}
+		nonce, err := base64.StdEncoding.DecodeString(item.NewNonce)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 nonce"})
+			return
+		}
+
+		_, err = tx.ExecContext(r.Context(),
+			`INSERT INTO vault_item_rotations (project_id, rotation_id, vault_item_id, new_ciphertext, new_nonce)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			projectID, rotationID, itemID, ct, nonce,
+		)
+		if err != nil {
+			slog.Error("stage rotation: insert item", "error", err)
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to stage item"})
+			return
+		}
+	}
+
+	// Update staged count.
+	var totalStaged int
+	err = tx.QueryRowContext(r.Context(),
+		`UPDATE project_rotations SET staged_items = staged_items + $1
+		 WHERE rotation_id = $2 RETURNING staged_items`,
+		len(req.Items), rotationID,
+	).Scan(&totalStaged)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update staged count"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit staging"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, StageResponse{
+		Staged:      len(req.Items),
+		TotalStaged: totalStaged,
+		Total:       totalItems,
+	})
+}
+
+type CommitRotationRequest struct {
+	NewWrappedProjectDEK string `json:"new_wrapped_project_dek"` // base64
+	NewProjectSalt       string `json:"new_project_salt"`        // base64
+	NewKeyGrants         []struct {
+		UserID                 string `json:"user_id"`
+		WrappedProjectVaultKey string `json:"wrapped_project_vault_key"` // base64
+	} `json:"new_key_grants"`
+}
+
+// CommitRotation atomically applies all staged re-encrypted items (Phase 2).
+//
+//	@Summary		Commit DEK rotation
+//	@Description	Atomically applies all staged ciphertexts, updates the wrapped DEK and key grants. All-or-nothing via Postgres transaction.
+//	@Tags			rotation
+//	@Accept			json
+//	@Produce		json
+//	@Param			projectID	path		string					true	"Project UUID"
+//	@Param			rotationID	path		string					true	"Rotation UUID"
+//	@Param			body		body		CommitRotationRequest	true	"New wrapped DEK, salt, and key grants"
+//	@Success		200			{object}	map[string]string
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		409			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/rotation/{rotationID}/commit [post]
+func (h *ProjectsHandler) CommitRotation(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+	rotationID, err := uuid.Parse(chi.URLParam(r, "rotationID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid rotation ID"})
+		return
+	}
+
+	var req CommitRotationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	newWrappedDEK, err := base64.StdEncoding.DecodeString(req.NewWrappedProjectDEK)
+	if err != nil || len(newWrappedDEK) == 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid new_wrapped_project_dek"})
+		return
+	}
+	newSalt, err := base64.StdEncoding.DecodeString(req.NewProjectSalt)
+	if err != nil || len(newSalt) == 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid new_project_salt"})
+		return
+	}
+
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to begin transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	// 1. Set rotation status to committing.
+	var status string
+	err = tx.QueryRowContext(r.Context(),
+		`UPDATE project_rotations SET status = 'committing' WHERE rotation_id = $1 AND status = 'staging' RETURNING status`,
+		rotationID,
+	).Scan(&status)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "rotation not in staging state"})
+		return
+	}
+
+	// 2. Apply staged ciphertexts to vault_items.
+	_, err = tx.ExecContext(r.Context(),
+		`UPDATE vault_items SET
+			ciphertext = r.new_ciphertext,
+			nonce = r.new_nonce,
+			dek_version = vault_items.dek_version + 1,
+			version = vault_items.version + 1,
+			updated_at = NOW()
+		 FROM vault_item_rotations r
+		 WHERE r.rotation_id = $1
+		   AND vault_items.id = r.vault_item_id`,
+		rotationID,
+	)
+	if err != nil {
+		slog.Error("commit rotation: update items", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to apply rotation"})
+		return
+	}
+
+	// 3. Update project vault keys.
+	_, err = tx.ExecContext(r.Context(),
+		`UPDATE project_vault_keys SET
+			wrapped_project_dek = $1,
+			project_salt = $2,
+			dek_version = dek_version + 1
+		 WHERE project_id = $3`,
+		newWrappedDEK, newSalt, projectID,
+	)
+	if err != nil {
+		slog.Error("commit rotation: update vault keys", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update vault keys"})
+		return
+	}
+
+	// 4. Update key grants.
+	for _, grant := range req.NewKeyGrants {
+		grantUserID, err := uuid.Parse(grant.UserID)
+		if err != nil {
+			continue
+		}
+		wrappedKey, err := base64.StdEncoding.DecodeString(grant.WrappedProjectVaultKey)
+		if err != nil {
+			continue
+		}
+		_, err = tx.ExecContext(r.Context(),
+			`UPDATE project_key_grants SET wrapped_project_vault_key = $1
+			 WHERE project_id = $2 AND user_id = $3`,
+			wrappedKey, projectID, grantUserID,
+		)
+		if err != nil {
+			slog.Error("commit rotation: update grant", "user_id", grantUserID, "error", err)
+		}
+	}
+
+	// 5. Clean up staging rows.
+	_, err = tx.ExecContext(r.Context(),
+		`DELETE FROM vault_item_rotations WHERE rotation_id = $1`, rotationID,
+	)
+	if err != nil {
+		slog.Error("commit rotation: cleanup staging", "error", err)
+	}
+
+	// 6. Mark rotation complete.
+	_, err = tx.ExecContext(r.Context(),
+		`UPDATE project_rotations SET status = 'complete', completed_at = NOW() WHERE rotation_id = $1`,
+		rotationID,
+	)
+	if err != nil {
+		slog.Error("commit rotation: mark complete", "error", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Error("commit rotation: commit tx", "error", err)
+		// Mark as failed.
+		h.db.ExecContext(r.Context(),
+			`UPDATE project_rotations SET status = 'failed' WHERE rotation_id = $1`, rotationID,
+		)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit rotation"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "complete", "rotation_id": rotationID.String()})
+}
+
+// CancelRotation cleans up a staging or failed rotation.
+//
+//	@Summary		Cancel rotation
+//	@Description	Deletes staging rows and the rotation record. Only works for rotations in 'staging' or 'failed' state.
+//	@Tags			rotation
+//	@Produce		json
+//	@Param			projectID	path		string	true	"Project UUID"
+//	@Param			rotationID	path		string	true	"Rotation UUID"
+//	@Success		200			{object}	map[string]string
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/rotation/{rotationID} [delete]
+func (h *ProjectsHandler) CancelRotation(w http.ResponseWriter, r *http.Request) {
+	rotationID, err := uuid.Parse(chi.URLParam(r, "rotationID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid rotation ID"})
+		return
+	}
+
+	_, err = h.db.ExecContext(r.Context(),
+		`DELETE FROM project_rotations WHERE rotation_id = $1 AND status IN ('staging', 'failed')`,
+		rotationID,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to cancel rotation"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"cancelled": rotationID.String()})
+}
+
 // --- SDK Project Create ---
 
 // CreateForToken creates a project on behalf of the token's creator.

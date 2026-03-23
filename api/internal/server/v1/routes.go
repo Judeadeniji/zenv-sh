@@ -72,7 +72,13 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Post("/", projects.Create)
 			r.Get("/", projects.List)
 			r.Get("/{projectID}", projects.Get)
+			r.Delete("/{projectID}", projects.Delete)
 			r.Get("/{projectID}/key-grant", projects.GetKeyGrant)
+			r.Get("/{projectID}/crypto", projects.GetCrypto)
+			r.Post("/{projectID}/rotation/start", projects.StartRotation)
+			r.Post("/{projectID}/rotation/{rotationID}/stage", projects.StageRotation)
+			r.Post("/{projectID}/rotation/{rotationID}/commit", projects.CommitRotation)
+			r.Delete("/{projectID}/rotation/{rotationID}", projects.CancelRotation)
 		})
 
 		r.Route("/orgs", func(r chi.Router) {
