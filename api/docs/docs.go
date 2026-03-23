@@ -237,6 +237,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/recovery/disable": {
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Toggle recovery disabled",
+                "parameters": [
+                    {
+                        "description": "Toggle recovery",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.DisableRecoveryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/recovery/incoming-requests": {
             "get": {
                 "security": [
@@ -294,6 +336,58 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "No recovery kit",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Regenerate recovery kit",
+                "parameters": [
+                    {
+                        "description": "New recovery wrapped DEK",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.RegenerateKitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Recovery disabled",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -1566,6 +1660,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/sdk/whoami": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the token name, creator, project, environment, and permission.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Token identity",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.WhoamiResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/secrets": {
             "get": {
                 "security": [
@@ -2386,6 +2505,14 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.DisableRecoveryRequest": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "api_internal_handler.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2543,6 +2670,10 @@ const docTemplate = `{
                     "description": "base64",
                     "type": "string"
                 },
+                "vault_key_type": {
+                    "description": "\"pin\" or \"passphrase\"",
+                    "type": "string"
+                },
                 "wrapped_project_dek": {
                     "description": "base64",
                     "type": "string"
@@ -2644,6 +2775,15 @@ const docTemplate = `{
                 },
                 "recovery_disabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "api_internal_handler.RegenerateKitRequest": {
+            "type": "object",
+            "properties": {
+                "recovery_wrapped_dek": {
+                    "description": "base64",
+                    "type": "string"
                 }
             }
         },
@@ -2857,6 +2997,35 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api_internal_handler.VersionItem"
                     }
+                }
+            }
+        },
+        "api_internal_handler.WhoamiResponse": {
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "permission": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "string"
+                },
+                "project_name": {
+                    "type": "string"
+                },
+                "token_name": {
+                    "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string"
                 }
             }
         }

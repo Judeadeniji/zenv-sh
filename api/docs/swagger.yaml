@@ -175,6 +175,11 @@ definitions:
         description: shown exactly once — never stored
         type: string
     type: object
+  api_internal_handler.DisableRecoveryRequest:
+    properties:
+      disabled:
+        type: boolean
+    type: object
   api_internal_handler.ErrorResponse:
     properties:
       error:
@@ -277,6 +282,9 @@ definitions:
       project_salt:
         description: base64
         type: string
+      vault_key_type:
+        description: '"pin" or "passphrase"'
+        type: string
       wrapped_project_dek:
         description: base64
         type: string
@@ -344,6 +352,12 @@ definitions:
         type: boolean
       recovery_disabled:
         type: boolean
+    type: object
+  api_internal_handler.RegenerateKitRequest:
+    properties:
+      recovery_wrapped_dek:
+        description: base64
+        type: string
     type: object
   api_internal_handler.RollbackRequest:
     properties:
@@ -487,6 +501,25 @@ definitions:
         items:
           $ref: '#/definitions/api_internal_handler.VersionItem'
         type: array
+    type: object
+  api_internal_handler.WhoamiResponse:
+    properties:
+      environment:
+        type: string
+      organization_id:
+        type: string
+      permission:
+        type: string
+      project_id:
+        type: string
+      project_name:
+        type: string
+      token_name:
+        type: string
+      user_email:
+        type: string
+      user_name:
+        type: string
     type: object
 host: api.zenv.sh
 info:
@@ -638,6 +671,33 @@ paths:
       summary: Get auth state
       tags:
       - auth
+  /auth/recovery/disable:
+    put:
+      consumes:
+      - application/json
+      description: Set recovery_disabled to true or false. When disabled, recovery
+        kit and trusted contact cannot be used.
+      parameters:
+      - description: Toggle recovery
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.DisableRecoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Toggle recovery disabled
+      tags:
+      - recovery
   /auth/recovery/incoming-requests:
     get:
       produces:
@@ -675,6 +735,40 @@ paths:
       security:
       - SessionAuth: []
       summary: Get recovery kit material
+      tags:
+      - recovery
+    put:
+      consumes:
+      - application/json
+      description: Replaces the recovery-wrapped DEK with a new one. Old recovery
+        words are invalidated.
+      parameters:
+      - description: New recovery wrapped DEK
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.RegenerateKitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "403":
+          description: Recovery disabled
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Regenerate recovery kit
       tags:
       - recovery
   /auth/recovery/kit/recover:
@@ -1488,6 +1582,21 @@ paths:
       summary: Bulk fetch secrets
       tags:
       - secrets
+  /sdk/whoami:
+    get:
+      description: Returns the token name, creator, project, environment, and permission.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.WhoamiResponse'
+      security:
+      - BearerAuth: []
+      summary: Token identity
+      tags:
+      - sdk
   /secrets:
     get:
       description: List secret metadata (name hash, version, updated_at). Never returns

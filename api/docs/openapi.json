@@ -266,6 +266,46 @@
                 }
             }
         },
+        "/auth/recovery/disable": {
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.",
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Toggle recovery disabled",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/api_internal_handler.DisableRecoveryRequest"
+                            }
+                        }
+                    },
+                    "description": "Toggle recovery",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/recovery/incoming-requests": {
             "get": {
                 "security": [
@@ -329,6 +369,64 @@
                     },
                     "404": {
                         "description": "No recovery kit",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.",
+                "tags": [
+                    "recovery"
+                ],
+                "summary": "Regenerate recovery kit",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/api_internal_handler.RegenerateKitRequest"
+                            }
+                        }
+                    },
+                    "description": "New recovery wrapped DEK",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Recovery disabled",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1715,6 +1813,32 @@
                 }
             }
         },
+        "/sdk/whoami": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the token name, creator, project, environment, and permission.",
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Token identity",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.WhoamiResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/secrets": {
             "get": {
                 "security": [
@@ -2643,6 +2767,14 @@
                     }
                 }
             },
+            "api_internal_handler.DisableRecoveryRequest": {
+                "type": "object",
+                "properties": {
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                }
+            },
             "api_internal_handler.ErrorResponse": {
                 "type": "object",
                 "properties": {
@@ -2800,6 +2932,10 @@
                         "description": "base64",
                         "type": "string"
                     },
+                    "vault_key_type": {
+                        "description": "\"pin\" or \"passphrase\"",
+                        "type": "string"
+                    },
                     "wrapped_project_dek": {
                         "description": "base64",
                         "type": "string"
@@ -2901,6 +3037,15 @@
                     },
                     "recovery_disabled": {
                         "type": "boolean"
+                    }
+                }
+            },
+            "api_internal_handler.RegenerateKitRequest": {
+                "type": "object",
+                "properties": {
+                    "recovery_wrapped_dek": {
+                        "description": "base64",
+                        "type": "string"
                     }
                 }
             },
@@ -3114,6 +3259,35 @@
                         "items": {
                             "$ref": "#/components/schemas/api_internal_handler.VersionItem"
                         }
+                    }
+                }
+            },
+            "api_internal_handler.WhoamiResponse": {
+                "type": "object",
+                "properties": {
+                    "environment": {
+                        "type": "string"
+                    },
+                    "organization_id": {
+                        "type": "string"
+                    },
+                    "permission": {
+                        "type": "string"
+                    },
+                    "project_id": {
+                        "type": "string"
+                    },
+                    "project_name": {
+                        "type": "string"
+                    },
+                    "token_name": {
+                        "type": "string"
+                    },
+                    "user_email": {
+                        "type": "string"
+                    },
+                    "user_name": {
+                        "type": "string"
                     }
                 }
             }
