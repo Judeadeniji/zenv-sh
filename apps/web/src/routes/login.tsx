@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
@@ -11,11 +11,20 @@ import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } fr
 import { Separator } from "#/components/ui/separator"
 import { GitHubIcon, GoogleIcon } from "#/components/oauth-icons"
 import { authClient } from "#/lib/auth-client"
+import { meQueryOptions } from "#/lib/queries/auth"
 import { mutationKeys } from "#/lib/keys"
 import { loginSchema, type LoginInput } from "#/lib/schemas/auth"
 import { AlertCircle, ArrowRight } from "lucide-react"
 
 export const Route = createFileRoute("/login")({
+	beforeLoad: async ({ context }) => {
+		try {
+			await context.queryClient.ensureQueryData(meQueryOptions)
+			throw redirect({ to: "/" })
+		} catch (e) {
+			if (e && typeof e === "object" && "to" in e) throw e
+		}
+	},
 	component: LoginPage,
 })
 

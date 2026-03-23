@@ -1,4 +1,4 @@
-import { KeyRound, FileKey, Users, Shield, type LucideIcon } from "lucide-react"
+import { KeyRound, FileKey, Users, Shield, LayoutDashboard, type LucideIcon } from "lucide-react"
 
 export interface NavItem {
 	label: string
@@ -7,30 +7,44 @@ export interface NavItem {
 	href: string
 }
 
-/** Primary manage nav items — single source of truth for sidebar + dashboard. */
-export const manageItems: NavItem[] = [
-	{
-		label: "Secrets",
-		description: "Store and manage encrypted environment variables for your apps.",
-		icon: KeyRound,
-		href: "/secrets",
-	},
-	{
-		label: "Service Tokens",
-		description: "Generate tokens so your CI/CD pipelines can access secrets.",
-		icon: FileKey,
-		href: "/tokens",
-	},
-	{
-		label: "Members",
-		description: "Invite your team to collaborate. Everyone gets their own vault.",
-		icon: Users,
-		href: "/members",
-	},
-	{
-		label: "Audit Log",
-		description: "A record of every action in your organization.",
-		icon: Shield,
-		href: "/audit",
-	},
-]
+/** Project-scoped nav items — require both orgId and projectId */
+export function getProjectItems(orgId: string, projectId: string): NavItem[] {
+	return [
+		{
+			label: "Overview",
+			description: "Project dashboard, key, and quick start.",
+			icon: LayoutDashboard,
+			href: `/orgs/${orgId}/projects/${projectId}`,
+		},
+		{
+			label: "Secrets",
+			description: "Store and manage encrypted secrets for your apps.",
+			icon: KeyRound,
+			href: `/orgs/${orgId}/projects/${projectId}/secrets`,
+		},
+		{
+			label: "Service Tokens",
+			description: "Generate tokens so your CI/CD pipelines can access secrets.",
+			icon: FileKey,
+			href: `/orgs/${orgId}/projects/${projectId}/tokens`,
+		},
+		{
+			label: "Audit Log",
+			description: "A record of every action in your project.",
+			icon: Shield,
+			href: `/orgs/${orgId}/projects/${projectId}/audit`,
+		},
+	]
+}
+
+/** Org-scoped nav items — require orgId only */
+export function getOrgItems(orgId: string): NavItem[] {
+	return [
+		{
+			label: "Members",
+			description: "Invite your team to collaborate. Everyone gets their own vault.",
+			icon: Users,
+			href: `/orgs/${orgId}/members`,
+		},
+	]
+}

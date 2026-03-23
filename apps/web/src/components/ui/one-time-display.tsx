@@ -15,10 +15,24 @@ function OneTimeDisplay({ value, label, warning, masked = true, className, ...pr
 	const [copied, setCopied] = React.useState(false)
 	const [revealed, setRevealed] = React.useState(!masked)
 
-	const handleCopy = React.useCallback(async () => {
-		await navigator.clipboard.writeText(value)
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
+	const handleCopy = React.useCallback(() => {
+		if (navigator.clipboard?.writeText) {
+			navigator.clipboard.writeText(value).then(() => {
+				setCopied(true)
+				setTimeout(() => setCopied(false), 2000)
+			})
+		} else {
+			const textarea = document.createElement("textarea")
+			textarea.value = value
+			textarea.style.position = "fixed"
+			textarea.style.opacity = "0"
+			document.body.appendChild(textarea)
+			textarea.select()
+			document.execCommand("copy")
+			document.body.removeChild(textarea)
+			setCopied(true)
+			setTimeout(() => setCopied(false), 2000)
+		}
 	}, [value])
 
 	return (

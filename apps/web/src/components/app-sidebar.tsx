@@ -1,11 +1,12 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
 import { meQueryOptions } from "#/lib/queries/auth"
-import { useNavStore } from "#/lib/stores/nav"
 import { useAuthStore } from "#/lib/stores/auth"
 import { authClient } from "#/lib/auth-client"
+import { getProjectItems, getOrgItems } from "#/lib/nav-items"
+import { CreateProjectDialog } from "#/components/create-project-dialog"
 import {
 	Sidebar,
 	SidebarContent,
@@ -38,20 +39,21 @@ import {
 	Building2,
 	ChevronsUpDown,
 } from "lucide-react"
-import { manageItems } from "#/lib/nav-items"
 
 export function AppSidebar() {
 	const navigate = useNavigate()
 	const { state } = useSidebar()
 	const { data: me } = useQuery(meQueryOptions)
 	const { data: orgsData, isLoading: orgsLoading } = useQuery(orgsQueryOptions)
-	const activeOrgId = useNavStore((s) => s.activeOrgId)
-	const activeProjectId = useNavStore((s) => s.activeProjectId)
-	const setActiveOrg = useNavStore((s) => s.setActiveOrg)
-	const setActiveProject = useNavStore((s) => s.setActiveProject)
+
+	// Read orgId and projectId from URL — these may be undefined
+	// when on routes like /settings or /onboarding
+	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
+	const orgId = params.orgId
+	const projectId = params.projectId
 
 	const orgList = (orgsData as { organizations?: { id: string; name: string }[] })?.organizations ?? []
-	const activeOrg = orgList.find((o) => o.id === activeOrgId) ?? orgList[0]
+	const activeOrg = orgList.find((o) => o.id === orgId) ?? orgList[0]
 
 	const { data: projectsData, isLoading: projectsLoading } = useQuery({
 		...projectsQueryOptions(activeOrg?.id ?? ""),
@@ -60,6 +62,12 @@ export function AppSidebar() {
 	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
 
 	const initials = me?.email?.slice(0, 2).toUpperCase() ?? "?"
+
+	// Build nav items based on current context
+	const manageItems = [
+		...(activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []),
+		...(activeOrg ? getOrgItems(activeOrg.id) : []),
+	]
 
 	const handleLock = () => {
 		useAuthStore.getState().lock()
@@ -95,7 +103,10 @@ export function AppSidebar() {
 							/>
 							<DropdownMenuContent className="min-w-56" align="start">
 								{orgList.map((org) => (
-									<DropdownMenuItem key={org.id} onClick={() => setActiveOrg(org.id)}>
+									<DropdownMenuItem
+										key={org.id}
+										onClick={() => navigate({ to: "/orgs/$orgId", params: { orgId: org.id } })}
+									>
 										<Building2 />
 										{org.name}
 									</DropdownMenuItem>
@@ -133,9 +144,14 @@ export function AppSidebar() {
 								projectList.map((project) => (
 									<SidebarMenuItem key={project.id}>
 										<SidebarMenuButton
-											isActive={project.id === activeProjectId}
-											onClick={() => setActiveProject(project.id!)}
+											isActive={project.id === projectId}
 											tooltip={project.name}
+											render={(
+												<Link
+													to="/orgs/$orgId/projects/$projectId"
+													params={{ orgId: activeOrg?.id ?? "", projectId: project.id! }}
+												/>
+											)}
 										>
 											<FolderKey />
 											<span>{project.name}</span>
@@ -143,37 +159,44 @@ export function AppSidebar() {
 									</SidebarMenuItem>
 								))
 							)}
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									className="text-muted-foreground"
-									render={(props) => <Link {...props} to="/onboarding" />}
-								>
-									<Plus />
-									<span>New project</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
+							{activeOrg && (
+								<SidebarMenuItem>
+									<CreateProjectDialog
+										orgId={activeOrg.id}
+										trigger={
+											<SidebarMenuButton className="text-muted-foreground">
+												<Plus />
+												<span>New project</span>
+											</SidebarMenuButton>
+										}
+									/>
+								</SidebarMenuItem>
+							)}
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
 
-				{/* ── Manage (data-driven) ── */}
-				<SidebarGroup>
-					<SidebarGroupLabel>Manage</SidebarGroupLabel>
-					<SidebarGroupContent>
-						<SidebarMenu>
-							{manageItems.map((item) => (
-								<SidebarMenuItem key={item.href}>
-									<SidebarMenuButton tooltip={item.label}
-										render={(props) => <Link {...props} to={item.href} />}
-									>
-										<item.icon />
-										<span>{item.label}</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							))}
-						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
+				{/* ── Manage (data-driven from URL context) ── */}
+				{manageItems.length > 0 && (
+					<SidebarGroup>
+						<SidebarGroupLabel>Manage</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{manageItems.map((item) => (
+									<SidebarMenuItem key={item.href}>
+										<SidebarMenuButton
+											tooltip={item.label}
+											render={(props) => <Link {...props} to={item.href} />}
+										>
+											<item.icon />
+											<span>{item.label}</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								))}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 
 			{/* ── Footer: User menu ── */}
@@ -195,8 +218,22 @@ export function AppSidebar() {
 							<DropdownMenuContent className="min-w-56" align="start" side="top">
 								<DropdownMenuItem render={(props) => <Link to="/settings" {...props} />}>
 									<Settings />
-									Settings
+									Account Settings
 								</DropdownMenuItem>
+								{activeOrg && (
+									<DropdownMenuItem
+										render={(props) => (
+											<Link
+												to="/orgs/$orgId/settings"
+												params={{ orgId: activeOrg.id }}
+												{...props}
+											/>
+										)}
+									>
+										<Building2 />
+										Org Settings
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onClick={handleLock}>
 									<Lock />

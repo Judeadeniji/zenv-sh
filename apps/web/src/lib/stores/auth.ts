@@ -25,8 +25,6 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
 	crypto: null,
-
 	setCrypto: (crypto) => set({ crypto }),
-
 	lock: () => set({ crypto: null }),
 }))

@@ -2,22 +2,27 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { storageKeys } from "#/lib/keys"
 
+/**
+ * Navigation preferences store.
+ *
+ * Only holds client-side view preferences — NOT resource context.
+ * Org and project context now live in the URL (/orgs/$orgId/projects/$projectId/...).
+ */
+
+export const ENVIRONMENTS = ["development", "staging", "production"] as const
+
 interface NavState {
-	activeOrgId: string | null
-	activeProjectId: string | null
-	setActiveOrg: (orgId: string) => void
-	setActiveProject: (projectId: string) => void
+	activeEnvironment: string
+	setActiveEnvironment: (env: string) => void
 	reset: () => void
 }
 
 export const useNavStore = create<NavState>()(
 	persist(
 		(set) => ({
-			activeOrgId: null,
-			activeProjectId: null,
-			setActiveOrg: (orgId) => set({ activeOrgId: orgId, activeProjectId: null }),
-			setActiveProject: (projectId) => set({ activeProjectId: projectId }),
-			reset: () => set({ activeOrgId: null, activeProjectId: null }),
+			activeEnvironment: "development",
+			setActiveEnvironment: (activeEnvironment) => set({ activeEnvironment }),
+			reset: () => set({ activeEnvironment: "development" }),
 		}),
 		{ name: storageKeys.nav },
 	),

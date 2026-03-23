@@ -15,7 +15,12 @@ import { authClient } from "#/lib/auth-client"
 import { AlertCircle, Lock } from "lucide-react"
 import { type KeyType } from "@zenv/amnesia";
 
+const searchSchema = z.object({
+	redirect: z.string().optional(),
+})
+
 export const Route = createFileRoute("/_authed/unlock")({
+	validateSearch: searchSchema,
 	component: UnlockPage,
 })
 
@@ -28,6 +33,10 @@ type UnlockInput = z.infer<typeof unlockSchema>
 
 function UnlockPage() {
 	const navigate = useNavigate()
+	const { redirect: redirectTo } = Route.useSearch()
+
+	// Sanitize redirect — never redirect back to unlock itself
+	const destination = redirectTo && redirectTo !== "/unlock" && redirectTo !== "/vault-setup" ? redirectTo : "/"
 
 	// Get me from React Query (server-safe) — NOT Zustand
 	const { data: me } = useQuery(meQueryOptions)
@@ -49,7 +58,7 @@ function UnlockPage() {
 				keyType: me.vault_key_type as KeyType,
 			},
 			{
-				onSuccess: () => navigate({ to: "/" }),
+				onSuccess: () => navigate({ to: destination }),
 				onError: () => form.setValue("vaultKey", ""),
 			},
 		)

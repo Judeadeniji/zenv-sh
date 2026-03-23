@@ -121,7 +121,6 @@ function TrustedContactRow({
 	const addContact = useMutation({
 		mutationKey: mutationKeys.recovery.setContact,
 		mutationFn: async ({ email }: AddContactInput) => {
-			// @ts-ignore types will be regenerated
 			const { error } = await api().POST("/auth/recovery/trusted-contact", {
 				body: { contact_email: email },
 			})
@@ -221,8 +220,8 @@ function NoRecoveryRow({ disabled }: { disabled: boolean }) {
 	const qc = useQueryClient()
 
 	const toggle = useMutation({
+		mutationKey: mutationKeys.recovery.toggleDisable,
 		mutationFn: async () => {
-			// @ts-ignore types will be regenerated
 			const { error } = await api().PUT("/auth/recovery/disable", {
 				body: { disabled: !disabled },
 			})

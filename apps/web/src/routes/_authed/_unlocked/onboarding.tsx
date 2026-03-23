@@ -11,7 +11,6 @@ import { Label } from "#/components/ui/label"
 import { Separator } from "#/components/ui/separator"
 import { useCreateOrg } from "#/lib/queries/orgs"
 import { useCreateProject } from "#/lib/queries/projects"
-import { useNavStore } from "#/lib/stores/nav"
 import {
 	createOrgSchema,
 	createProjectSchema,
@@ -30,6 +29,7 @@ function OnboardingWizard() {
 	const navigate = useNavigate()
 	const [step, setStep] = useState<Step>("org")
 	const [orgId, setOrgId] = useState("")
+	const [projectId, setProjectId] = useState("")
 
 	const createOrg = useCreateOrg()
 	const createProject = useCreateProject()
@@ -51,7 +51,6 @@ function OnboardingWizard() {
 				onSuccess: (org) => {
 					const id = org.id ?? ""
 					setOrgId(id)
-					useNavStore.getState().setActiveOrg(id)
 					setStep("project")
 				},
 			},
@@ -63,8 +62,7 @@ function OnboardingWizard() {
 			{ name: data.name, orgId },
 			{
 				onSuccess: (result) => {
-					const id = result.id ?? ""
-					useNavStore.getState().setActiveProject(id)
+					setProjectId(result.id ?? "")
 					setStep("import")
 				},
 			},
@@ -72,7 +70,16 @@ function OnboardingWizard() {
 	}
 
 	const handleFinish = () => {
-		navigate({ to: "/" })
+		if (orgId && projectId) {
+			navigate({
+				to: "/orgs/$orgId/projects/$projectId/secrets",
+				params: { orgId, projectId },
+			})
+		} else if (orgId) {
+			navigate({ to: "/orgs/$orgId", params: { orgId } })
+		} else {
+			navigate({ to: "/" })
+		}
 	}
 
 	const steps = [
@@ -92,13 +99,13 @@ function OnboardingWizard() {
 	const stepTitles = {
 		org: "Create your organization",
 		project: "Create your first project",
-		import: "Import your .env file",
+		import: "Import secrets",
 	}
 
 	const stepDescriptions = {
 		org: "Organizations group your team and projects together.",
 		project: "Projects contain your secrets, organized by environment.",
-		import: "Paste your .env contents to import secrets. You can always do this later.",
+		import: "Paste key-value pairs or a .env file to import secrets. You can always do this later.",
 	}
 
 	return (

@@ -98,7 +98,7 @@ function PageHeaderSection() {
 	return (
 		<Section title="Page Header" description="Title + description + actions. Used at the top of every page.">
 			<div className="space-y-6">
-				<PageHeader title="Secrets" description="Manage your encrypted environment variables." actions={<Button size="sm"><Plus /> Add Secret</Button>} />
+				<PageHeader title="Secrets" description="Manage your encrypted secrets." actions={<Button size="sm"><Plus /> Add Secret</Button>} />
 				<Separator />
 				<PageHeader title="Project Settings" actions={<><Button variant="outline" size="sm">Cancel</Button><Button variant="danger" size="sm">Delete Project</Button></>} />
 			</div>

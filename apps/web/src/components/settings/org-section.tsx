@@ -20,9 +20,9 @@ import {
 } from "#/components/ui/dialog"
 import { SettingsRow, SettingsDivider } from "./settings-row"
 import { api } from "#/lib/api-client"
-import { useNavStore } from "#/lib/stores/nav"
+import { useNavigate } from "@tanstack/react-router"
 import { orgQueryOptions, orgMembersQueryOptions } from "#/lib/queries/orgs"
-import { queryKeys } from "#/lib/keys"
+import { queryKeys, mutationKeys } from "#/lib/keys"
 import { AlertCircle, CheckCircle, Trash2, Crown } from "lucide-react"
 
 // ── Schemas ──
@@ -40,24 +40,14 @@ type DeleteInput = z.infer<typeof deleteSchema>
 
 // ── Component ──
 
-export function OrgSection() {
-	const activeOrgId = useNavStore((s) => s.activeOrgId)
-
-	if (!activeOrgId) {
-		return (
-			<div className="py-12 text-center text-sm text-muted-foreground">
-				No organization selected. Choose one from the sidebar.
-			</div>
-		)
-	}
-
+export function OrgSection({ orgId }: { orgId: string }) {
 	return (
 		<div>
-			<RenameRow orgId={activeOrgId} />
+			<RenameRow orgId={orgId} />
 			<SettingsDivider />
-			<MembersRow orgId={activeOrgId} />
+			<MembersRow orgId={orgId} />
 			<SettingsDivider />
-			<DangerRow orgId={activeOrgId} />
+			<DangerRow orgId={orgId} />
 		</div>
 	)
 }
@@ -75,6 +65,7 @@ function RenameRow({ orgId }: { orgId: string }) {
 	})
 
 	const rename = useMutation({
+		mutationKey: mutationKeys.orgs.rename,
 		mutationFn: async (data: RenameInput) => {
 			const { error } = await api().PUT("/orgs/{orgID}", {
 				params: { path: { orgID: orgId } },
@@ -146,7 +137,7 @@ function MembersRow({ orgId }: { orgId: string }) {
 				{members.length > 5 && (
 					<p className="text-xs text-muted-foreground">and {members.length - 5} more...</p>
 				)}
-				<Button variant="outline" size="xs" render={<Link to="/members" />}>
+				<Button variant="outline" size="xs" render={<Link to="/orgs/$orgId/members" params={{ orgId }} />}>
 					Manage members
 				</Button>
 			</div>
@@ -157,6 +148,7 @@ function MembersRow({ orgId }: { orgId: string }) {
 // ── Danger Zone ──
 
 function DangerRow({ orgId }: { orgId: string }) {
+	const navigate = useNavigate()
 	const { data: org } = useQuery(orgQueryOptions(orgId))
 	const orgName = (org as { name?: string })?.name ?? ""
 	const qc = useQueryClient()
@@ -167,6 +159,7 @@ function DangerRow({ orgId }: { orgId: string }) {
 	})
 
 	const deleteOrg = useMutation({
+		mutationKey: mutationKeys.orgs.delete,
 		mutationFn: async () => {
 			const { error } = await api().DELETE("/orgs/{orgID}", {
 				params: { path: { orgID: orgId } },
@@ -174,8 +167,8 @@ function DangerRow({ orgId }: { orgId: string }) {
 			if (error) throw new Error("Failed to delete organization")
 		},
 		onSuccess: () => {
-			useNavStore.getState().setActiveOrg("")
 			qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
+			navigate({ to: "/" })
 		},
 	})
 

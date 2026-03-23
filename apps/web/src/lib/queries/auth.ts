@@ -1,6 +1,5 @@
 import { queryOptions, useMutation } from "@tanstack/react-query"
 import {
-	deriveKeys,
 	encrypt,
 	decrypt,
 	wrapKey,
@@ -11,36 +10,12 @@ import {
 	generateSalt,
 	type KeyType,
 } from "@zenv/amnesia"
+import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
 import { wrapDekForRecovery } from "#/lib/recovery"
+import { toBase64, fromBase64, pack, unpack } from "#/lib/encoding"
 import { queryKeys, mutationKeys } from "#/lib/keys"
-
-// ── Helpers ──
-
-function toBase64(bytes: Uint8Array): string {
-	let binary = ""
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-	return btoa(binary)
-}
-
-function fromBase64(str: string): Uint8Array {
-	const binary = atob(str)
-	const bytes = new Uint8Array(binary.length)
-	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-	return bytes
-}
-
-function pack(nonce: Uint8Array, ciphertext: Uint8Array): Uint8Array {
-	const out = new Uint8Array(nonce.length + ciphertext.length)
-	out.set(nonce, 0)
-	out.set(ciphertext, nonce.length)
-	return out
-}
-
-function unpack(data: Uint8Array) {
-	return { nonce: data.slice(0, 12), ciphertext: data.slice(12) }
-}
 
 // ── Queries ──
 
@@ -71,7 +46,7 @@ export function useSetupVault() {
 			const salt = generateSalt()
 			const dek = generateKey()
 			const { publicKey, privateKey } = await generateKeypair()
-			const { kek, authKey } = await deriveKeys(vaultKey, salt, keyType)
+			const { kek, authKey } = await deriveKeysAsync(vaultKey, salt, keyType)
 			const authKeyHash = await hashAuthKey(authKey)
 
 			const { ciphertext: wdCt, nonce: wdNonce } = await wrapKey(dek, kek)
@@ -119,7 +94,7 @@ export function useUnlockVault() {
 			keyType: KeyType
 		}) => {
 			const salt = fromBase64(saltB64)
-			const { kek, authKey } = await deriveKeys(vaultKey, salt, keyType)
+			const { kek, authKey } = await deriveKeysAsync(vaultKey, salt, keyType)
 			const authKeyHash = await hashAuthKey(authKey)
 
 			const { data, error } = await api().POST("/auth/unlock", {

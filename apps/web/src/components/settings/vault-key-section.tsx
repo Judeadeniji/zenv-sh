@@ -1,36 +1,29 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { mutationKeys } from "#/lib/keys"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { SettingsRow, SettingsDivider } from "./settings-row"
+import { MnemonicInput } from "#/components/MnemonicInput"
 import { NewVaultKeyForm } from "#/components/NewVaultKeyForm"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { useAuthStore } from "#/lib/stores/auth"
 import { api } from "#/lib/api-client"
 import {
-	deriveKeys,
+	wordsToEntropy,
+	unwrapDekFromRecovery,
+	MNEMONIC_WORD_COUNT,
+} from "#/lib/recovery"
+import {
 	hashAuthKey,
 	wrapKey,
 	generateSalt,
 	type KeyType,
 } from "@zenv/amnesia"
+import { deriveKeysAsync } from "#/lib/derive-keys"
+import { toBase64, fromBase64, pack } from "#/lib/encoding"
 import { AlertCircle, CheckCircle, KeyRound } from "lucide-react"
-
-// ── Helpers ──
-
-function toBase64(bytes: Uint8Array): string {
-	let binary = ""
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-	return btoa(binary)
-}
-
-function pack(nonce: Uint8Array, ciphertext: Uint8Array): Uint8Array {
-	const out = new Uint8Array(nonce.length + ciphertext.length)
-	out.set(nonce, 0)
-	out.set(ciphertext, nonce.length)
-	return out
-}
 
 // ── Component ──
 
@@ -73,23 +66,49 @@ function CurrentKeyRow({ keyType }: { keyType: string }) {
 	)
 }
 
-// ── Change Key ──
+// ── Change Key (requires mnemonic verification first) ──
+
+type ChangeStep = "idle" | "verify-mnemonic" | "new-key"
 
 function ChangeKeyRow() {
 	const qc = useQueryClient()
 	const crypto = useAuthStore((s) => s.crypto)
-	const [step, setStep] = useState<"idle" | "form">("idle")
+	const [step, setStep] = useState<ChangeStep>("idle")
+	const [words, setWords] = useState<string[]>(Array(MNEMONIC_WORD_COUNT).fill(""))
+	const [verifiedDek, setVerifiedDek] = useState<Uint8Array | null>(null)
+
+	const allFilled = words.every((w) => w.length >= 3)
+
+	const verifyMnemonic = useMutation({
+		mutationKey: mutationKeys.auth.verifyMnemonic,
+		mutationFn: async () => {
+			const mnemonic = words.join(" ")
+			const entropy = wordsToEntropy(mnemonic)
+
+			// @ts-ignore types will be regenerated
+			const { data, error: fetchErr } = await api().GET("/auth/recovery/kit")
+			if (fetchErr || !data) throw new Error("Failed to fetch recovery material")
+
+			const blob = fromBase64((data as { recovery_wrapped_dek: string }).recovery_wrapped_dek)
+			return await unwrapDekFromRecovery(blob, entropy)
+		},
+		onSuccess: (dek) => {
+			setVerifiedDek(dek)
+			setStep("new-key")
+		},
+	})
 
 	const changeKey = useMutation({
+		mutationKey: mutationKeys.auth.changeVaultKey,
 		mutationFn: async ({ vaultKey, keyType }: { vaultKey: string; keyType: KeyType }) => {
-			if (!crypto) throw new Error("Vault is locked")
+			const dek = verifiedDek ?? crypto?.dek
+			if (!dek) throw new Error("No DEK available")
 
-			// O(1) re-wrap: derive new KEK from new Vault Key, re-wrap same DEK
 			const newSalt = generateSalt()
-			const { kek: newKek, authKey: newAuthKey } = await deriveKeys(vaultKey, newSalt, keyType)
+			const { kek: newKek, authKey: newAuthKey } = await deriveKeysAsync(vaultKey, newSalt, keyType)
 			const newAuthKeyHash = await hashAuthKey(newAuthKey)
 
-			const { ciphertext, nonce } = await wrapKey(crypto.dek, newKek)
+			const { ciphertext, nonce } = await wrapKey(dek, newKek)
 			const wrappedDek = pack(nonce, ciphertext)
 
 			const { error } = await api().PUT("/auth/change-vault-key", {
@@ -102,20 +121,29 @@ function ChangeKeyRow() {
 			})
 			if (error) throw new Error("Failed to change Vault Key")
 
-			// Update local KEK
-			useAuthStore.getState().setCrypto({ ...crypto, kek: newKek })
+			if (crypto) {
+				useAuthStore.getState().setCrypto({ ...crypto, kek: newKek })
+			}
 		},
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["auth", "me"] })
 			setStep("idle")
+			setWords(Array(MNEMONIC_WORD_COUNT).fill(""))
+			setVerifiedDek(null)
 		},
 	})
+
+	const handleCancel = () => {
+		setStep("idle")
+		setWords(Array(MNEMONIC_WORD_COUNT).fill(""))
+		setVerifiedDek(null)
+	}
 
 	if (step === "idle") {
 		return (
 			<SettingsRow
 				title="Change Vault Key"
-				description="Re-wraps your DEK with a new key in one round trip. Zero item rows are touched — O(1) regardless of how many secrets you have."
+				description="To change your Vault Key, you must first verify your Recovery Kit. This ensures you always have a working recovery path."
 			>
 				{changeKey.isSuccess && (
 					<Alert variant="success" className="mb-4">
@@ -123,32 +151,76 @@ function ChangeKeyRow() {
 						<AlertDescription>Vault Key changed successfully.</AlertDescription>
 					</Alert>
 				)}
-				{changeKey.error && (
-					<Alert variant="danger" className="mb-4">
-						<AlertCircle />
-						<AlertDescription>{changeKey.error.message}</AlertDescription>
-					</Alert>
-				)}
 
-				<Button variant="outline" size="sm" onClick={() => setStep("form")}>
+				<Button variant="outline" size="sm" onClick={() => setStep("verify-mnemonic")}>
 					Change Vault Key
 				</Button>
 			</SettingsRow>
 		)
 	}
 
+	if (step === "verify-mnemonic") {
+		return (
+			<SettingsRow
+				title="Verify your Recovery Kit"
+				description="Enter your 12 recovery words to prove you have a working recovery path before changing your Vault Key."
+			>
+				<div className="space-y-4">
+					{verifyMnemonic.error && (
+						<Alert variant="danger">
+							<AlertCircle />
+							<AlertDescription>Invalid recovery words. Check and try again.</AlertDescription>
+						</Alert>
+					)}
+
+					<MnemonicInput words={words} onChange={setWords} disabled={verifyMnemonic.isPending} />
+
+					<div className="flex gap-2">
+						<Button
+							variant="solid"
+							size="sm"
+							onClick={() => verifyMnemonic.mutate()}
+							disabled={!allFilled}
+							isLoading={verifyMnemonic.isPending}
+							loadingText="Verifying..."
+						>
+							Verify
+						</Button>
+						<Button variant="ghost" size="sm" onClick={handleCancel}>
+							Cancel
+						</Button>
+					</div>
+				</div>
+			</SettingsRow>
+		)
+	}
+
+	// step === "new-key"
 	return (
 		<SettingsRow
-			title="New Vault Key"
-			description="Choose a new PIN or passphrase. You can switch between formats freely — the DEK doesn't change."
+			title="Set new Vault Key"
+			description="Recovery Kit verified. Choose a new PIN or passphrase — the DEK stays the same, only the wrapper changes."
 		>
 			<div className="space-y-4">
+				{changeKey.error && (
+					<Alert variant="danger">
+						<AlertCircle />
+						<AlertDescription>{changeKey.error.message}</AlertDescription>
+					</Alert>
+				)}
+
+				<Alert variant="success" className="text-xs">
+					<CheckCircle />
+					<AlertDescription>Recovery words verified.</AlertDescription>
+				</Alert>
+
 				<NewVaultKeyForm
 					onSubmit={(vaultKey, keyType) => changeKey.mutate({ vaultKey, keyType })}
 					isLoading={changeKey.isPending}
 					submitLabel="Change Vault Key"
 				/>
-				<Button variant="ghost" size="xs" onClick={() => setStep("idle")}>
+
+				<Button variant="ghost" size="xs" onClick={handleCancel}>
 					Cancel
 				</Button>
 			</div>

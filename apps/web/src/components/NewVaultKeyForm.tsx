@@ -10,7 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "#/comp
 
 const PIN_LENGTH = 6
 
-const pinSchema = z
+const pinSchemaConfirm = z
 	.object({
 		pin: z
 			.string()
@@ -20,7 +20,15 @@ const pinSchema = z
 	})
 	.refine((d) => d.pin === d.confirmPin, { message: "PINs don't match", path: ["confirmPin"] })
 
-const passphraseSchema = z
+const pinSchemaNoConfirm = z.object({
+	pin: z
+		.string()
+		.length(PIN_LENGTH, `PIN must be ${PIN_LENGTH} digits`)
+		.regex(/^\d+$/, "PIN must contain only digits"),
+	confirmPin: z.string().optional(),
+})
+
+const passphraseSchemaConfirm = z
 	.object({
 		passphrase: z.string().min(12, "Passphrase must be at least 12 characters"),
 		confirmPassphrase: z.string(),
@@ -30,14 +38,21 @@ const passphraseSchema = z
 		path: ["confirmPassphrase"],
 	})
 
-type PinInput = z.infer<typeof pinSchema>
-type PassphraseInput = z.infer<typeof passphraseSchema>
+const passphraseSchemaNoConfirm = z.object({
+	passphrase: z.string().min(12, "Passphrase must be at least 12 characters"),
+	confirmPassphrase: z.string().optional(),
+})
+
+type PinInput = z.infer<typeof pinSchemaConfirm>
+type PassphraseInput = z.infer<typeof passphraseSchemaConfirm>
 
 interface NewVaultKeyFormProps {
 	onSubmit: (vaultKey: string, keyType: "pin" | "passphrase") => void
 	isLoading?: boolean
 	loadingText?: string
 	submitLabel?: string
+	/** When false, skip the confirm step (for verification-only flows). Default: true */
+	confirmMode?: boolean
 }
 
 function PinField({
@@ -55,7 +70,7 @@ function PinField({
 }) {
 	return (
 		<div className="space-y-1.5">
-			<Label className="text-xs text-center">{label}</Label>
+			<Label className="text-xs block text-center">{label}</Label>
 			<InputOTP
 				maxLength={PIN_LENGTH}
 				value={value}
@@ -89,17 +104,19 @@ export function NewVaultKeyForm({
 	isLoading,
 	loadingText = "Setting up vault...",
 	submitLabel = "Continue",
+	confirmMode = true,
 }: NewVaultKeyFormProps) {
 	const [keyType, setKeyType] = useState<"pin" | "passphrase">("passphrase")
 	const [pinStep, setPinStep] = useState<"enter" | "confirm">("enter")
+	const needsConfirm = confirmMode
 
-	const pinForm = useForm<PinInput>({
-		resolver: zodResolver(pinSchema),
+	const pinForm = useForm({
+		resolver: zodResolver(needsConfirm ? pinSchemaConfirm : pinSchemaNoConfirm),
 		defaultValues: { pin: "", confirmPin: "" },
 	})
 
-	const passphraseForm = useForm<PassphraseInput>({
-		resolver: zodResolver(passphraseSchema),
+	const passphraseForm = useForm({
+		resolver: zodResolver(needsConfirm ? passphraseSchemaConfirm : passphraseSchemaNoConfirm),
 		defaultValues: { passphrase: "", confirmPassphrase: "" },
 	})
 
@@ -114,9 +131,11 @@ export function NewVaultKeyForm({
 			</TabsList>
 
 			<TabsContent value="passphrase">
-				<form onSubmit={passphraseForm.handleSubmit(handlePassphraseSubmit)} className="grid gap-3">
+				<form onSubmit={passphraseForm.handleSubmit((data) => handlePassphraseSubmit(data as PassphraseInput))} className="grid gap-3">
 					<div className="space-y-1.5">
-						<Label htmlFor="passphrase" className="text-xs">Passphrase</Label>
+						<Label htmlFor="passphrase" className="text-xs">
+							{needsConfirm ? "Passphrase" : "Enter your passphrase"}
+						</Label>
 						<PasswordInput
 							id="passphrase"
 							placeholder="At least 12 characters"
@@ -128,20 +147,22 @@ export function NewVaultKeyForm({
 						)}
 					</div>
 
-					<div className="space-y-1.5">
-						<Label htmlFor="confirm-passphrase" className="text-xs">Confirm passphrase</Label>
-						<PasswordInput
-							id="confirm-passphrase"
-							placeholder="Re-enter passphrase"
-							{...passphraseForm.register("confirmPassphrase")}
-							feedback={passphraseForm.formState.errors.confirmPassphrase ? "error" : undefined}
-						/>
-						{passphraseForm.formState.errors.confirmPassphrase && (
-							<p className="text-xs text-destructive">
-								{passphraseForm.formState.errors.confirmPassphrase.message}
-							</p>
-						)}
-					</div>
+					{needsConfirm && (
+						<div className="space-y-1.5">
+							<Label htmlFor="confirm-passphrase" className="text-xs">Confirm passphrase</Label>
+							<PasswordInput
+								id="confirm-passphrase"
+								placeholder="Re-enter passphrase"
+								{...passphraseForm.register("confirmPassphrase")}
+								feedback={passphraseForm.formState.errors.confirmPassphrase ? "error" : undefined}
+							/>
+							{passphraseForm.formState.errors.confirmPassphrase && (
+								<p className="text-xs text-destructive">
+									{passphraseForm.formState.errors.confirmPassphrase.message}
+								</p>
+							)}
+						</div>
+					)}
 
 					<Button type="submit" variant="solid" isLoading={isLoading} loadingText={loadingText} className="mt-1 w-full">
 						{submitLabel}
@@ -150,18 +171,18 @@ export function NewVaultKeyForm({
 			</TabsContent>
 
 			<TabsContent value="pin">
-				<form onSubmit={pinForm.handleSubmit(handlePinSubmit)} className="grid gap-4">
-					{pinStep === "enter" ? (
+				<form onSubmit={pinForm.handleSubmit(data => handlePinSubmit(data as PinInput))} className="grid gap-4">
+					{!needsConfirm || pinStep === "enter" ? (
 						<Controller
 							control={pinForm.control}
 							name="pin"
 							render={({ field, fieldState }) => (
 								<PinField
-									label="Enter a 6-digit PIN"
+									label={needsConfirm ? "Enter a 6-digit PIN" : "Enter your PIN"}
 									value={field.value}
 									onChange={(val) => {
 										field.onChange(val)
-										if (val.length === PIN_LENGTH) {
+										if (val.length === PIN_LENGTH && needsConfirm) {
 											setPinStep("confirm")
 										}
 									}}
@@ -178,9 +199,9 @@ export function NewVaultKeyForm({
 								render={({ field, fieldState }) => (
 									<PinField
 										label="Confirm your PIN"
-										value={field.value}
+										value={field.value || ""}
 										onChange={field.onChange}
-										error={fieldState.error?.message || (pinForm.formState.errors.confirmPin?.message)}
+										error={fieldState.error?.message || pinForm.formState.errors.confirmPin?.message}
 										autoFocus
 									/>
 								)}
@@ -204,7 +225,7 @@ export function NewVaultKeyForm({
 						isLoading={isLoading}
 						loadingText={loadingText}
 						className="mt-1 w-full"
-						disabled={pinStep === "enter"}
+						disabled={needsConfirm && pinStep === "enter"}
 					>
 						{submitLabel}
 					</Button>

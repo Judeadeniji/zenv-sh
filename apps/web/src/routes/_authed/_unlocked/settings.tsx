@@ -4,12 +4,12 @@ import { cn } from "#/lib/utils"
 import { Tabs, TabsList, TabsTrigger } from "#/components/ui/tabs"
 import { AccountSection } from "#/components/settings/account-section"
 import { RecoverySection } from "#/components/settings/recovery-section"
-import { OrgSection } from "#/components/settings/org-section"
 import { VaultKeySection } from "#/components/settings/vault-key-section"
+import { AppearanceSection } from "#/components/settings/appearance-section"
 import { BillingSection } from "#/components/settings/billing-section"
-import { User, ShieldCheck, Building2, KeyRound, CreditCard } from "lucide-react"
+import { User, ShieldCheck, KeyRound, Palette, CreditCard } from "lucide-react"
 
-const tabs = ["account", "vault-key", "recovery", "organization", "billing"] as const
+const tabs = ["account", "vault-key", "recovery", "appearance", "billing"] as const
 type Tab = (typeof tabs)[number]
 
 const searchSchema = z.object({
@@ -26,7 +26,7 @@ const navItems = [
 	{ value: "account" as const, label: "Account", icon: User },
 	{ value: "vault-key" as const, label: "Vault Key", icon: KeyRound },
 	{ value: "recovery" as const, label: "Recovery", icon: ShieldCheck },
-	{ value: "organization" as const, label: "Organization", icon: Building2 },
+	{ value: "appearance" as const, label: "Appearance", icon: Palette },
 	{ value: "billing" as const, label: "Billing", icon: CreditCard },
 ]
 
@@ -62,7 +62,7 @@ function SettingsPage() {
 				</Tabs>
 			</div>
 
-			{/* Mobile: vertical nav */}
+			{/* Mobile: scrollable nav */}
 			<nav className="mb-6 flex gap-1 overflow-x-auto md:hidden">
 				{navItems.map((item) => (
 					<Link
@@ -86,7 +86,7 @@ function SettingsPage() {
 			{activeTab === "account" && <AccountSection />}
 			{activeTab === "vault-key" && <VaultKeySection />}
 			{activeTab === "recovery" && <RecoverySection action={action} />}
-			{activeTab === "organization" && <OrgSection />}
+			{activeTab === "appearance" && <AppearanceSection />}
 			{activeTab === "billing" && <BillingSection />}
 		</div>
 	)

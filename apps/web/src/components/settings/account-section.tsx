@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { mutationKeys } from "#/lib/keys"
 import { z } from "zod"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -61,6 +62,7 @@ function ProfileRow({ name, email }: { name: string; email: string }) {
 	})
 
 	const update = useMutation({
+		mutationKey: mutationKeys.auth.updateProfile,
 		mutationFn: async (data: ProfileInput) => {
 			const result = await authClient.updateUser({ name: data.name })
 			if (result.error) throw new Error(result.error.message ?? "Update failed")
@@ -112,6 +114,7 @@ function PasswordRow() {
 	})
 
 	const change = useMutation({
+		mutationKey: mutationKeys.auth.changePassword,
 		mutationFn: async (data: PasswordFormInput) => {
 			const result = await authClient.changePassword({
 				currentPassword: data.currentPassword,
@@ -200,6 +203,7 @@ function LinkedAccountsRow() {
 	})
 
 	const link = useMutation({
+		mutationKey: mutationKeys.auth.linkSocial,
 		mutationFn: async (provider: "github" | "google") => {
 			await authClient.linkSocial({ provider, callbackURL: window.location.href })
 		},
@@ -239,6 +243,7 @@ function LinkedAccountsRow() {
 
 function TwoFactorRow({ enabled }: { enabled: boolean }) {
 	const toggle = useMutation({
+		mutationKey: mutationKeys.auth.toggleTwoFactor,
 		mutationFn: async () => {
 			if (enabled) {
 				const result = await authClient.twoFactor.disable()

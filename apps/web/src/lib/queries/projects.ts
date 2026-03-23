@@ -1,8 +1,10 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
-import { generateSalt, generateKey, deriveKeys, wrapKey, wrapWithPublicKey } from "@zenv/amnesia"
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { generateSalt, generateKey, wrapKey, wrapWithPublicKey, unwrapWithPrivateKey } from "@zenv/amnesia"
+import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
 import { queryKeys, mutationKeys } from "#/lib/keys"
+import { toBase64, fromBase64, pack } from "#/lib/encoding"
 
 export function projectsQueryOptions(orgId: string) {
 	return queryOptions({
@@ -32,11 +34,6 @@ export function projectQueryOptions(projectId: string) {
 	})
 }
 
-function toBase64(bytes: Uint8Array): string {
-	let binary = ""
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-	return btoa(binary)
-}
 
 /**
  * Create a project with client-side crypto material.
@@ -62,7 +59,7 @@ export function useCreateProject() {
 			// Generate a random Project Vault Key and derive a KEK from it
 			const projectVaultKeyBytes = generateKey()
 			const projectVaultKey = toBase64(projectVaultKeyBytes)
-			const { kek: projectKEK } = await deriveKeys(projectVaultKey, projectSalt, "passphrase")
+			const { kek: projectKEK } = await deriveKeysAsync(projectVaultKey, projectSalt, "passphrase")
 
 			// Wrap project DEK with project KEK
 			const { ciphertext: wdCt, nonce: wdNonce } = await wrapKey(projectDEK, projectKEK)
@@ -92,5 +89,34 @@ export function useCreateProject() {
 		onSuccess: (_, { orgId }) => {
 			qc.invalidateQueries({ queryKey: queryKeys.projects.list(orgId) })
 		},
+	})
+}
+
+/**
+ * Fetch and unwrap the Project Vault Key from the user's key grant.
+ *
+ * Flow: GET /projects/{id}/key-grant → wrapped_project_vault_key
+ *       → unwrapWithPrivateKey(wrapped, privateKey) → plaintext Project Vault Key
+ */
+export function useProjectKey(projectId: string) {
+	const crypto = useAuthStore((s) => s.crypto)
+
+	return useQuery({
+		queryKey: [...queryKeys.projects.detail(projectId), "key-grant"],
+		queryFn: async () => {
+			if (!crypto) throw new Error("Vault must be unlocked")
+
+			const { data, error } = await api().GET("/projects/{projectID}/key-grant", {
+				params: { path: { projectID: projectId } },
+			})
+			if (error || !data) throw new Error("No key grant found")
+
+			const res = data as { wrapped_project_vault_key: string }
+			const wrappedBytes = fromBase64(res.wrapped_project_vault_key)
+			const plaintext = unwrapWithPrivateKey(wrappedBytes, crypto.privateKey)
+			return new TextDecoder().decode(plaintext)
+		},
+		enabled: !!crypto && !!projectId,
+		staleTime: Number.POSITIVE_INFINITY,
 	})
 }

@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
 import { authClient } from "#/lib/auth-client"
-import { storageKeys } from "#/lib/keys"
+import { storageKeys, mutationKeys } from "#/lib/keys"
 import { AlertCircle, UserPlus } from "lucide-react"
 
 export const Route = createFileRoute("/join/$token")({
@@ -17,6 +17,7 @@ function JoinPage() {
 	const navigate = useNavigate()
 
 	const accept = useMutation({
+		mutationKey: mutationKeys.invite.accept,
 		mutationFn: async () => {
 			const { data: session } = await authClient.getSession()
 

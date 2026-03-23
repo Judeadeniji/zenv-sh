@@ -8,6 +8,7 @@ import { Spinner } from "#/components/ui/spinner"
 import { api } from "#/lib/api-client"
 import { generateKeypair } from "@zenv/amnesia"
 import { queryKeys, mutationKeys } from "#/lib/keys"
+import { toBase64 } from "#/lib/encoding"
 import { AlertCircle, Clock, Users, XCircle } from "lucide-react"
 
 export const Route = createFileRoute("/recover/trusted-contact")({
@@ -39,11 +40,6 @@ function TrustedContactRecoveryPage() {
 		mutationKey: mutationKeys.recovery.initiate,
 		mutationFn: async () => {
 			const { publicKey } = await generateKeypair()
-			const toBase64 = (bytes: Uint8Array) => {
-				let binary = ""
-				for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-				return btoa(binary)
-			}
 
 			const { error } = await api().POST("/auth/recovery/request", {
 				body: { recovery_public_key: toBase64(publicKey) },
