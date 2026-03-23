@@ -69,6 +69,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drain audit queue
+         * @description Force-flush all queued audit events from Redis to Postgres.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: number;
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit-logs/export": {
         parameters: {
             query?: never;
@@ -1169,6 +1219,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user preferences
+         * @description Returns the current user's preference JSON.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update user preferences
+         * @description Shallow-merges the provided JSON into the current preferences.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Preference keys to set */
+            requestBody: {
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects": {
         parameters: {
             query?: never;
@@ -1287,6 +1455,57 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.ProjectResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectID}/key-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project key grant
+         * @description Returns the current user's wrapped Project Vault Key for a project.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.KeyGrantResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1708,6 +1927,54 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.VersionsResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sdk/vault": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get vault material
+         * @description Returns the token creator's vault crypto material for client-side key derivation.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.VaultMaterialResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -2320,6 +2587,7 @@ export interface components {
         };
         "api_internal_handler.AuditLogEntry": {
             action?: string;
+            actor_email?: string;
             created_at?: string;
             id?: string;
             ip?: string;
@@ -2427,6 +2695,10 @@ export interface components {
         "api_internal_handler.InitiateRecoveryRequest": {
             /** @description base64 */
             recovery_public_key?: string;
+        };
+        "api_internal_handler.KeyGrantResponse": {
+            /** @description base64 */
+            wrapped_project_vault_key?: string;
         };
         "api_internal_handler.ListMembersResponse": {
             members?: components["schemas"]["api_internal_handler.MemberResponse"][];
@@ -2588,6 +2860,18 @@ export interface components {
             /** @description base64 */
             nonce?: string;
         };
+        "api_internal_handler.VaultMaterialResponse": {
+            /** @description base64 */
+            public_key?: string;
+            /** @description base64 */
+            salt?: string;
+            /** @description "pin" or "passphrase" */
+            vault_key_type?: string;
+            /** @description base64 */
+            wrapped_dek?: string;
+            /** @description base64 */
+            wrapped_private_key?: string;
+        };
         "api_internal_handler.VersionItem": {
             created_at?: string;
             version?: number;
@@ -2599,6 +2883,7 @@ export interface components {
         "api_internal_handler.WhoamiResponse": {
             environment?: string;
             organization_id?: string;
+            organization_name?: string;
             permission?: string;
             project_id?: string;
             project_name?: string;

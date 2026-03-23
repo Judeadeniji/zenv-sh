@@ -18,6 +18,8 @@ definitions:
     properties:
       action:
         type: string
+      actor_email:
+        type: string
       created_at:
         type: string
       id:
@@ -201,6 +203,12 @@ definitions:
   api_internal_handler.InitiateRecoveryRequest:
     properties:
       recovery_public_key:
+        description: base64
+        type: string
+    type: object
+  api_internal_handler.KeyGrantResponse:
+    properties:
+      wrapped_project_vault_key:
         description: base64
         type: string
     type: object
@@ -486,6 +494,24 @@ definitions:
         description: base64
         type: string
     type: object
+  api_internal_handler.VaultMaterialResponse:
+    properties:
+      public_key:
+        description: base64
+        type: string
+      salt:
+        description: base64
+        type: string
+      vault_key_type:
+        description: '"pin" or "passphrase"'
+        type: string
+      wrapped_dek:
+        description: base64
+        type: string
+      wrapped_private_key:
+        description: base64
+        type: string
+    type: object
   api_internal_handler.VersionItem:
     properties:
       created_at:
@@ -507,6 +533,8 @@ definitions:
       environment:
         type: string
       organization_id:
+        type: string
+      organization_name:
         type: string
       permission:
         type: string
@@ -580,6 +608,27 @@ paths:
       security:
       - SessionAuth: []
       summary: List audit logs
+      tags:
+      - audit
+  /audit-logs/drain:
+    post:
+      description: Force-flush all queued audit events from Redis to Postgres.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Drain audit queue
       tags:
       - audit
   /audit-logs/export:
@@ -1205,6 +1254,67 @@ paths:
       summary: Remove organization member
       tags:
       - organizations
+  /preferences:
+    get:
+      description: Returns the current user's preference JSON.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get user preferences
+      tags:
+      - preferences
+    put:
+      consumes:
+      - application/json
+      description: Shallow-merges the provided JSON into the current preferences.
+      parameters:
+      - description: Preference keys to set
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Update user preferences
+      tags:
+      - preferences
   /projects:
     get:
       description: List all projects in an organization.
@@ -1281,6 +1391,31 @@ paths:
       security:
       - SessionAuth: []
       summary: Get project
+      tags:
+      - projects
+  /projects/{projectID}/key-grant:
+    get:
+      description: Returns the current user's wrapped Project Vault Key for a project.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.KeyGrantResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get project key grant
       tags:
       - projects
   /sdk/projects/{projectID}/crypto:
@@ -1582,6 +1717,26 @@ paths:
       summary: Bulk fetch secrets
       tags:
       - secrets
+  /sdk/vault:
+    get:
+      description: Returns the token creator's vault crypto material for client-side
+        key derivation.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.VaultMaterialResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get vault material
+      tags:
+      - sdk
   /sdk/whoami:
     get:
       description: Returns the token name, creator, project, environment, and permission.

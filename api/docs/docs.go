@@ -97,6 +97,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/audit-logs/drain": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Force-flush all queued audit events from Redis to Postgres.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Drain audit queue",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/audit-logs/export": {
             "get": {
                 "security": [
@@ -1081,6 +1115,101 @@ const docTemplate = `{
                 }
             }
         },
+        "/preferences": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns the current user's preference JSON.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "preferences"
+                ],
+                "summary": "Get user preferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Shallow-merges the provided JSON into the current preferences.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "preferences"
+                ],
+                "summary": "Update user preferences",
+                "parameters": [
+                    {
+                        "description": "Preference keys to set",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/projects": {
             "get": {
                 "security": [
@@ -1193,6 +1322,46 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ProjectResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/key-grant": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns the current user's wrapped Project Vault Key for a project.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project key grant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.KeyGrantResponse"
                         }
                     },
                     "404": {
@@ -1649,6 +1818,37 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.VersionsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sdk/vault": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the token creator's vault crypto material for client-side key derivation.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Get vault material",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.VaultMaterialResponse"
                         }
                     },
                     "404": {
@@ -2274,6 +2474,9 @@ const docTemplate = `{
                 "action": {
                     "type": "string"
                 },
+                "actor_email": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2545,6 +2748,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "recovery_public_key": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.KeyGrantResponse": {
+            "type": "object",
+            "properties": {
+                "wrapped_project_vault_key": {
                     "description": "base64",
                     "type": "string"
                 }
@@ -2975,6 +3187,31 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.VaultMaterialResponse": {
+            "type": "object",
+            "properties": {
+                "public_key": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "salt": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "vault_key_type": {
+                    "description": "\"pin\" or \"passphrase\"",
+                    "type": "string"
+                },
+                "wrapped_dek": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "wrapped_private_key": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
         "api_internal_handler.VersionItem": {
             "type": "object",
             "properties": {
@@ -3007,6 +3244,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "organization_id": {
+                    "type": "string"
+                },
+                "organization_name": {
                     "type": "string"
                 },
                 "permission": {
