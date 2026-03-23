@@ -1331,6 +1331,53 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Delete a project and all associated data (secrets, tokens, key grants).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Delete project",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/projects/{projectID}/key-grant": {
@@ -1366,6 +1413,277 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/rotation/start": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Initiates a two-phase DEK rotation. Returns a rotation_id for staging and committing.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "Start DEK rotation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rotation parameters",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.StartRotationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.StartRotationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/rotation/{rotationID}": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Deletes staging rows and the rotation record. Only works for rotations in 'staging' or 'failed' state.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "Cancel rotation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rotation UUID",
+                        "name": "rotationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/rotation/{rotationID}/commit": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Atomically applies all staged ciphertexts, updates the wrapped DEK and key grants. All-or-nothing via Postgres transaction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "Commit DEK rotation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rotation UUID",
+                        "name": "rotationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New wrapped DEK, salt, and key grants",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.CommitRotationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/rotation/{rotationID}/stage": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Uploads a batch of re-encrypted ciphertexts to the staging table. Call repeatedly until all items are staged.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "Stage re-encrypted items",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rotation UUID",
+                        "name": "rotationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Batch of re-encrypted items",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.StageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.StageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2575,6 +2893,34 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.CommitRotationRequest": {
+            "type": "object",
+            "properties": {
+                "new_key_grants": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "user_id": {
+                                "type": "string"
+                            },
+                            "wrapped_project_vault_key": {
+                                "description": "base64",
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "new_project_salt": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "new_wrapped_project_dek": {
+                    "description": "base64",
+                    "type": "string"
+                }
+            }
+        },
         "api_internal_handler.CompleteRecoveryRequest": {
             "type": "object",
             "properties": {
@@ -3116,6 +3462,66 @@ const docTemplate = `{
                 },
                 "vault_setup_complete": {
                     "type": "boolean"
+                }
+            }
+        },
+        "api_internal_handler.StageItem": {
+            "type": "object",
+            "properties": {
+                "new_ciphertext": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "new_nonce": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "vault_item_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.StageRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_internal_handler.StageItem"
+                    }
+                }
+            }
+        },
+        "api_internal_handler.StageResponse": {
+            "type": "object",
+            "properties": {
+                "staged": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_staged": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api_internal_handler.StartRotationRequest": {
+            "type": "object",
+            "properties": {
+                "total_items": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api_internal_handler.StartRotationResponse": {
+            "type": "object",
+            "properties": {
+                "rotation_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },

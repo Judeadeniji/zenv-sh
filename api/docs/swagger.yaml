@@ -87,6 +87,25 @@ definitions:
         description: base64
         type: string
     type: object
+  api_internal_handler.CommitRotationRequest:
+    properties:
+      new_key_grants:
+        items:
+          properties:
+            user_id:
+              type: string
+            wrapped_project_vault_key:
+              description: base64
+              type: string
+          type: object
+        type: array
+      new_project_salt:
+        description: base64
+        type: string
+      new_wrapped_project_dek:
+        description: base64
+        type: string
+    type: object
   api_internal_handler.CompleteRecoveryRequest:
     properties:
       new_auth_key_hash:
@@ -447,6 +466,45 @@ definitions:
         type: string
       vault_setup_complete:
         type: boolean
+    type: object
+  api_internal_handler.StageItem:
+    properties:
+      new_ciphertext:
+        description: base64
+        type: string
+      new_nonce:
+        description: base64
+        type: string
+      vault_item_id:
+        type: string
+    type: object
+  api_internal_handler.StageRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/api_internal_handler.StageItem'
+        type: array
+    type: object
+  api_internal_handler.StageResponse:
+    properties:
+      staged:
+        type: integer
+      total:
+        type: integer
+      total_staged:
+        type: integer
+    type: object
+  api_internal_handler.StartRotationRequest:
+    properties:
+      total_items:
+        type: integer
+    type: object
+  api_internal_handler.StartRotationResponse:
+    properties:
+      rotation_id:
+        type: string
+      status:
+        type: string
     type: object
   api_internal_handler.TokenListItem:
     properties:
@@ -1369,6 +1427,37 @@ paths:
       tags:
       - projects
   /projects/{projectID}:
+    delete:
+      description: Delete a project and all associated data (secrets, tokens, key
+        grants).
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Delete project
+      tags:
+      - projects
     get:
       description: Get a single project by ID.
       parameters:
@@ -1418,6 +1507,185 @@ paths:
       summary: Get project key grant
       tags:
       - projects
+  /projects/{projectID}/rotation/{rotationID}:
+    delete:
+      description: Deletes staging rows and the rotation record. Only works for rotations
+        in 'staging' or 'failed' state.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Rotation UUID
+        in: path
+        name: rotationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Cancel rotation
+      tags:
+      - rotation
+  /projects/{projectID}/rotation/{rotationID}/commit:
+    post:
+      consumes:
+      - application/json
+      description: Atomically applies all staged ciphertexts, updates the wrapped
+        DEK and key grants. All-or-nothing via Postgres transaction.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Rotation UUID
+        in: path
+        name: rotationID
+        required: true
+        type: string
+      - description: New wrapped DEK, salt, and key grants
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CommitRotationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Commit DEK rotation
+      tags:
+      - rotation
+  /projects/{projectID}/rotation/{rotationID}/stage:
+    post:
+      consumes:
+      - application/json
+      description: Uploads a batch of re-encrypted ciphertexts to the staging table.
+        Call repeatedly until all items are staged.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Rotation UUID
+        in: path
+        name: rotationID
+        required: true
+        type: string
+      - description: Batch of re-encrypted items
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.StageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.StageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Stage re-encrypted items
+      tags:
+      - rotation
+  /projects/{projectID}/rotation/start:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a two-phase DEK rotation. Returns a rotation_id for staging
+        and committing.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Rotation parameters
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.StartRotationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.StartRotationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Start DEK rotation
+      tags:
+      - rotation
   /sdk/projects/{projectID}/crypto:
     get:
       description: Returns project salt and wrapped Project DEK. SDK uses this to
