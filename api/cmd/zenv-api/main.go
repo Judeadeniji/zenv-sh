@@ -38,7 +38,7 @@ func main() {
 	if cfg.Verbose {
 		logLevel = slog.LevelDebug
 	}
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+	slog.SetDefault(slog.New(server.NewPrettyHandler(os.Stderr, logLevel)))
 
 	ctx := context.Background()
 
