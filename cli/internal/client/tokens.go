@@ -31,7 +31,7 @@ type TokenResponse struct {
 // --- Tokens ---
 
 func (c *Client) CreateToken(req TokenCreateRequest) (*TokenResponse, error) {
-	body, status, err := c.post("/v1/tokens", req)
+	body, status, err := c.post("/v1/sdk/tokens", req)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (c *Client) CreateToken(req TokenCreateRequest) (*TokenResponse, error) {
 
 func (c *Client) ListTokens(projectID string) ([]TokenResponse, error) {
 	q := url.Values{"project_id": {projectID}}
-	body, status, err := c.get("/v1/tokens", q)
+	body, status, err := c.get("/v1/sdk/tokens", q)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (c *Client) ListTokens(projectID string) ([]TokenResponse, error) {
 }
 
 func (c *Client) RevokeToken(tokenID string) error {
-	body, status, err := c.delete("/v1/tokens/"+tokenID, nil)
+	body, status, err := c.delete("/v1/sdk/tokens/"+tokenID, nil)
 	if err != nil {
 		return err
 	}

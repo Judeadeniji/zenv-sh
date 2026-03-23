@@ -9,8 +9,9 @@ import (
 // --- Projects Types ---
 
 type ProjectCrypto struct {
-	ProjectSalt       string `json:"project_salt"`        // base64
-	WrappedProjectDEK string `json:"wrapped_project_dek"` // base64
+	ProjectSalt       string `json:"project_salt"`              // base64
+	WrappedProjectDEK string `json:"wrapped_project_dek"`       // base64
+	VaultKeyType      string `json:"vault_key_type,omitempty"`  // "pin" or "passphrase"
 }
 
 type ProjectResponse struct {
@@ -48,7 +49,7 @@ func (c *Client) GetProjectCrypto(projectID string) (*ProjectCrypto, error) {
 }
 
 func (c *Client) CreateProject(req CreateProjectRequest) (*ProjectResponse, error) {
-	body, status, err := c.post("/v1/projects", req)
+	body, status, err := c.post("/v1/sdk/projects", req)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (c *Client) CreateProject(req CreateProjectRequest) (*ProjectResponse, erro
 
 func (c *Client) ListProjects(orgID string) ([]ProjectResponse, error) {
 	q := url.Values{"organization_id": {orgID}}
-	body, status, err := c.get("/v1/projects", q)
+	body, status, err := c.get("/v1/sdk/projects", q)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (c *Client) ListProjects(orgID string) ([]ProjectResponse, error) {
 }
 
 func (c *Client) GetProject(projectID string) (*ProjectResponse, error) {
-	body, status, err := c.get("/v1/projects/"+projectID, nil)
+	body, status, err := c.get("/v1/sdk/projects/"+projectID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -93,4 +94,50 @@ func (c *Client) GetProject(projectID string) (*ProjectResponse, error) {
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
 	return &p, nil
+}
+
+// --- Vault Material ---
+
+type VaultMaterialResponse struct {
+	Salt              string `json:"salt"`
+	VaultKeyType      string `json:"vault_key_type"`
+	WrappedDEK        string `json:"wrapped_dek"`
+	WrappedPrivateKey string `json:"wrapped_private_key"`
+	PublicKey         string `json:"public_key"`
+}
+
+func (c *Client) GetVaultMaterial() (*VaultMaterialResponse, error) {
+	body, status, err := c.get("/v1/sdk/vault", nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != 200 {
+		return nil, parseError(body, status)
+	}
+	var resp VaultMaterialResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+	return &resp, nil
+}
+
+// --- Key Grant ---
+
+type KeyGrantResponse struct {
+	WrappedProjectVaultKey string `json:"wrapped_project_vault_key"`
+}
+
+func (c *Client) GetKeyGrant(projectID string) (*KeyGrantResponse, error) {
+	body, status, err := c.get("/v1/sdk/projects/"+projectID+"/key-grant", nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != 200 {
+		return nil, parseError(body, status)
+	}
+	var resp KeyGrantResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+	return &resp, nil
 }

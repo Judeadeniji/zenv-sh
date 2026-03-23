@@ -30,7 +30,7 @@ type AddMemberRequest struct {
 // --- Organizations ---
 
 func (c *Client) CreateOrg(name string) (*OrgResponse, error) {
-	body, status, err := c.post("/v1/orgs", map[string]string{"name": name})
+	body, status, err := c.post("/v1/sdk/orgs", map[string]string{"name": name})
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *Client) CreateOrg(name string) (*OrgResponse, error) {
 }
 
 func (c *Client) ListOrgs() ([]OrgResponse, error) {
-	body, status, err := c.get("/v1/orgs", nil)
+	body, status, err := c.get("/v1/sdk/orgs", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (c *Client) ListOrgs() ([]OrgResponse, error) {
 }
 
 func (c *Client) GetOrg(orgID string) (*OrgResponse, error) {
-	body, status, err := c.get("/v1/orgs/"+orgID, nil)
+	body, status, err := c.get("/v1/sdk/orgs/"+orgID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (c *Client) GetOrg(orgID string) (*OrgResponse, error) {
 }
 
 func (c *Client) ListMembers(orgID string) ([]MemberResponse, error) {
-	body, status, err := c.get("/v1/orgs/"+orgID+"/members", nil)
+	body, status, err := c.get("/v1/sdk/orgs/"+orgID+"/members", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (c *Client) ListMembers(orgID string) ([]MemberResponse, error) {
 }
 
 func (c *Client) AddMember(orgID string, req AddMemberRequest) (*MemberResponse, error) {
-	body, status, err := c.post("/v1/orgs/"+orgID+"/members", req)
+	body, status, err := c.post("/v1/sdk/orgs/"+orgID+"/members", req)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (c *Client) AddMember(orgID string, req AddMemberRequest) (*MemberResponse,
 }
 
 func (c *Client) RemoveMember(orgID, memberID string) error {
-	body, status, err := c.delete("/v1/orgs/"+orgID+"/members/"+memberID, nil)
+	body, status, err := c.delete("/v1/sdk/orgs/"+orgID+"/members/"+memberID, nil)
 	if err != nil {
 		return err
 	}
