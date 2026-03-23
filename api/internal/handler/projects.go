@@ -937,6 +937,70 @@ func (h *ProjectsHandler) GetKeyGrant(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// --- List Key Grants (for rotation) ---
+
+type KeyGrantMember struct {
+	UserID    string `json:"user_id"`
+	PublicKey string `json:"public_key"` // base64
+}
+
+type ListKeyGrantsResponse struct {
+	Members []KeyGrantMember `json:"members"`
+}
+
+// ListKeyGrants returns all members with key grants for a project, including public keys.
+//
+//	@Summary		List key grants
+//	@Description	Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.
+//	@Tags			rotation
+//	@Produce		json
+//	@Param			projectID	path		string	true	"Project UUID"
+//	@Success		200			{object}	ListKeyGrantsResponse
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/key-grants [get]
+func (h *ProjectsHandler) ListKeyGrants(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	rows, err := h.db.QueryContext(r.Context(),
+		`SELECT pkg.user_id, u.public_key
+		 FROM project_key_grants pkg
+		 JOIN users u ON u.id = pkg.user_id
+		 WHERE pkg.project_id = $1`,
+		projectID,
+	)
+	if err != nil {
+		slog.Error("list_key_grants: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list key grants"})
+		return
+	}
+	defer rows.Close()
+
+	var members []KeyGrantMember
+	for rows.Next() {
+		var userID uuid.UUID
+		var publicKey []byte
+		if err := rows.Scan(&userID, &publicKey); err != nil {
+			continue
+		}
+		members = append(members, KeyGrantMember{
+			UserID:    userID.String(),
+			PublicKey: base64.StdEncoding.EncodeToString(publicKey),
+		})
+	}
+
+	if members == nil {
+		members = []KeyGrantMember{}
+	}
+
+	writeJSON(w, http.StatusOK, ListKeyGrantsResponse{Members: members})
+}
+
 // GetKeyGrantForToken returns the token creator's key grant for a project.
 func (h *ProjectsHandler) GetKeyGrantForToken(w http.ResponseWriter, r *http.Request) {
 	userID, err := tokenCreatorID(r)
