@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
@@ -49,6 +49,7 @@ import {
 } from "lucide-react"
 
 export function AppSidebar() {
+	const location = useLocation()
 	const navigate = useNavigate()
 	const { state } = useSidebar()
 	const { data: me } = useQuery(meQueryOptions)
@@ -97,7 +98,9 @@ export function AppSidebar() {
 
 	const handleLock = () => {
 		useAuthStore.getState().lock()
-		navigate({ to: "/unlock" })
+		navigate({ to: "/unlock", search: {
+			redirect: location.pathname
+		} })
 	}
 
 	const handleSignOut = () => {

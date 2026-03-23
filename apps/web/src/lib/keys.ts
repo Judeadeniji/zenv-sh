@@ -60,6 +60,12 @@ export const mutationKeys = {
 		create: ["projects", "create"] as const,
 		delete: ["projects", "delete"] as const,
 	},
+	rotation: {
+		start: ["rotation", "start"] as const,
+		stage: ["rotation", "stage"] as const,
+		commit: ["rotation", "commit"] as const,
+		cancel: ["rotation", "cancel"] as const,
+	},
 	secrets: {
 		create: ["secrets", "create"] as const,
 		update: ["secrets", "update"] as const,

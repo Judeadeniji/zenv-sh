@@ -9,7 +9,8 @@ import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
 import { SettingsRow, SettingsDivider } from "#/components/settings/settings-row"
 import { projectQueryOptions, useProjectKey, useDeleteProject } from "#/lib/queries/projects"
-import { AlertCircle, Copy, Check } from "lucide-react"
+import { RotateDEKDialog } from "#/components/rotate-dek-dialog"
+import { AlertCircle, Copy, Check, RefreshCw } from "lucide-react"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings")({
 	component: ProjectSettingsPage,
@@ -33,6 +34,8 @@ function ProjectSettingsPage() {
 			<GeneralSection projectId={projectId} name={name} createdAt={createdAt} />
 			<SettingsDivider />
 			<ProjectKeyRow projectId={projectId} />
+			<SettingsDivider />
+			<KeyRotationRow projectId={projectId} />
 			<SettingsDivider />
 			<DangerZone orgId={orgId} projectId={projectId} name={name} />
 		</div>
@@ -107,6 +110,25 @@ function ProjectKeyRow({ projectId }: { projectId: string }) {
 					</p>
 				</div>
 			)}
+		</SettingsRow>
+	)
+}
+
+function KeyRotationRow({ projectId }: { projectId: string }) {
+	return (
+		<SettingsRow
+			title="Key Rotation"
+			description="Re-encrypt all secrets with a fresh DEK. Use this if you suspect key compromise or as a routine security measure."
+		>
+			<RotateDEKDialog
+				projectId={projectId}
+				trigger={
+					<Button variant="outline" size="sm">
+						<RefreshCw className="size-3.5" />
+						Rotate DEK
+					</Button>
+				}
+			/>
 		</SettingsRow>
 	)
 }
