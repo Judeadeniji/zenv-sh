@@ -26,6 +26,7 @@ type TokenInfo struct {
 	ProjectID   string
 	Environment string
 	Permission  string // "read" or "read_write"
+	CreatedBy   string // zEnv user ID of the token creator
 }
 
 // IsWriteAllowed returns true if this token has write permission.
@@ -74,6 +75,7 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 			table.ServiceTokens.ProjectID,
 			table.ServiceTokens.Environment,
 			table.ServiceTokens.Permission,
+			table.ServiceTokens.CreatedBy,
 			table.ServiceTokens.RevokedAt,
 			table.ServiceTokens.ExpiresAt,
 		).FROM(table.ServiceTokens).WHERE(
@@ -102,6 +104,9 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 			ProjectID:   token.ProjectID.String(),
 			Environment: token.Environment,
 			Permission:  token.Permission,
+		}
+		if token.CreatedBy != nil {
+			info.CreatedBy = token.CreatedBy.String()
 		}
 
 		ctx := context.WithValue(r.Context(), tokenInfoKey, info)

@@ -93,6 +93,51 @@ func (h *RecoveryHandler) Status(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// --- Disable / Enable Recovery ---
+
+type DisableRecoveryRequest struct {
+	Disabled bool `json:"disabled"`
+}
+
+// DisableRecovery toggles the recovery_disabled flag for the authenticated user.
+//
+//	@Summary		Toggle recovery disabled
+//	@Description	Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.
+//	@Tags			recovery
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		DisableRecoveryRequest	true	"Toggle recovery"
+//	@Success		200		{object}	map[string]string
+//	@Security		SessionAuth
+//	@Router			/auth/recovery/disable [put]
+func (h *RecoveryHandler) DisableRecovery(w http.ResponseWriter, r *http.Request) {
+	sess := middleware.GetSession(r.Context())
+	if sess == nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	var req DisableRecoveryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	stmt := table.Users.UPDATE(
+		table.Users.RecoveryDisabled,
+	).SET(
+		req.Disabled,
+	).WHERE(table.Users.IdentityID.EQ(String(sess.IdentityID)))
+
+	if _, err := stmt.Exec(h.db); err != nil {
+		slog.Error("disable recovery: update failed", "err", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update recovery setting"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 // --- Recovery Kit: Fetch ---
 
 type RecoveryKitResponse struct {
@@ -141,6 +186,78 @@ func (h *RecoveryHandler) GetKit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, RecoveryKitResponse{
 		RecoveryWrappedDEK: base64.StdEncoding.EncodeToString(*user.RecoveryWrappedDek),
 	})
+}
+
+// --- Recovery Kit: Regenerate ---
+
+type RegenerateKitRequest struct {
+	RecoveryWrappedDEK string `json:"recovery_wrapped_dek"` // base64
+}
+
+// RegenerateKit replaces the recovery_wrapped_dek for the authenticated user.
+// Requires vault-unlocked session (user proved they know the Vault Key).
+//
+//	@Summary		Regenerate recovery kit
+//	@Description	Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.
+//	@Tags			recovery
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		RegenerateKitRequest	true	"New recovery wrapped DEK"
+//	@Success		200		{object}	map[string]string
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		403		{object}	ErrorResponse	"Recovery disabled"
+//	@Security		SessionAuth
+//	@Router			/auth/recovery/kit [put]
+func (h *RecoveryHandler) RegenerateKit(w http.ResponseWriter, r *http.Request) {
+	sess := middleware.GetSession(r.Context())
+	if sess == nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	var req RegenerateKitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RecoveryWrappedDEK == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "recovery_wrapped_dek is required"})
+		return
+	}
+
+	blob, err := base64.StdEncoding.DecodeString(req.RecoveryWrappedDEK)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64"})
+		return
+	}
+
+	// Check recovery not disabled
+	var user model.Users
+	selectStmt := SELECT(
+		table.Users.ID,
+		table.Users.RecoveryDisabled,
+	).FROM(table.Users).WHERE(table.Users.IdentityID.EQ(String(sess.IdentityID)))
+
+	if err := selectStmt.Query(h.db, &user); err != nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+		return
+	}
+
+	if user.RecoveryDisabled {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "recovery is disabled for this account"})
+		return
+	}
+
+	// Update
+	updateStmt := table.Users.UPDATE(
+		table.Users.RecoveryWrappedDek,
+	).SET(
+		blob,
+	).WHERE(table.Users.ID.EQ(UUID(user.ID)))
+
+	if _, err := updateStmt.Exec(h.db); err != nil {
+		slog.Error("regenerate kit: update failed", "err", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update recovery kit"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // --- Recovery Kit: Recover ---

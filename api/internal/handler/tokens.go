@@ -304,6 +304,212 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ListTokensResponse{Tokens: result})
 }
 
+// --- SDK Token Create ---
+
+// CreateForToken creates a service token on behalf of the authenticated token's creator.
+func (h *TokensHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var req CreateTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if req.ProjectID == "" || req.Name == "" || req.Environment == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "project_id, name, and environment are required"})
+		return
+	}
+	if req.Permission == "" {
+		req.Permission = "read"
+	}
+	if req.Permission != "read" && req.Permission != "read_write" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "permission must be 'read' or 'read_write'"})
+		return
+	}
+
+	projectID, err := uuid.Parse(req.ProjectID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid project_id"})
+		return
+	}
+
+	tokenPlaintext, err := generateServiceToken(req.Environment)
+	if err != nil {
+		slog.Error("tokens.create_for_token: generate", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to generate token"})
+		return
+	}
+
+	tokenHash := hashToken(tokenPlaintext)
+
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil {
+		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid expires_at — must be RFC3339"})
+			return
+		}
+		expiresAt = &t
+	}
+
+	id := uuid.New()
+	now := time.Now().UTC()
+
+	insertStmt := table.ServiceTokens.INSERT(
+		table.ServiceTokens.ID,
+		table.ServiceTokens.ProjectID,
+		table.ServiceTokens.Name,
+		table.ServiceTokens.TokenHash,
+		table.ServiceTokens.Environment,
+		table.ServiceTokens.Permission,
+		table.ServiceTokens.CreatedBy,
+		table.ServiceTokens.CreatedAt,
+	).VALUES(
+		id, projectID, req.Name, tokenHash, req.Environment, req.Permission, userID, now,
+	)
+
+	if expiresAt != nil {
+		insertStmt = table.ServiceTokens.INSERT(
+			table.ServiceTokens.ID,
+			table.ServiceTokens.ProjectID,
+			table.ServiceTokens.Name,
+			table.ServiceTokens.TokenHash,
+			table.ServiceTokens.Environment,
+			table.ServiceTokens.Permission,
+			table.ServiceTokens.CreatedBy,
+			table.ServiceTokens.ExpiresAt,
+			table.ServiceTokens.CreatedAt,
+		).VALUES(
+			id, projectID, req.Name, tokenHash, req.Environment, req.Permission, userID, TimestampzT(*expiresAt), now,
+		)
+	}
+
+	if _, err := insertStmt.Exec(h.db); err != nil {
+		slog.Error("tokens.create_for_token: insert", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create token"})
+		return
+	}
+
+	resp := CreateTokenResponse{
+		ID:          id.String(),
+		Token:       tokenPlaintext,
+		Name:        req.Name,
+		ProjectID:   projectID.String(),
+		Environment: req.Environment,
+		Permission:  req.Permission,
+		CreatedAt:   now.Format(time.RFC3339),
+	}
+	if req.ExpiresAt != nil {
+		resp.ExpiresAt = req.ExpiresAt
+	}
+
+	writeJSON(w, http.StatusCreated, resp)
+}
+
+// --- Whoami ---
+
+type WhoamiResponse struct {
+	UserName         string `json:"user_name,omitempty"`
+	UserEmail        string `json:"user_email,omitempty"`
+	TokenName        string `json:"token_name"`
+	ProjectName      string `json:"project_name"`
+	ProjectID        string `json:"project_id"`
+	OrganizationID   string `json:"organization_id,omitempty"`
+	OrganizationName string `json:"organization_name,omitempty"`
+	Environment      string `json:"environment"`
+	Permission       string `json:"permission"`
+}
+
+// Whoami returns identity and scope information for the authenticated service token.
+//
+//	@Summary		Token identity
+//	@Description	Returns the token name, creator, project, environment, and permission.
+//	@Tags			sdk
+//	@Produce		json
+//	@Success		200	{object}	WhoamiResponse
+//	@Security		BearerAuth
+//	@Router			/sdk/whoami [get]
+func (h *TokensHandler) Whoami(w http.ResponseWriter, r *http.Request) {
+	info := middleware.GetTokenInfo(r.Context())
+	if info == nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	tokenID, err := uuid.Parse(info.TokenID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid token context"})
+		return
+	}
+	projectID, err := uuid.Parse(info.ProjectID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid token context"})
+		return
+	}
+
+	resp := WhoamiResponse{
+		ProjectID:   info.ProjectID,
+		Environment: info.Environment,
+		Permission:  info.Permission,
+	}
+
+	// Token name
+	var token model.ServiceTokens
+	tokenStmt := SELECT(
+		table.ServiceTokens.Name,
+	).FROM(table.ServiceTokens).WHERE(
+		table.ServiceTokens.ID.EQ(UUID(tokenID)),
+	)
+	if err := tokenStmt.Query(h.db, &token); err == nil {
+		resp.TokenName = token.Name
+	}
+
+	// Creator identity
+	if info.CreatedBy != "" {
+		creatorID, _ := uuid.Parse(info.CreatedBy)
+		var identity model.User
+		identityStmt := SELECT(
+			table.User.Name,
+			table.User.Email,
+		).FROM(
+			table.Users.INNER_JOIN(table.User, table.User.ID.EQ(table.Users.IdentityID)),
+		).WHERE(
+			table.Users.ID.EQ(UUID(creatorID)),
+		)
+		if err := identityStmt.Query(h.db, &identity); err == nil {
+			resp.UserName = identity.Name
+			resp.UserEmail = identity.Email
+		}
+	}
+
+	// Project name + org
+	var project struct {
+		model.Projects
+		OrgName string
+	}
+	projectStmt := SELECT(
+		table.Projects.Name,
+		table.Projects.OrganizationID,
+		table.Organizations.Name.AS("org_name"),
+	).FROM(
+		table.Projects.INNER_JOIN(table.Organizations, table.Organizations.ID.EQ(table.Projects.OrganizationID)),
+	).WHERE(
+		table.Projects.ID.EQ(UUID(projectID)),
+	)
+	if err := projectStmt.Query(h.db, &project); err == nil {
+		resp.ProjectName = project.Name
+		resp.OrganizationID = project.OrganizationID.String()
+		resp.OrganizationName = project.OrgName
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 // --- Token generation and hashing ---
 
 // generateServiceToken creates a token like "ze_dev_a3f9b2c8e1d4..."

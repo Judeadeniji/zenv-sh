@@ -275,11 +275,120 @@ func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// --- SDK Project Create ---
+
+// CreateForToken creates a project on behalf of the token's creator.
+func (h *ProjectsHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var req CreateProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.OrganizationID == "" || req.Name == "" || req.ProjectSalt == "" || req.WrappedProjectDEK == "" || req.WrappedProjectVaultKey == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "all fields are required"})
+		return
+	}
+
+	orgID, err := uuid.Parse(req.OrganizationID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid organization_id"})
+		return
+	}
+
+	projectSalt, err := base64.StdEncoding.DecodeString(req.ProjectSalt)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in project_salt"})
+		return
+	}
+	wrappedProjectDEK, err := base64.StdEncoding.DecodeString(req.WrappedProjectDEK)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in wrapped_project_dek"})
+		return
+	}
+	wrappedProjectVaultKey, err := base64.StdEncoding.DecodeString(req.WrappedProjectVaultKey)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in wrapped_project_vault_key"})
+		return
+	}
+
+	tx, err := h.db.Begin()
+	if err != nil {
+		slog.Error("create project for token: begin tx", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
+		return
+	}
+	defer tx.Rollback()
+
+	projectID := uuid.New()
+	now := time.Now().UTC()
+
+	insertProject := table.Projects.INSERT(
+		table.Projects.ID,
+		table.Projects.OrganizationID,
+		table.Projects.Name,
+		table.Projects.CreatedAt,
+	).VALUES(projectID, orgID, req.Name, now)
+
+	if _, err = insertProject.Exec(tx); err != nil {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "project name already exists in this organization"})
+		return
+	}
+
+	insertVaultKey := table.ProjectVaultKeys.INSERT(
+		table.ProjectVaultKeys.ID,
+		table.ProjectVaultKeys.ProjectID,
+		table.ProjectVaultKeys.ProjectSalt,
+		table.ProjectVaultKeys.WrappedProjectDek,
+		table.ProjectVaultKeys.CreatedAt,
+	).VALUES(uuid.New(), projectID, projectSalt, wrappedProjectDEK, now)
+
+	if _, err = insertVaultKey.Exec(tx); err != nil {
+		slog.Error("create project for token: insert vault key", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to create project crypto"})
+		return
+	}
+
+	insertGrant := table.ProjectKeyGrants.INSERT(
+		table.ProjectKeyGrants.ID,
+		table.ProjectKeyGrants.ProjectID,
+		table.ProjectKeyGrants.UserID,
+		table.ProjectKeyGrants.WrappedProjectVaultKey,
+		table.ProjectKeyGrants.GrantedAt,
+	).VALUES(uuid.New(), projectID, userID, wrappedProjectVaultKey, now)
+
+	if _, err = insertGrant.Exec(tx); err != nil {
+		slog.Error("create project for token: insert key grant", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to create key grant"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Error("create project for token: commit", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, ProjectResponse{
+		ID:             projectID.String(),
+		OrganizationID: orgID.String(),
+		Name:           req.Name,
+		CreatedAt:      now.Format(time.RFC3339),
+	})
+}
+
 // --- Project Crypto (SDK machine access) ---
 
 type ProjectCryptoResponse struct {
-	ProjectSalt       string `json:"project_salt"`        // base64
-	WrappedProjectDEK string `json:"wrapped_project_dek"` // base64
+	ProjectSalt       string `json:"project_salt"`                  // base64
+	WrappedProjectDEK string `json:"wrapped_project_dek"`           // base64
+	VaultKeyType      string `json:"vault_key_type,omitempty"`      // "pin" or "passphrase"
 }
 
 // @Summary		Get project crypto
@@ -316,8 +425,170 @@ func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, ProjectCryptoResponse{
+	resp := ProjectCryptoResponse{
 		ProjectSalt:       base64.StdEncoding.EncodeToString(vk.ProjectSalt),
 		WrappedProjectDEK: base64.StdEncoding.EncodeToString(vk.WrappedProjectDek),
+	}
+
+	// Resolve vault key type from token creator
+	info := middleware.GetTokenInfo(r.Context())
+	if info != nil && info.CreatedBy != "" {
+		creatorID, _ := uuid.Parse(info.CreatedBy)
+		var user model.Users
+		userStmt := SELECT(table.Users.VaultKeyType).FROM(table.Users).WHERE(
+			table.Users.ID.EQ(UUID(creatorID)),
+		)
+		if err := userStmt.Query(h.db, &user); err == nil {
+			resp.VaultKeyType = user.VaultKeyType
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// --- Key Grant ---
+
+type KeyGrantResponse struct {
+	WrappedProjectVaultKey string `json:"wrapped_project_vault_key"` // base64
+}
+
+// @Summary		Get project key grant
+// @Description	Returns the current user's wrapped Project Vault Key for a project.
+// @Tags			projects
+// @Produce		json
+// @Param			projectID	path		string	true	"Project UUID"
+// @Success		200			{object}	KeyGrantResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/projects/{projectID}/key-grant [get]
+func (h *ProjectsHandler) GetKeyGrant(w http.ResponseWriter, r *http.Request) {
+	sess := middleware.GetSession(r.Context())
+	if sess == nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	userID, err := uuid.Parse(sess.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid session"})
+		return
+	}
+
+	var grant model.ProjectKeyGrants
+	stmt := SELECT(
+		table.ProjectKeyGrants.WrappedProjectVaultKey,
+	).FROM(table.ProjectKeyGrants).WHERE(
+		table.ProjectKeyGrants.ProjectID.EQ(UUID(projectID)).
+			AND(table.ProjectKeyGrants.UserID.EQ(UUID(userID))),
+	)
+
+	if err := stmt.Query(h.db, &grant); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "no key grant found for this project"})
+			return
+		}
+		slog.Error("projects.key_grant: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch key grant"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, KeyGrantResponse{
+		WrappedProjectVaultKey: base64.StdEncoding.EncodeToString(grant.WrappedProjectVaultKey),
+	})
+}
+
+// GetKeyGrantForToken returns the token creator's key grant for a project.
+func (h *ProjectsHandler) GetKeyGrantForToken(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	var grant model.ProjectKeyGrants
+	stmt := SELECT(
+		table.ProjectKeyGrants.WrappedProjectVaultKey,
+	).FROM(table.ProjectKeyGrants).WHERE(
+		table.ProjectKeyGrants.ProjectID.EQ(UUID(projectID)).
+			AND(table.ProjectKeyGrants.UserID.EQ(UUID(userID))),
+	)
+
+	if err := stmt.Query(h.db, &grant); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "no key grant found for this project"})
+			return
+		}
+		slog.Error("projects.key_grant_for_token: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch key grant"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, KeyGrantResponse{
+		WrappedProjectVaultKey: base64.StdEncoding.EncodeToString(grant.WrappedProjectVaultKey),
+	})
+}
+
+// --- SDK Vault Material ---
+
+type VaultMaterialResponse struct {
+	Salt              string `json:"salt"`                // base64
+	VaultKeyType      string `json:"vault_key_type"`      // "pin" or "passphrase"
+	WrappedDEK        string `json:"wrapped_dek"`         // base64
+	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
+	PublicKey         string `json:"public_key"`          // base64
+}
+
+// @Summary		Get vault material
+// @Description	Returns the token creator's vault crypto material for client-side key derivation.
+// @Tags			sdk
+// @Produce		json
+// @Success		200	{object}	VaultMaterialResponse
+// @Failure		404	{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/vault [get]
+func (h *ProjectsHandler) GetVaultMaterial(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var user model.Users
+	stmt := SELECT(
+		table.Users.Salt,
+		table.Users.VaultKeyType,
+		table.Users.WrappedDek,
+		table.Users.WrappedPrivateKey,
+		table.Users.PublicKey,
+	).FROM(table.Users).WHERE(table.Users.ID.EQ(UUID(userID)))
+
+	if err := stmt.Query(h.db, &user); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+			return
+		}
+		slog.Error("vault_material: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch vault material"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, VaultMaterialResponse{
+		Salt:              base64.StdEncoding.EncodeToString(user.Salt),
+		VaultKeyType:      user.VaultKeyType,
+		WrappedDEK:        base64.StdEncoding.EncodeToString(user.WrappedDek),
+		WrappedPrivateKey: base64.StdEncoding.EncodeToString(user.WrappedPrivateKey),
+		PublicKey:         base64.StdEncoding.EncodeToString(user.PublicKey),
 	})
 }

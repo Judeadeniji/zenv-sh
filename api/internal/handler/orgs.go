@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -457,6 +458,255 @@ func (h *OrgsHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	result, err := deleteStmt.Exec(h.db)
 	if err != nil {
 		slog.Error("orgs.remove_member: delete", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to remove member"})
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "member not found in this organization"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "member removed"})
+}
+
+// tokenCreatorID extracts the token creator's user ID from context.
+func tokenCreatorID(r *http.Request) (uuid.UUID, error) {
+	info := middleware.GetTokenInfo(r.Context())
+	if info == nil || info.CreatedBy == "" {
+		return uuid.Nil, fmt.Errorf("could not resolve token creator")
+	}
+	return uuid.Parse(info.CreatedBy)
+}
+
+// CreateForToken creates an organization on behalf of the token's creator.
+func (h *OrgsHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var req CreateOrgRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if req.Name == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+		return
+	}
+
+	tx, err := h.db.Begin()
+	if err != nil {
+		slog.Error("orgs.create_for_token: begin tx", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
+		return
+	}
+	defer tx.Rollback()
+
+	orgID := uuid.New()
+	now := time.Now().UTC()
+
+	insertOrg := table.Organizations.INSERT(
+		table.Organizations.ID,
+		table.Organizations.Name,
+		table.Organizations.OwnerID,
+		table.Organizations.CreatedAt,
+	).VALUES(orgID, req.Name, userID, now)
+
+	if _, err := insertOrg.Exec(tx); err != nil {
+		slog.Error("orgs.create_for_token: insert org", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to create organization"})
+		return
+	}
+
+	insertMember := table.OrganizationMembers.INSERT(
+		table.OrganizationMembers.ID,
+		table.OrganizationMembers.OrganizationID,
+		table.OrganizationMembers.UserID,
+		table.OrganizationMembers.Role,
+		table.OrganizationMembers.JoinedAt,
+	).VALUES(uuid.New(), orgID, userID, "admin", now)
+
+	if _, err := insertMember.Exec(tx); err != nil {
+		slog.Error("orgs.create_for_token: insert member", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to add owner as member"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Error("orgs.create_for_token: commit", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, OrgResponse{
+		ID:        orgID.String(),
+		Name:      req.Name,
+		OwnerID:   userID.String(),
+		CreatedAt: now.Format(time.RFC3339),
+	})
+}
+
+// ListForToken lists organizations for the token's creator.
+func (h *OrgsHandler) ListForToken(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var orgs []model.Organizations
+	stmt := SELECT(
+		table.Organizations.ID,
+		table.Organizations.Name,
+		table.Organizations.OwnerID,
+		table.Organizations.CreatedAt,
+	).FROM(
+		table.Organizations.INNER_JOIN(
+			table.OrganizationMembers,
+			table.OrganizationMembers.OrganizationID.EQ(table.Organizations.ID),
+		),
+	).WHERE(
+		table.OrganizationMembers.UserID.EQ(UUID(userID)),
+	).ORDER_BY(table.Organizations.Name.ASC())
+
+	if err := stmt.Query(h.db, &orgs); err != nil && !errors.Is(err, qrm.ErrNoRows) {
+		slog.Error("orgs.list_for_token: query", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list organizations"})
+		return
+	}
+
+	resp := ListOrgsResponse{Organizations: make([]OrgResponse, 0, len(orgs))}
+	for _, o := range orgs {
+		resp.Organizations = append(resp.Organizations, OrgResponse{
+			ID:        o.ID.String(),
+			Name:      o.Name,
+			OwnerID:   o.OwnerID.String(),
+			CreatedAt: o.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// AddMemberForToken adds a member to an organization on behalf of the token's creator.
+func (h *OrgsHandler) AddMemberForToken(w http.ResponseWriter, r *http.Request) {
+	callerID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid organization ID"})
+		return
+	}
+
+	var req AddMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if req.UserID == "" || req.Role == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "user_id and role are required"})
+		return
+	}
+
+	validRoles := map[string]bool{"admin": true, "senior_dev": true, "dev": true, "contractor": true, "ci_bot": true}
+	if !validRoles[req.Role] {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "role must be one of: admin, senior_dev, dev, contractor, ci_bot"})
+		return
+	}
+
+	if !h.isOrgAdmin(callerID, orgID) {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "only organization admins can add members"})
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid user_id"})
+		return
+	}
+
+	memberID := uuid.New()
+	now := time.Now().UTC()
+
+	insertStmt := table.OrganizationMembers.INSERT(
+		table.OrganizationMembers.ID,
+		table.OrganizationMembers.OrganizationID,
+		table.OrganizationMembers.UserID,
+		table.OrganizationMembers.Role,
+		table.OrganizationMembers.JoinedAt,
+	).VALUES(memberID, orgID, userID, req.Role, now)
+
+	if _, err := insertStmt.Exec(h.db); err != nil {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "user is already a member of this organization"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, MemberResponse{
+		ID:       memberID.String(),
+		UserID:   userID.String(),
+		Role:     req.Role,
+		JoinedAt: now.Format(time.RFC3339),
+	})
+}
+
+// RemoveMemberForToken removes a member from an organization on behalf of the token's creator.
+func (h *OrgsHandler) RemoveMemberForToken(w http.ResponseWriter, r *http.Request) {
+	callerID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid organization ID"})
+		return
+	}
+
+	memberID, err := uuid.Parse(chi.URLParam(r, "memberID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid member ID"})
+		return
+	}
+
+	if !h.isOrgAdmin(callerID, orgID) {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "only organization admins can remove members"})
+		return
+	}
+
+	var org model.Organizations
+	ownerStmt := SELECT(table.Organizations.OwnerID).FROM(table.Organizations).WHERE(
+		table.Organizations.ID.EQ(UUID(orgID)),
+	)
+	if err := ownerStmt.Query(h.db, &org); err == nil {
+		var member model.OrganizationMembers
+		memberStmt := SELECT(table.OrganizationMembers.UserID).FROM(table.OrganizationMembers).WHERE(
+			table.OrganizationMembers.ID.EQ(UUID(memberID)),
+		)
+		if err := memberStmt.Query(h.db, &member); err == nil {
+			if member.UserID == org.OwnerID {
+				writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "cannot remove the organization owner"})
+				return
+			}
+		}
+	}
+
+	deleteStmt := table.OrganizationMembers.DELETE().WHERE(
+		table.OrganizationMembers.ID.EQ(UUID(memberID)).
+			AND(table.OrganizationMembers.OrganizationID.EQ(UUID(orgID))),
+	)
+
+	result, err := deleteStmt.Exec(h.db)
+	if err != nil {
+		slog.Error("orgs.remove_member_for_token: delete", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to remove member"})
 		return
 	}

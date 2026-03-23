@@ -34,7 +34,9 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		// Recovery — session only (no vault unlock required)
 		r.Get("/auth/recovery/status", recovery.Status)
 		r.Get("/auth/recovery/kit", recovery.GetKit)
+		r.Put("/auth/recovery/kit", recovery.RegenerateKit)
 		r.Post("/auth/recovery/kit/recover", recovery.RecoverWithKit)
+		r.Put("/auth/recovery/disable", recovery.DisableRecovery)
 		r.Get("/auth/recovery/trusted-contact", recovery.Status) // reuses status for now
 		r.Get("/auth/recovery/request", recovery.GetRecoveryRequest)
 		r.Post("/auth/recovery/request", recovery.InitiateRecovery)
@@ -68,6 +70,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 			r.Post("/", projects.Create)
 			r.Get("/", projects.List)
 			r.Get("/{projectID}", projects.Get)
+			r.Get("/{projectID}/key-grant", projects.GetKeyGrant)
 		})
 
 		r.Route("/orgs", func(r chi.Router) {
@@ -94,16 +97,36 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	r.Route("/sdk", func(r chi.Router) {
 		r.Use(ta.Authenticate)
 
-		// Project crypto — SDK needs salt + wrapped DEK to derive keys
-		r.Get("/projects/{projectID}/crypto", projects.GetCrypto)
+		r.Get("/whoami", tokens.Whoami)
+		r.Get("/vault", projects.GetVaultMaterial)
 
-		// Read operations
+		// Organizations
+		r.Get("/orgs", orgs.ListForToken)
+		r.Post("/orgs", orgs.CreateForToken)
+		r.Get("/orgs/{orgID}", orgs.Get)
+		r.Get("/orgs/{orgID}/members", orgs.ListMembers)
+		r.Post("/orgs/{orgID}/members", orgs.AddMemberForToken)
+		r.Delete("/orgs/{orgID}/members/{memberID}", orgs.RemoveMemberForToken)
+
+		// Projects
+		r.Get("/projects", projects.List)
+		r.Post("/projects", projects.CreateForToken)
+		r.Get("/projects/{projectID}", projects.Get)
+		r.Get("/projects/{projectID}/crypto", projects.GetCrypto)
+		r.Get("/projects/{projectID}/key-grant", projects.GetKeyGrantForToken)
+
+		// Tokens
+		r.Get("/tokens", tokens.List)
+		r.Post("/tokens", tokens.CreateForToken)
+		r.Delete("/tokens/{tokenID}", tokens.Revoke)
+
+		// Secrets — read operations
 		r.Post("/secrets/bulk", secrets.BulkFetch)
 		r.Get("/secrets", secrets.List)
 		r.Get("/secrets/{nameHash}", secrets.Get)
 		r.Get("/secrets/{nameHash}/versions", secrets.Versions)
 
-		// Write operations — require read_write permission
+		// Secrets — write operations (require read_write permission)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireWrite)
 
