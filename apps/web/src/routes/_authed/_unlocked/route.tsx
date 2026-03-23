@@ -1,7 +1,6 @@
-import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { useAuthStore } from "#/lib/stores/auth"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
-import { useNavStore } from "#/lib/stores/nav"
 import { SidebarProvider, SidebarInset } from "#/components/ui/sidebar"
 import { AppSidebar } from "#/components/app-sidebar"
 import { AppHeader } from "#/components/app-header"
@@ -13,26 +12,19 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 		if (typeof window !== "undefined") {
 			const { crypto } = useAuthStore.getState()
 			if (!crypto) {
-				throw redirect({ to: "/unlock" })
+				throw redirect({ to: "/unlock", search: { redirect: location.pathname } })
 			}
 		}
 
-		// Org check — redirect to onboarding if user has zero orgs
+		// Onboarding guard — redirect to onboarding if user has zero orgs
+		// (skip if already on onboarding to avoid loop)
 		if (location.pathname !== "/onboarding") {
 			try {
 				const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions)
-				const orgList = (orgs as { organizations?: { id: string; name: string }[] }).organizations ?? []
+				const orgList = (orgs as { organizations?: { id: string }[] }).organizations ?? []
 
 				if (orgList.length === 0) {
 					throw redirect({ to: "/onboarding" })
-				}
-
-				// Set active org if not already set
-				if (typeof window !== "undefined") {
-					const nav = useNavStore.getState()
-					if (!nav.activeOrgId && orgList[0]?.id) {
-						nav.setActiveOrg(orgList[0].id)
-					}
 				}
 			} catch (e) {
 				if (e && typeof e === "object" && "to" in e) throw e
@@ -43,15 +35,11 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 })
 
 function UnlockedLayout() {
-	const navigate = useNavigate()
 	const crypto = useAuthStore((s) => s.crypto)
 
-	// Client-side crypto gate — catches the SSR case where beforeLoad
-	// couldn't check Zustand on the server.
-	if (!crypto) {
-		navigate({ to: "/unlock" })
-		return null
-	}
+	// If crypto is null here, beforeLoad already redirected.
+	// Render nothing while the redirect completes.
+	if (!crypto) return null
 
 	return (
 		<SidebarProvider>

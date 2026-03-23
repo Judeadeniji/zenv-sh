@@ -12,21 +12,26 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComponentsRouteImport } from './routes/components'
-import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthedRouteRouteImport } from './routes/_authed/route'
 import { Route as RecoverIndexRouteImport } from './routes/recover/index'
 import { Route as RecoverTrustedContactRouteImport } from './routes/recover/trusted-contact'
 import { Route as RecoverKitRouteImport } from './routes/recover/kit'
 import { Route as JoinTokenRouteImport } from './routes/join.$token'
 import { Route as AuthedVaultSetupRouteImport } from './routes/_authed/vault-setup'
 import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
-import { Route as AuthedUnlockedRouteImport } from './routes/_authed/_unlocked'
+import { Route as AuthedUnlockedRouteRouteImport } from './routes/_authed/_unlocked/route'
 import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
-import { Route as AuthedUnlockedTokensRouteImport } from './routes/_authed/_unlocked/tokens'
 import { Route as AuthedUnlockedSettingsRouteImport } from './routes/_authed/_unlocked/settings'
-import { Route as AuthedUnlockedSecretsRouteImport } from './routes/_authed/_unlocked/secrets'
 import { Route as AuthedUnlockedOnboardingRouteImport } from './routes/_authed/_unlocked/onboarding'
-import { Route as AuthedUnlockedMembersRouteImport } from './routes/_authed/_unlocked/members'
-import { Route as AuthedUnlockedAuditRouteImport } from './routes/_authed/_unlocked/audit'
+import { Route as AuthedUnlockedOrgsOrgIdRouteRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/route'
+import { Route as AuthedUnlockedOrgsOrgIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/index'
+import { Route as AuthedUnlockedOrgsOrgIdSettingsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/settings'
+import { Route as AuthedUnlockedOrgsOrgIdMembersRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/members'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/route'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/index'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -43,7 +48,7 @@ const ComponentsRoute = ComponentsRouteImport.update({
   path: '/components',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedRoute = AuthedRouteImport.update({
+const AuthedRouteRoute = AuthedRouteRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -70,53 +75,87 @@ const JoinTokenRoute = JoinTokenRouteImport.update({
 const AuthedVaultSetupRoute = AuthedVaultSetupRouteImport.update({
   id: '/vault-setup',
   path: '/vault-setup',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthedRouteRoute,
 } as any)
 const AuthedUnlockRoute = AuthedUnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthedRouteRoute,
 } as any)
-const AuthedUnlockedRoute = AuthedUnlockedRouteImport.update({
+const AuthedUnlockedRouteRoute = AuthedUnlockedRouteRouteImport.update({
   id: '/_unlocked',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthedRouteRoute,
 } as any)
 const AuthedUnlockedIndexRoute = AuthedUnlockedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthedUnlockedRoute,
-} as any)
-const AuthedUnlockedTokensRoute = AuthedUnlockedTokensRouteImport.update({
-  id: '/tokens',
-  path: '/tokens',
-  getParentRoute: () => AuthedUnlockedRoute,
+  getParentRoute: () => AuthedUnlockedRouteRoute,
 } as any)
 const AuthedUnlockedSettingsRoute = AuthedUnlockedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AuthedUnlockedRoute,
-} as any)
-const AuthedUnlockedSecretsRoute = AuthedUnlockedSecretsRouteImport.update({
-  id: '/secrets',
-  path: '/secrets',
-  getParentRoute: () => AuthedUnlockedRoute,
+  getParentRoute: () => AuthedUnlockedRouteRoute,
 } as any)
 const AuthedUnlockedOnboardingRoute =
   AuthedUnlockedOnboardingRouteImport.update({
     id: '/onboarding',
     path: '/onboarding',
-    getParentRoute: () => AuthedUnlockedRoute,
+    getParentRoute: () => AuthedUnlockedRouteRoute,
   } as any)
-const AuthedUnlockedMembersRoute = AuthedUnlockedMembersRouteImport.update({
-  id: '/members',
-  path: '/members',
-  getParentRoute: () => AuthedUnlockedRoute,
-} as any)
-const AuthedUnlockedAuditRoute = AuthedUnlockedAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AuthedUnlockedRoute,
-} as any)
+const AuthedUnlockedOrgsOrgIdRouteRoute =
+  AuthedUnlockedOrgsOrgIdRouteRouteImport.update({
+    id: '/orgs/$orgId',
+    path: '/orgs/$orgId',
+    getParentRoute: () => AuthedUnlockedRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdIndexRoute =
+  AuthedUnlockedOrgsOrgIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdSettingsRoute =
+  AuthedUnlockedOrgsOrgIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdMembersRoute =
+  AuthedUnlockedOrgsOrgIdMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport.update({
+    id: '/projects/$projectId',
+    path: '/projects/$projectId',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRouteImport.update({
+    id: '/tokens',
+    path: '/tokens',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRouteImport.update({
+    id: '/secrets',
+    path: '/secrets',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute,
+  } as any)
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRouteImport.update({
+    id: '/audit',
+    path: '/audit',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedUnlockedIndexRoute
@@ -129,12 +168,17 @@ export interface FileRoutesByFullPath {
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
-  '/audit': typeof AuthedUnlockedAuditRoute
-  '/members': typeof AuthedUnlockedMembersRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
-  '/secrets': typeof AuthedUnlockedSecretsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
-  '/tokens': typeof AuthedUnlockedTokensRoute
+  '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
+  '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
+  '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+  '/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
+  '/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
+  '/orgs/$orgId/projects/$projectId/tokens': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute
+  '/orgs/$orgId/projects/$projectId/': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedUnlockedIndexRoute
@@ -147,33 +191,41 @@ export interface FileRoutesByTo {
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover': typeof RecoverIndexRoute
-  '/audit': typeof AuthedUnlockedAuditRoute
-  '/members': typeof AuthedUnlockedMembersRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
-  '/secrets': typeof AuthedUnlockedSecretsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
-  '/tokens': typeof AuthedUnlockedTokensRoute
+  '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
+  '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
+  '/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
+  '/orgs/$orgId/projects/$projectId/tokens': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute
+  '/orgs/$orgId/projects/$projectId': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_authed': typeof AuthedRouteWithChildren
+  '/_authed': typeof AuthedRouteRouteWithChildren
   '/components': typeof ComponentsRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
-  '/_authed/_unlocked': typeof AuthedUnlockedRouteWithChildren
+  '/_authed/_unlocked': typeof AuthedUnlockedRouteRouteWithChildren
   '/_authed/unlock': typeof AuthedUnlockRoute
   '/_authed/vault-setup': typeof AuthedVaultSetupRoute
   '/join/$token': typeof JoinTokenRoute
   '/recover/kit': typeof RecoverKitRoute
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
-  '/_authed/_unlocked/audit': typeof AuthedUnlockedAuditRoute
-  '/_authed/_unlocked/members': typeof AuthedUnlockedMembersRoute
   '/_authed/_unlocked/onboarding': typeof AuthedUnlockedOnboardingRoute
-  '/_authed/_unlocked/secrets': typeof AuthedUnlockedSecretsRoute
   '/_authed/_unlocked/settings': typeof AuthedUnlockedSettingsRoute
-  '/_authed/_unlocked/tokens': typeof AuthedUnlockedTokensRoute
   '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
+  '/_authed/_unlocked/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
+  '/_authed/_unlocked/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
+  '/_authed/_unlocked/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
+  '/_authed/_unlocked/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
+  '/_authed/_unlocked/orgs/$orgId/projects/$projectId': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+  '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
+  '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
+  '/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute
+  '/_authed/_unlocked/orgs/$orgId/projects/$projectId/': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,12 +240,17 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover/'
-    | '/audit'
-    | '/members'
     | '/onboarding'
-    | '/secrets'
     | '/settings'
-    | '/tokens'
+    | '/orgs/$orgId'
+    | '/orgs/$orgId/members'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/'
+    | '/orgs/$orgId/projects/$projectId'
+    | '/orgs/$orgId/projects/$projectId/audit'
+    | '/orgs/$orgId/projects/$projectId/secrets'
+    | '/orgs/$orgId/projects/$projectId/tokens'
+    | '/orgs/$orgId/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -206,12 +263,15 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover'
-    | '/audit'
-    | '/members'
     | '/onboarding'
-    | '/secrets'
     | '/settings'
-    | '/tokens'
+    | '/orgs/$orgId/members'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId'
+    | '/orgs/$orgId/projects/$projectId/audit'
+    | '/orgs/$orgId/projects/$projectId/secrets'
+    | '/orgs/$orgId/projects/$projectId/tokens'
+    | '/orgs/$orgId/projects/$projectId'
   id:
     | '__root__'
     | '/_authed'
@@ -225,17 +285,22 @@ export interface FileRouteTypes {
     | '/recover/kit'
     | '/recover/trusted-contact'
     | '/recover/'
-    | '/_authed/_unlocked/audit'
-    | '/_authed/_unlocked/members'
     | '/_authed/_unlocked/onboarding'
-    | '/_authed/_unlocked/secrets'
     | '/_authed/_unlocked/settings'
-    | '/_authed/_unlocked/tokens'
     | '/_authed/_unlocked/'
+    | '/_authed/_unlocked/orgs/$orgId'
+    | '/_authed/_unlocked/orgs/$orgId/members'
+    | '/_authed/_unlocked/orgs/$orgId/settings'
+    | '/_authed/_unlocked/orgs/$orgId/'
+    | '/_authed/_unlocked/orgs/$orgId/projects/$projectId'
+    | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit'
+    | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets'
+    | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens'
+    | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AuthedRoute: typeof AuthedRouteWithChildren
+  AuthedRouteRoute: typeof AuthedRouteRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
@@ -272,7 +337,7 @@ declare module '@tanstack/react-router' {
       id: '/_authed'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof AuthedRouteImport
+      preLoaderRoute: typeof AuthedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recover/': {
@@ -308,115 +373,190 @@ declare module '@tanstack/react-router' {
       path: '/vault-setup'
       fullPath: '/vault-setup'
       preLoaderRoute: typeof AuthedVaultSetupRouteImport
-      parentRoute: typeof AuthedRoute
+      parentRoute: typeof AuthedRouteRoute
     }
     '/_authed/unlock': {
       id: '/_authed/unlock'
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof AuthedUnlockRouteImport
-      parentRoute: typeof AuthedRoute
+      parentRoute: typeof AuthedRouteRoute
     }
     '/_authed/_unlocked': {
       id: '/_authed/_unlocked'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof AuthedUnlockedRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthedUnlockedRouteRouteImport
+      parentRoute: typeof AuthedRouteRoute
     }
     '/_authed/_unlocked/': {
       id: '/_authed/_unlocked/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedUnlockedIndexRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
-    }
-    '/_authed/_unlocked/tokens': {
-      id: '/_authed/_unlocked/tokens'
-      path: '/tokens'
-      fullPath: '/tokens'
-      preLoaderRoute: typeof AuthedUnlockedTokensRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
+      parentRoute: typeof AuthedUnlockedRouteRoute
     }
     '/_authed/_unlocked/settings': {
       id: '/_authed/_unlocked/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthedUnlockedSettingsRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
-    }
-    '/_authed/_unlocked/secrets': {
-      id: '/_authed/_unlocked/secrets'
-      path: '/secrets'
-      fullPath: '/secrets'
-      preLoaderRoute: typeof AuthedUnlockedSecretsRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
+      parentRoute: typeof AuthedUnlockedRouteRoute
     }
     '/_authed/_unlocked/onboarding': {
       id: '/_authed/_unlocked/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthedUnlockedOnboardingRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
+      parentRoute: typeof AuthedUnlockedRouteRoute
     }
-    '/_authed/_unlocked/members': {
-      id: '/_authed/_unlocked/members'
+    '/_authed/_unlocked/orgs/$orgId': {
+      id: '/_authed/_unlocked/orgs/$orgId'
+      path: '/orgs/$orgId'
+      fullPath: '/orgs/$orgId'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdRouteRouteImport
+      parentRoute: typeof AuthedUnlockedRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/': {
+      id: '/_authed/_unlocked/orgs/$orgId/'
+      path: '/'
+      fullPath: '/orgs/$orgId/'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdIndexRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/settings': {
+      id: '/_authed/_unlocked/orgs/$orgId/settings'
+      path: '/settings'
+      fullPath: '/orgs/$orgId/settings'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdSettingsRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/members': {
+      id: '/_authed/_unlocked/orgs/$orgId/members'
       path: '/members'
-      fullPath: '/members'
-      preLoaderRoute: typeof AuthedUnlockedMembersRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
+      fullPath: '/orgs/$orgId/members'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdMembersRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
     }
-    '/_authed/_unlocked/audit': {
-      id: '/_authed/_unlocked/audit'
+    '/_authed/_unlocked/orgs/$orgId/projects/$projectId': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/orgs/$orgId/projects/$projectId'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/projects/$projectId/': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId/'
+      path: '/'
+      fullPath: '/orgs/$orgId/projects/$projectId/'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens'
+      path: '/tokens'
+      fullPath: '/orgs/$orgId/projects/$projectId/tokens'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets'
+      path: '/secrets'
+      fullPath: '/orgs/$orgId/projects/$projectId/secrets'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute
+    }
+    '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit'
       path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuthedUnlockedAuditRouteImport
-      parentRoute: typeof AuthedUnlockedRoute
+      fullPath: '/orgs/$orgId/projects/$projectId/audit'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute
     }
   }
 }
 
-interface AuthedUnlockedRouteChildren {
-  AuthedUnlockedAuditRoute: typeof AuthedUnlockedAuditRoute
-  AuthedUnlockedMembersRoute: typeof AuthedUnlockedMembersRoute
+interface AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteChildren {
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute
+}
+
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteChildren: AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteChildren =
+  {
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute:
+      AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute,
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute:
+      AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute,
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute:
+      AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRoute,
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute:
+      AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRoute,
+  }
+
+const AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren =
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute._addFileChildren(
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteChildren,
+  )
+
+interface AuthedUnlockedOrgsOrgIdRouteRouteChildren {
+  AuthedUnlockedOrgsOrgIdMembersRoute: typeof AuthedUnlockedOrgsOrgIdMembersRoute
+  AuthedUnlockedOrgsOrgIdSettingsRoute: typeof AuthedUnlockedOrgsOrgIdSettingsRoute
+  AuthedUnlockedOrgsOrgIdIndexRoute: typeof AuthedUnlockedOrgsOrgIdIndexRoute
+  AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+}
+
+const AuthedUnlockedOrgsOrgIdRouteRouteChildren: AuthedUnlockedOrgsOrgIdRouteRouteChildren =
+  {
+    AuthedUnlockedOrgsOrgIdMembersRoute: AuthedUnlockedOrgsOrgIdMembersRoute,
+    AuthedUnlockedOrgsOrgIdSettingsRoute: AuthedUnlockedOrgsOrgIdSettingsRoute,
+    AuthedUnlockedOrgsOrgIdIndexRoute: AuthedUnlockedOrgsOrgIdIndexRoute,
+    AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute:
+      AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren,
+  }
+
+const AuthedUnlockedOrgsOrgIdRouteRouteWithChildren =
+  AuthedUnlockedOrgsOrgIdRouteRoute._addFileChildren(
+    AuthedUnlockedOrgsOrgIdRouteRouteChildren,
+  )
+
+interface AuthedUnlockedRouteRouteChildren {
   AuthedUnlockedOnboardingRoute: typeof AuthedUnlockedOnboardingRoute
-  AuthedUnlockedSecretsRoute: typeof AuthedUnlockedSecretsRoute
   AuthedUnlockedSettingsRoute: typeof AuthedUnlockedSettingsRoute
-  AuthedUnlockedTokensRoute: typeof AuthedUnlockedTokensRoute
   AuthedUnlockedIndexRoute: typeof AuthedUnlockedIndexRoute
+  AuthedUnlockedOrgsOrgIdRouteRoute: typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
 }
 
-const AuthedUnlockedRouteChildren: AuthedUnlockedRouteChildren = {
-  AuthedUnlockedAuditRoute: AuthedUnlockedAuditRoute,
-  AuthedUnlockedMembersRoute: AuthedUnlockedMembersRoute,
+const AuthedUnlockedRouteRouteChildren: AuthedUnlockedRouteRouteChildren = {
   AuthedUnlockedOnboardingRoute: AuthedUnlockedOnboardingRoute,
-  AuthedUnlockedSecretsRoute: AuthedUnlockedSecretsRoute,
   AuthedUnlockedSettingsRoute: AuthedUnlockedSettingsRoute,
-  AuthedUnlockedTokensRoute: AuthedUnlockedTokensRoute,
   AuthedUnlockedIndexRoute: AuthedUnlockedIndexRoute,
+  AuthedUnlockedOrgsOrgIdRouteRoute:
+    AuthedUnlockedOrgsOrgIdRouteRouteWithChildren,
 }
 
-const AuthedUnlockedRouteWithChildren = AuthedUnlockedRoute._addFileChildren(
-  AuthedUnlockedRouteChildren,
-)
+const AuthedUnlockedRouteRouteWithChildren =
+  AuthedUnlockedRouteRoute._addFileChildren(AuthedUnlockedRouteRouteChildren)
 
-interface AuthedRouteChildren {
-  AuthedUnlockedRoute: typeof AuthedUnlockedRouteWithChildren
+interface AuthedRouteRouteChildren {
+  AuthedUnlockedRouteRoute: typeof AuthedUnlockedRouteRouteWithChildren
   AuthedUnlockRoute: typeof AuthedUnlockRoute
   AuthedVaultSetupRoute: typeof AuthedVaultSetupRoute
 }
 
-const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedUnlockedRoute: AuthedUnlockedRouteWithChildren,
+const AuthedRouteRouteChildren: AuthedRouteRouteChildren = {
+  AuthedUnlockedRouteRoute: AuthedUnlockedRouteRouteWithChildren,
   AuthedUnlockRoute: AuthedUnlockRoute,
   AuthedVaultSetupRoute: AuthedVaultSetupRoute,
 }
 
-const AuthedRouteWithChildren =
-  AuthedRoute._addFileChildren(AuthedRouteChildren)
+const AuthedRouteRouteWithChildren = AuthedRouteRoute._addFileChildren(
+  AuthedRouteRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
-  AuthedRoute: AuthedRouteWithChildren,
+  AuthedRouteRoute: AuthedRouteRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
