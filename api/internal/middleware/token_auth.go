@@ -9,7 +9,9 @@ import (
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
@@ -110,6 +112,14 @@ func (ta *TokenAuth) Authenticate(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), tokenInfoKey, info)
+		if tid, err := uuid.Parse(info.TokenID); err == nil {
+			ctx = audit.SetTokenID(ctx, tid)
+		}
+		if info.CreatedBy != "" {
+			if uid, err := uuid.Parse(info.CreatedBy); err == nil {
+				ctx = audit.SetUserID(ctx, uid)
+			}
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

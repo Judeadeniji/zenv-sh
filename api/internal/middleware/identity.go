@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 )
 
 const (
@@ -109,6 +112,11 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), sessionContextKey, sess)
+		if sess.UserID != "" {
+			if uid, err := uuid.Parse(sess.UserID); err == nil {
+				ctx = audit.SetUserID(ctx, uid)
+			}
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
