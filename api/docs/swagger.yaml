@@ -225,11 +225,26 @@ definitions:
         description: base64
         type: string
     type: object
+  api_internal_handler.KeyGrantMember:
+    properties:
+      public_key:
+        description: base64
+        type: string
+      user_id:
+        type: string
+    type: object
   api_internal_handler.KeyGrantResponse:
     properties:
       wrapped_project_vault_key:
         description: base64
         type: string
+    type: object
+  api_internal_handler.ListKeyGrantsResponse:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/api_internal_handler.KeyGrantMember'
+        type: array
     type: object
   api_internal_handler.ListMembersResponse:
     properties:
@@ -269,6 +284,8 @@ definitions:
   api_internal_handler.MeResponse:
     properties:
       email:
+        type: string
+      name:
         type: string
       salt:
         description: base64
@@ -1507,6 +1524,36 @@ paths:
       summary: Get project key grant
       tags:
       - projects
+  /projects/{projectID}/key-grants:
+    get:
+      description: Returns all project members and their public keys. Used during
+        DEK rotation to re-wrap the Project Vault Key for each member.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ListKeyGrantsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: List key grants
+      tags:
+      - rotation
   /projects/{projectID}/rotation/{rotationID}:
     delete:
       description: Deletes staging rows and the rotation record. Only works for rotations

@@ -1573,6 +1573,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectID}/key-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List key grants
+         * @description Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ListKeyGrantsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectID}/rotation/start": {
         parameters: {
             query?: never;
@@ -3054,9 +3114,17 @@ export interface components {
             /** @description base64 */
             recovery_public_key?: string;
         };
+        "api_internal_handler.KeyGrantMember": {
+            /** @description base64 */
+            public_key?: string;
+            user_id?: string;
+        };
         "api_internal_handler.KeyGrantResponse": {
             /** @description base64 */
             wrapped_project_vault_key?: string;
+        };
+        "api_internal_handler.ListKeyGrantsResponse": {
+            members?: components["schemas"]["api_internal_handler.KeyGrantMember"][];
         };
         "api_internal_handler.ListMembersResponse": {
             members?: components["schemas"]["api_internal_handler.MemberResponse"][];
@@ -3075,6 +3143,7 @@ export interface components {
         };
         "api_internal_handler.MeResponse": {
             email?: string;
+            name?: string;
             /** @description base64 */
             salt?: string;
             vault_key_type?: string;

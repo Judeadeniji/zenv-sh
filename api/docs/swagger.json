@@ -1414,6 +1414,52 @@
                 }
             }
         },
+        "/projects/{projectID}/key-grants": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "List key grants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ListKeyGrantsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/projects/{projectID}/rotation/start": {
             "post": {
                 "security": [
@@ -3093,12 +3139,35 @@
                 }
             }
         },
+        "api_internal_handler.KeyGrantMember": {
+            "type": "object",
+            "properties": {
+                "public_key": {
+                    "description": "base64",
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "api_internal_handler.KeyGrantResponse": {
             "type": "object",
             "properties": {
                 "wrapped_project_vault_key": {
                     "description": "base64",
                     "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.ListKeyGrantsResponse": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_internal_handler.KeyGrantMember"
+                    }
                 }
             }
         },
@@ -3161,6 +3230,9 @@
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "salt": {
