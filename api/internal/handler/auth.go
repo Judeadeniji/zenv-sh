@@ -279,6 +279,7 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 
 type MeResponse struct {
 	Email              string `json:"email"`
+	Name               string `json:"name,omitempty"`
 	VaultSetupComplete bool   `json:"vault_setup_complete"`
 	VaultKeyType       string `json:"vault_key_type,omitempty"`
 	Salt               string `json:"salt,omitempty"` // base64
@@ -305,6 +306,13 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		Email:         sess.Email,
 		VaultUnlocked: sess.IsVaultUnlocked(),
 	}
+
+	// Fetch display name from identity provider's user table.
+	var name string
+	_ = h.db.QueryRowContext(r.Context(),
+		`SELECT name FROM "user" WHERE id = $1`, sess.IdentityID,
+	).Scan(&name)
+	resp.Name = name
 
 	// Check if zEnv user exists (vault set up).
 	var user model.Users

@@ -1,13 +1,12 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { mutationKeys } from "#/lib/keys"
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query"
+import { queryKeys, mutationKeys } from "#/lib/keys"
 import { z } from "zod"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { PasswordInput } from "#/components/ui/password-input"
 import { Label } from "#/components/ui/label"
-import { Switch } from "#/components/ui/switch"
 import { Badge } from "#/components/ui/badge"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { SettingsRow, SettingsDivider } from "./settings-row"
@@ -21,6 +20,8 @@ const profileSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 })
 
+type ProfileInput = z.infer<typeof profileSchema>
+
 const passwordSchema = z
 	.object({
 		currentPassword: z.string().min(1, "Current password is required"),
@@ -32,23 +33,21 @@ const passwordSchema = z
 		path: ["confirmPassword"],
 	})
 
-type ProfileInput = z.infer<typeof profileSchema>
 type PasswordFormInput = z.infer<typeof passwordSchema>
 
 // ── Component ──
 
 export function AccountSection() {
 	const { data: me } = useQuery(meQueryOptions)
+	const meAny = me as { name?: string; email?: string } | undefined
 
 	return (
 		<div>
-			<ProfileRow name={me?.name ?? ""} email={me?.email ?? ""} />
+			<ProfileRow name={meAny?.name ?? ""} email={meAny?.email ?? ""} />
 			<SettingsDivider />
 			<PasswordRow />
 			<SettingsDivider />
 			<LinkedAccountsRow />
-			<SettingsDivider />
-			<TwoFactorRow enabled={me?.two_factor_enabled ?? false} />
 		</div>
 	)
 }
@@ -56,6 +55,7 @@ export function AccountSection() {
 // ── Profile ──
 
 function ProfileRow({ name, email }: { name: string; email: string }) {
+	const qc = useQueryClient()
 	const form = useForm<ProfileInput>({
 		resolver: zodResolver(profileSchema),
 		values: { name },
@@ -66,6 +66,9 @@ function ProfileRow({ name, email }: { name: string; email: string }) {
 		mutationFn: async (data: ProfileInput) => {
 			const result = await authClient.updateUser({ name: data.name })
 			if (result.error) throw new Error(result.error.message ?? "Update failed")
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: queryKeys.auth.me })
 		},
 	})
 
@@ -239,43 +242,3 @@ function LinkedAccountsRow() {
 	)
 }
 
-// ── Two-Factor ──
-
-function TwoFactorRow({ enabled }: { enabled: boolean }) {
-	const toggle = useMutation({
-		mutationKey: mutationKeys.auth.toggleTwoFactor,
-		mutationFn: async () => {
-			if (enabled) {
-				const result = await authClient.twoFactor.disable()
-				if (result.error) throw new Error(result.error.message ?? "Failed to disable 2FA")
-			} else {
-				const result = await authClient.twoFactor.enable({ type: "totp" })
-				if (result.error) throw new Error(result.error.message ?? "Failed to enable 2FA")
-			}
-		},
-	})
-
-	return (
-		<SettingsRow
-			title="Two-factor authentication"
-			description="Add an extra layer of security with a TOTP authenticator app."
-		>
-			{toggle.error && (
-				<Alert variant="danger" className="mb-4">
-					<AlertCircle />
-					<AlertDescription>{toggle.error.message}</AlertDescription>
-				</Alert>
-			)}
-
-			<div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
-				<div>
-					<p className="text-sm font-medium">{enabled ? "Enabled" : "Disabled"}</p>
-					<p className="text-xs text-muted-foreground">
-						{enabled ? "Your account is protected with 2FA." : "Not currently enabled."}
-					</p>
-				</div>
-				<Switch checked={enabled} onCheckedChange={() => toggle.mutate()} disabled={toggle.isPending} />
-			</div>
-		</SettingsRow>
-	)
-}
