@@ -20,10 +20,14 @@ import (
 )
 
 // New creates the chi router with global middleware and versioned route groups.
-func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) *chi.Mux {
+func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) (*chi.Mux, *audit.Writer) {
 	// Audit log writer — LPUSH to Redis, background worker flushes to Postgres.
 	al := audit.New(db, rdb)
 	al.Start(context.Background())
+	al.StartRetention(context.Background(), audit.RetentionPolicy{
+		RetainMonths: 12,
+		CreateAhead:  3,
+	})
 
 	r := chi.NewRouter()
 
@@ -55,10 +59,10 @@ func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) *chi.Mux {
 	// API versions
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(al.Middleware) // Audit every /v1 request
-		v1.Routes(r, db, rdb)
+		v1.Routes(r, db, rdb, al)
 	})
 
-	return r
+	return r, al
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

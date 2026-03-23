@@ -46,13 +46,15 @@ type Event struct {
 // Writer is the audit log writer. Call Emit() to queue events,
 // Start() to begin the background flush worker.
 type Writer struct {
-	rdb *redis.Client
-	db  *sql.DB
+	rdb    *redis.Client
+	db     *sql.DB
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // New creates a new audit log writer.
 func New(db *sql.DB, rdb *redis.Client) *Writer {
-	return &Writer{db: db, rdb: rdb}
+	return &Writer{db: db, rdb: rdb, done: make(chan struct{})}
 }
 
 // Emit queues an audit event. Non-blocking — returns immediately.
@@ -77,10 +79,42 @@ func (w *Writer) EmitFromRequest(r *http.Request, event Event) {
 }
 
 // Start begins the background flush worker. Call this once at startup.
-// Cancel the context to stop the worker gracefully.
 func (w *Writer) Start(ctx context.Context) {
-	go w.worker(ctx)
+	ctx, w.cancel = context.WithCancel(ctx)
+	go func() {
+		w.worker(ctx)
+		close(w.done)
+	}()
 	slog.Debug("audit: worker started")
+}
+
+// Stop signals the worker to stop and waits for it to drain remaining events.
+func (w *Writer) Stop() {
+	if w.cancel != nil {
+		w.cancel()
+	}
+	<-w.done
+	slog.Info("audit: worker stopped, queue drained")
+}
+
+// Drain immediately flushes all events currently in the Redis queue to Postgres.
+// Safe to call concurrently with the background worker.
+func (w *Writer) Drain(ctx context.Context) (int, error) {
+	total := 0
+	for {
+		result, err := w.rdb.RPop(ctx, queueKey).Result()
+		if err != nil {
+			break // queue empty or error
+		}
+		var event Event
+		if err := json.Unmarshal([]byte(result), &event); err != nil {
+			slog.Debug("audit: drain unmarshal", "error", err)
+			continue
+		}
+		w.flush([]Event{event})
+		total++
+	}
+	return total, nil
 }
 
 func (w *Writer) worker(ctx context.Context) {

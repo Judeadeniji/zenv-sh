@@ -6,12 +6,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 	"github.com/Judeadeniji/zenv-sh/api/internal/handler"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 )
 
 // Routes mounts all /v1 endpoints onto the given router.
-func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
+func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 	identity := middleware.NewIdentitySession(db, rdb)
 	ta := middleware.NewTokenAuth(db)
 	auth := handler.NewAuthHandler(db, identity)
@@ -20,7 +21,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
 	orgs := handler.NewOrgsHandler(db)
-	audit := handler.NewAuditHandler(db)
+	auditH := handler.NewAuditHandler(db, al)
 
 	// Identity session routes — verified via session cookie or Bearer token
 	r.Group(func(r chi.Router) {
@@ -89,8 +90,9 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client) {
 		r.Post("/auth/recovery/request/{id}/approve", recovery.ApproveRecovery)
 		r.Post("/auth/recovery/request/{id}/complete", recovery.CompleteRecovery)
 
-		r.Get("/audit-logs", audit.List)
-		r.Get("/audit-logs/export", audit.Export)
+		r.Get("/audit-logs", auditH.List)
+		r.Get("/audit-logs/export", auditH.Export)
+		r.Post("/audit-logs/drain", auditH.Drain)
 	})
 
 	// SDK/CLI routes — authenticate via service token (machine access)

@@ -34,7 +34,7 @@ func SetupServer(t *testing.T) *TestServer {
 	cfg := &config.Config{
 		CORSOrigins: "*",
 	}
-	router := server.New(db, rdb, cfg)
+	router, _ := server.New(db, rdb, cfg)
 	srv := httptest.NewServer(router)
 	t.Cleanup(func() { srv.Close() })
 
@@ -55,7 +55,7 @@ func SetupServerForMain() (*TestServer, func()) {
 	cfg := &config.Config{
 		CORSOrigins: "*",
 	}
-	router := server.New(db, rdb, cfg)
+	router, _ := server.New(db, rdb, cfg)
 	srv := httptest.NewServer(router)
 
 	ts := &TestServer{

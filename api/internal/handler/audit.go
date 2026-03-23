@@ -6,13 +6,16 @@ import (
 	"encoding/csv"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	. "github.com/go-jet/jet/v2/postgres"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
@@ -20,11 +23,12 @@ import (
 
 // AuditHandler handles audit log query endpoints.
 type AuditHandler struct {
-	db *sql.DB
+	db     *sql.DB
+	writer *audit.Writer
 }
 
-func NewAuditHandler(db *sql.DB) *AuditHandler {
-	return &AuditHandler{db: db}
+func NewAuditHandler(db *sql.DB, writer *audit.Writer) *AuditHandler {
+	return &AuditHandler{db: db, writer: writer}
 }
 
 type AuditLogEntry struct {
@@ -32,6 +36,7 @@ type AuditLogEntry struct {
 	ProjectID  *string `json:"project_id,omitempty"`
 	UserID     *string `json:"user_id,omitempty"`
 	TokenID    *string `json:"token_id,omitempty"`
+	ActorEmail *string `json:"actor_email,omitempty"`
 	Action     string  `json:"action"`
 	SecretHash *string `json:"secret_hash,omitempty"` // base64
 	IP         *string `json:"ip,omitempty"`
@@ -136,26 +141,36 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch page.
+	// Fetch page with actor email via LEFT JOIN.
 	offset := (page - 1) * perPage
-	var logs []model.AuditLogs
+
+	type auditRow struct {
+		model.AuditLogs
+		ActorEmail *string `alias:"users.email"`
+	}
+	var rows []auditRow
 
 	stmt := SELECT(
 		table.AuditLogs.AllColumns,
-	).FROM(table.AuditLogs).WHERE(where).
+		table.Users.Email,
+	).FROM(
+		table.AuditLogs.LEFT_JOIN(table.Users, CAST(table.AuditLogs.UserID).AS_TEXT().EQ(table.Users.ID)),
+	).WHERE(where).
 		ORDER_BY(table.AuditLogs.CreatedAt.DESC()).
 		LIMIT(int64(perPage)).
 		OFFSET(int64(offset))
 
-	if err := stmt.Query(h.db, &logs); err != nil {
+	if err := stmt.Query(h.db, &rows); err != nil {
 		slog.Error("audit-list: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to query audit logs"})
 		return
 	}
 
-	entries := make([]AuditLogEntry, 0, len(logs))
-	for _, l := range logs {
-		entries = append(entries, auditModelToEntry(l))
+	entries := make([]AuditLogEntry, 0, len(rows))
+	for _, r := range rows {
+		e := auditModelToEntry(r.AuditLogs)
+		e.ActorEmail = r.ActorEmail
+		entries = append(entries, e)
 	}
 
 	writeJSON(w, http.StatusOK, AuditLogListResponse{
@@ -316,4 +331,50 @@ func ptrStr(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// Drain flushes all queued audit events to Postgres immediately.
+// Admin-only — gated by ADMIN_EMAILS env var.
+//
+//	@Summary		Drain audit queue
+//	@Description	Force-flush all queued audit events from Redis to Postgres.
+//	@Tags			audit
+//	@Produce		json
+//	@Success		200	{object}	map[string]int
+//	@Failure		403	{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/audit-logs/drain [post]
+func (h *AuditHandler) Drain(w http.ResponseWriter, r *http.Request) {
+	sess := middleware.GetSession(r.Context())
+	if sess == nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	if !isAdmin(sess.Email) {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "admin access required"})
+		return
+	}
+
+	count, err := h.writer.Drain(r.Context())
+	if err != nil {
+		slog.Error("audit-drain: error", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "drain failed"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int{"flushed": count})
+}
+
+func isAdmin(email string) bool {
+	admins := os.Getenv("ADMIN_EMAILS")
+	if admins == "" {
+		return false
+	}
+	for _, e := range strings.Split(admins, ",") {
+		if strings.TrimSpace(e) == email {
+			return true
+		}
+	}
+	return false
 }

@@ -60,7 +60,7 @@ func main() {
 	defer rdb.Close()
 	slog.Debug("redis connected")
 
-	router := server.New(db, rdb, cfg)
+	router, auditWriter := server.New(db, rdb, cfg)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -91,5 +91,6 @@ func main() {
 		slog.Error("shutdown error", "error", err)
 	}
 
+	auditWriter.Stop()
 	slog.Info("stopped")
 }
