@@ -4,7 +4,7 @@ export const createSecretSchema = z.object({
 	name: z
 		.string()
 		.min(1, "Name is required")
-		.regex(/^[A-Z_][A-Z0-9_]*$/, "Use UPPER_SNAKE_CASE (e.g. DATABASE_URL)"),
+		.max(256, "Name too long"),
 	value: z.string().min(1, "Value is required"),
 })
 

@@ -65,7 +65,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 						<Label htmlFor="secret-name" className="text-xs">Name</Label>
 						<Input
 							id="secret-name"
-							placeholder="DATABASE_URL"
+							placeholder="e.g. api-key, db/password, MY_SECRET"
 							{...form.register("name")}
 							feedback={form.formState.errors.name ? "error" : undefined}
 							autoFocus
@@ -79,7 +79,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 						<Label htmlFor="secret-value" className="text-xs">Value</Label>
 						<Textarea
 							id="secret-value"
-							placeholder="postgres://user:pass@host/db"
+							placeholder="The value to encrypt"
 							className="font-mono text-xs"
 							rows={3}
 							{...form.register("value")}

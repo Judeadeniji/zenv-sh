@@ -105,7 +105,7 @@ function OnboardingWizard() {
 	const stepDescriptions = {
 		org: "Organizations group your team and projects together.",
 		project: "Projects contain your secrets, organized by environment.",
-		import: "Paste key-value pairs or a .env file to import secrets. You can always do this later.",
+		import: "Paste secrets to import. Supports KEY=VALUE format. You can always do this later.",
 	}
 
 	return (
@@ -208,16 +208,16 @@ function OnboardingWizard() {
 								</form>
 							)}
 
-							{/* Step 3: Import .env (optional) */}
+							{/* Step 3: Import secrets (optional) */}
 							{step === "import" && (
 								<div className="grid gap-3">
 									<Textarea
-										placeholder={"DATABASE_URL=postgres://...\nAPI_KEY=sk_live_...\nSECRET_TOKEN=abc123"}
+										placeholder={"api-key=sk_live_...\ndb-password=s3cret\n# Comments are ignored"}
 										className="min-h-30 font-mono text-xs"
 										id="env-import"
 									/>
 									<p className="text-xs text-muted-foreground">
-										Each line should be in KEY=VALUE format. Comments (#) and empty lines are ignored.
+										Each line should be in key=value format. Comments (#) and empty lines are ignored.
 									</p>
 
 									{/* TODO: Wire up .env parsing + encryption + bulk create */}

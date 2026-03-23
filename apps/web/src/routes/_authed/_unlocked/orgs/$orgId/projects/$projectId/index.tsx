@@ -251,7 +251,7 @@ function ProjectKeySection({ projectId }: { projectId: string }) {
 				{projectKey && (
 					<Button variant="ghost" size="sm" className="text-xs" onClick={handleCopyEnvLine}>
 						{envCopied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-						Copy as .env
+						Copy
 					</Button>
 				)}
 			</div>

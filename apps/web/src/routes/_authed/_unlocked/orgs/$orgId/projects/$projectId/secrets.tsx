@@ -194,7 +194,7 @@ function SecretDetailSheet({ secret }: { secret: DecryptedSecret }) {
 			</div>
 
 			<div>
-				<label className="text-xs font-medium text-muted-foreground">.env format</label>
+				<label className="text-xs font-medium text-muted-foreground">Copyable</label>
 				<div className="mt-1 flex items-center gap-2">
 					<code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
 						{secret.name}={secret.value}

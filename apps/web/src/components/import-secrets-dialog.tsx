@@ -17,7 +17,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { AlertCircle, Check } from "lucide-react"
 
 const importSchema = z.object({
-	content: z.string().min(1, "Paste your .env content"),
+	content: z.string().min(1, "Paste content to import"),
 })
 
 interface ImportSecretsDialogProps {
@@ -65,7 +65,7 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 
 		const entries = parseEnv(data.content)
 		if (entries.length === 0) {
-			setError("No valid KEY=VALUE pairs found")
+			setError("No valid key=value pairs found")
 			setImporting(false)
 			return
 		}
@@ -115,9 +115,9 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 			<DialogTrigger render={trigger} />
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Import .env</DialogTitle>
+					<DialogTitle>Bulk Import</DialogTitle>
 					<DialogDescription>
-						Paste your .env file content. Each KEY=VALUE pair will be encrypted and stored.
+						Paste key-value pairs to bulk-import secrets. Supports .env format.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -144,10 +144,10 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 						)}
 
 						<div className="space-y-1.5">
-							<Label htmlFor="env-content" className="text-xs">.env content</Label>
+							<Label htmlFor="env-content" className="text-xs">Content</Label>
 							<Textarea
 								id="env-content"
-								placeholder={"DATABASE_URL=postgres://...\nAPI_KEY=sk-...\n# Comments are ignored"}
+								placeholder={"api-key=sk_live_...\ndb-password=s3cret\n# Comments are ignored"}
 								className="font-mono text-xs"
 								rows={8}
 								{...form.register("content")}
