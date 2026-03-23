@@ -8,7 +8,7 @@ import { meQueryOptions } from "#/lib/queries/auth"
 import { useAuthStore } from "#/lib/stores/auth"
 import { useNavStore } from "#/lib/stores/nav"
 import { authClient } from "#/lib/auth-client"
-import { getProjectItems, getOrgItems } from "#/lib/nav-items"
+import { getProjectItems, getOrgItems, getSettingsItems } from "#/lib/nav-items"
 import { CreateProjectDialog } from "#/components/create-project-dialog"
 import {
 	Sidebar,
@@ -91,10 +91,9 @@ export function AppSidebar() {
 
 	const initials = me?.email?.slice(0, 2).toUpperCase() ?? "?"
 
-	const manageItems = [
-		...(activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []),
-		...(activeOrg ? getOrgItems(activeOrg.id) : []),
-	]
+	const projectItems = activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []
+	const orgItems = activeOrg ? getOrgItems(activeOrg.id, projectId) : []
+	const settingsItems = activeOrg ? getSettingsItems(activeOrg.id, projectId) : []
 
 	const handleLock = () => {
 		useAuthStore.getState().lock()
@@ -220,13 +219,46 @@ export function AppSidebar() {
 					</SidebarGroupContent>
 				</SidebarGroup>
 
-				{/* ── Manage ── */}
-				{manageItems.length > 0 && (
+				{/* ── Project nav ── */}
+				{projectItems.length > 0 && (
 					<SidebarGroup>
-						<SidebarGroupLabel>Manage</SidebarGroupLabel>
+						<SidebarGroupLabel>Project</SidebarGroupLabel>
 						<SidebarGroupContent>
 							<SidebarMenu>
-								{manageItems.map((item) => (
+								{projectItems.map((item) => (
+									<SidebarMenuItem key={item.href}>
+										<SidebarMenuButton
+											tooltip={item.label}
+											render={(props) => <Link {...props} to={item.href} />}
+										>
+											<item.icon />
+											<span>{item.label}</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								))}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
+
+				{/* ── Organization nav ── */}
+				{orgItems.length > 0 && (
+					<SidebarGroup>
+						<SidebarGroupLabel>Organization</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{orgItems.map((item) => (
+									<SidebarMenuItem key={item.href}>
+										<SidebarMenuButton
+											tooltip={item.label}
+											render={(props) => <Link {...props} to={item.href} />}
+										>
+											<item.icon />
+											<span>{item.label}</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								))}
+								{settingsItems.map((item) => (
 									<SidebarMenuItem key={item.href}>
 										<SidebarMenuButton
 											tooltip={item.label}

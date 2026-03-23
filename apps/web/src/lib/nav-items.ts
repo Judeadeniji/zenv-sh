@@ -1,4 +1,4 @@
-import { KeyRound, FileKey, Users, Shield, LayoutDashboard, type LucideIcon } from "lucide-react"
+import { KeyRound, FileKey, Users, Shield, Settings, LayoutDashboard, type LucideIcon } from "lucide-react"
 
 export interface NavItem {
 	label: string
@@ -7,7 +7,7 @@ export interface NavItem {
 	href: string
 }
 
-/** Project-scoped nav items — require both orgId and projectId */
+/** Primary project actions — the daily workflow */
 export function getProjectItems(orgId: string, projectId: string): NavItem[] {
 	return [
 		{
@@ -28,18 +28,12 @@ export function getProjectItems(orgId: string, projectId: string): NavItem[] {
 			icon: FileKey,
 			href: `/orgs/${orgId}/projects/${projectId}/tokens`,
 		},
-		{
-			label: "Audit Log",
-			description: "A record of every action in your project.",
-			icon: Shield,
-			href: `/orgs/${orgId}/projects/${projectId}/audit`,
-		},
 	]
 }
 
-/** Org-scoped nav items — require orgId only */
-export function getOrgItems(orgId: string): NavItem[] {
-	return [
+/** Org-wide items — team and monitoring */
+export function getOrgItems(orgId: string, projectId?: string): NavItem[] {
+	const items: NavItem[] = [
 		{
 			label: "Members",
 			description: "Invite your team to collaborate. Everyone gets their own vault.",
@@ -47,4 +41,31 @@ export function getOrgItems(orgId: string): NavItem[] {
 			href: `/orgs/${orgId}/members`,
 		},
 	]
+
+	if (projectId) {
+		items.push({
+			label: "Audit Log",
+			description: "A record of every action in your project.",
+			icon: Shield,
+			href: `/orgs/${orgId}/projects/${projectId}/audit`,
+		})
+	}
+
+	return items
+}
+
+/** Settings — always last, lowest frequency */
+export function getSettingsItems(orgId: string, projectId?: string): NavItem[] {
+	const items: NavItem[] = []
+
+	if (projectId) {
+		items.push({
+			label: "Project Settings",
+			description: "Project key, configuration, and danger zone.",
+			icon: Settings,
+			href: `/orgs/${orgId}/projects/${projectId}/settings`,
+		})
+	}
+
+	return items
 }

@@ -58,6 +58,7 @@ export const mutationKeys = {
 	},
 	projects: {
 		create: ["projects", "create"] as const,
+		delete: ["projects", "delete"] as const,
 	},
 	secrets: {
 		create: ["secrets", "create"] as const,
