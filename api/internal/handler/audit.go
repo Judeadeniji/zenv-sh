@@ -154,7 +154,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.AuditLogs.AllColumns,
 		table.Users.Email,
 	).FROM(
-		table.AuditLogs.LEFT_JOIN(table.Users, CAST(table.AuditLogs.UserID).AS_TEXT().EQ(table.Users.ID)),
+		table.AuditLogs.LEFT_JOIN(table.Users, RawBool("audit_logs.user_id::text = users.id::text")),
 	).WHERE(where).
 		ORDER_BY(table.AuditLogs.CreatedAt.DESC()).
 		LIMIT(int64(perPage)).
