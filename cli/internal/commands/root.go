@@ -69,8 +69,8 @@ func requireConfig() error {
 	if cfg.Token == "" {
 		return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 	}
-	if cfg.VaultKey == "" {
-		return fmt.Errorf("vault key not set.\nRun: zenv config set --global vault_key <your-vault-key>")
+	if cfg.ProjectKey == "" {
+		return fmt.Errorf("project key not set.\nRun: zenv config set --global project_key <your-project-key>")
 	}
 	if cfg.Project == "" {
 		return fmt.Errorf("no project specified.\nRun: zenv config set project <project-id>\n  or: zenv projects init")
@@ -81,11 +81,11 @@ func requireConfig() error {
 	return nil
 }
 
-// getDEKAndHMACKey derives encryption keys from ZENV_VAULT_KEY.
+// getDEKAndHMACKey derives encryption keys from ZENV_PROJECT_KEY.
 //
 // Flow (matches master plan Section 2.4.3):
 // 1. GET /sdk/projects/{id}/crypto → project_salt + wrapped_project_dek
-// 2. Argon2id(ZENV_VAULT_KEY + project_salt) → Project KEK
+// 2. Argon2id(ZENV_PROJECT_KEY + project_salt) → Project KEK
 // 3. AES-256-GCM unwrap(wrapped_dek, Project KEK) → Project DEK
 // 4. Project DEK used for encrypt/decrypt + as HMAC key for name hashing
 func getDEKAndHMACKey() (dek, hmacKey []byte, err error) {
@@ -105,8 +105,9 @@ func getDEKAndHMACKey() (dek, hmacKey []byte, err error) {
 		return nil, nil, fmt.Errorf("decode wrapped_project_dek: %w", err)
 	}
 
-	// Derive Project KEK from ZENV_VAULT_KEY + project salt
-	projectKEK, _ := amnesia.DeriveKeys(cfg.VaultKey, projectSalt, amnesia.KeyTypePassphrase)
+	// Derive Project KEK from ZENV_PROJECT_KEY + project salt
+	// Project Vault Key always uses passphrase params (it's a random key, not a PIN).
+	projectKEK, _ := amnesia.DeriveKeys(cfg.ProjectKey, projectSalt, amnesia.KeyTypePassphrase)
 
 	// Unwrap Project DEK: first 12 bytes = nonce, rest = ciphertext
 	if len(wrappedProjectDEK) < 13 {
@@ -117,7 +118,7 @@ func getDEKAndHMACKey() (dek, hmacKey []byte, err error) {
 
 	projectDEK, err := amnesia.UnwrapKey(ciphertext, nonce, projectKEK)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unwrap project DEK (wrong ZENV_VAULT_KEY?): %w", err)
+		return nil, nil, fmt.Errorf("unwrap project DEK (wrong ZENV_PROJECT_KEY?): %w", err)
 	}
 
 	// DEK used for encrypt/decrypt, also as HMAC key for name hashing

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
 	"github.com/Judeadeniji/zenv-sh/cli/internal/client"
+	"github.com/Judeadeniji/zenv-sh/cli/internal/config"
 )
 
 var (
@@ -39,19 +40,28 @@ func newProjectsInitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init PROJECT_ID",
 		Short: "Write a .zenv file to pin this directory to a project",
-		Args:  cobra.ExactArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("missing PROJECT_ID.\n\nUsage: zenv projects init <project-id>\n\nFind your project ID with: zenv projects list")
+			}
+			if len(args) > 1 {
+				return fmt.Errorf("expected 1 argument, got %d", len(args))
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
-			content := fmt.Sprintf("project=%s\n", projectID)
-			if flagEnv != "" {
-				content += fmt.Sprintf("env=%s\n", flagEnv)
-			}
 
-			if err := os.WriteFile(".zenv", []byte(content), 0644); err != nil {
+			if err := config.SetLocal("project", projectID); err != nil {
 				return fmt.Errorf("write .zenv: %w", err)
 			}
+			if flagEnv != "" {
+				if err := config.SetLocal("env", flagEnv); err != nil {
+					return fmt.Errorf("write .zenv: %w", err)
+				}
+			}
 
-			fmt.Fprintf(os.Stderr, "created .zenv (project=%s", projectID)
+			fmt.Fprintf(os.Stderr, "updated .zenv (project=%s", projectID)
 			if flagEnv != "" {
 				fmt.Fprintf(os.Stderr, ", env=%s", flagEnv)
 			}
@@ -67,12 +77,19 @@ func newProjectsListCmd() *cobra.Command {
 		Short:   "List projects in an organization",
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			orgID := resolveOrgID()
-			if orgID == "" {
-				return fmt.Errorf("--org is required (or set ZENV_ORGANIZATION)")
-			}
 			if api == nil {
 				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
+			}
+
+			orgID := resolveOrgID()
+			if orgID == "" {
+				info, err := api.Whoami()
+				if err == nil && info.OrganizationID != "" {
+					orgID = info.OrganizationID
+				}
+			}
+			if orgID == "" {
+				return fmt.Errorf("--org is required (or set ZENV_ORGANIZATION)")
 			}
 
 			projects, err := api.ListProjects(orgID)
@@ -127,21 +144,28 @@ func newProjectsCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a project with client-side crypto",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if api == nil {
+				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
+			}
+
 			orgID := resolveOrgID()
+			if orgID == "" {
+				info, err := api.Whoami()
+				if err == nil && info.OrganizationID != "" {
+					orgID = info.OrganizationID
+				}
+			}
 			if orgID == "" {
 				return fmt.Errorf("--org is required (or set ZENV_ORGANIZATION)")
 			}
 			if projectName == "" {
 				return fmt.Errorf("--name is required")
 			}
-			if cfg.VaultKey == "" {
-				return fmt.Errorf("ZENV_VAULT_KEY is not set.\nSet it: export ZENV_VAULT_KEY=...")
+			if cfg.ProjectKey == "" {
+				return fmt.Errorf("ZENV_PROJECT_KEY is not set.\nSet it: export ZENV_PROJECT_KEY=...")
 			}
 			if projectPubKey == "" {
 				return fmt.Errorf("--public-key is required (base64 X25519 public key from vault unlock)")
-			}
-			if api == nil {
-				return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 			}
 
 			pubKeyBytes, err := base64.StdEncoding.DecodeString(projectPubKey)
@@ -153,8 +177,8 @@ func newProjectsCreateCmd() *cobra.Command {
 			projectSalt := amnesia.GenerateSalt()
 			projectDEK := amnesia.GenerateKey()
 
-			// Derive Project KEK from ZENV_VAULT_KEY + project salt.
-			projectKEK, _ := amnesia.DeriveKeys(cfg.VaultKey, projectSalt, amnesia.KeyTypePassphrase)
+			// Derive Project KEK from ZENV_PROJECT_KEY + project salt.
+			projectKEK, _ := amnesia.DeriveKeys(cfg.ProjectKey, projectSalt, amnesia.KeyTypePassphrase)
 
 			// Wrap Project DEK with Project KEK (nonce || ciphertext).
 			wrappedCT, wrappedNonce, err := amnesia.WrapKey(projectDEK, projectKEK)

@@ -11,7 +11,7 @@ import (
 // Known config keys and where they live.
 //
 //	~/.config/zenv/config       → api_url, auth_url
-//	~/.config/zenv/credentials  → token, vault_key
+//	~/.config/zenv/credentials  → token, project_key
 //	.zenv (local, per-project)  → project, env
 //
 // Resolution order (highest wins):
@@ -21,7 +21,7 @@ const (
 	KeyAPIURL   = "api_url"
 	KeyAuthURL  = "auth_url"
 	KeyToken    = "token"
-	KeyVaultKey = "vault_key"
+	KeyProjectKey = "project_key"
 	KeyProject  = "project"
 	KeyEnv      = "env"
 )
@@ -31,7 +31,7 @@ type Config struct {
 	APIURL   string
 	AuthURL  string
 	Token    string
-	VaultKey string
+	ProjectKey string
 	Project  string
 	Env      string
 }
@@ -45,8 +45,8 @@ func Load(flagProject, flagEnv string) *Config {
 	c := &Config{
 		APIURL:   first(local[KeyAPIURL], global[KeyAPIURL], os.Getenv("ZENV_API_URL"), "http://localhost:8080"),
 		AuthURL:  first(local[KeyAuthURL], global[KeyAuthURL], os.Getenv("ZENV_AUTH_URL"), "http://localhost:3000"),
-		Token:    first(creds[KeyToken], os.Getenv("ZENV_TOKEN")),
-		VaultKey: first(creds[KeyVaultKey], os.Getenv("ZENV_VAULT_KEY")),
+		Token:      first(local[KeyToken], creds[KeyToken], os.Getenv("ZENV_TOKEN")),
+		ProjectKey: first(local[KeyProjectKey], creds[KeyProjectKey], os.Getenv("ZENV_PROJECT_KEY")),
 		Project:  first(local[KeyProject], global[KeyProject], os.Getenv("ZENV_PROJECT")),
 		Env:      first(local[KeyEnv], global[KeyEnv], os.Getenv("ZENV_ENV")),
 	}
@@ -151,7 +151,7 @@ func ListLocal() map[string]string {
 
 // isCredential returns true if the key holds a secret.
 func isCredential(key string) bool {
-	return key == KeyToken || key == KeyVaultKey
+	return key == KeyToken || key == KeyProjectKey
 }
 
 // IsSecret is the exported version of isCredential.

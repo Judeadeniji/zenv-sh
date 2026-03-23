@@ -8,7 +8,7 @@ import (
 
 func TestLoad_Defaults(t *testing.T) {
 	// Clear all env vars that could affect config.
-	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_VAULT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
+	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_PROJECT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
 		t.Setenv(k, "")
 	}
 
@@ -27,8 +27,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.Token != "" {
 		t.Errorf("Token = %q, want empty", cfg.Token)
 	}
-	if cfg.VaultKey != "" {
-		t.Errorf("VaultKey = %q, want empty", cfg.VaultKey)
+	if cfg.ProjectKey != "" {
+		t.Errorf("ProjectKey = %q, want empty", cfg.ProjectKey)
 	}
 	if cfg.Project != "" {
 		t.Errorf("Project = %q, want empty", cfg.Project)
@@ -44,7 +44,7 @@ func TestLoad_EnvVarsOverrideDefaults(t *testing.T) {
 	t.Setenv("ZENV_API_URL", "http://custom-api:9090")
 	t.Setenv("ZENV_AUTH_URL", "http://custom-auth:4000")
 	t.Setenv("ZENV_TOKEN", "ze_dev_testtoken")
-	t.Setenv("ZENV_VAULT_KEY", "my-vault-key")
+	t.Setenv("ZENV_PROJECT_KEY", "my-project-key")
 	t.Setenv("ZENV_PROJECT", "proj-123")
 	t.Setenv("ZENV_ENV", "staging")
 
@@ -59,8 +59,8 @@ func TestLoad_EnvVarsOverrideDefaults(t *testing.T) {
 	if cfg.Token != "ze_dev_testtoken" {
 		t.Errorf("Token = %q", cfg.Token)
 	}
-	if cfg.VaultKey != "my-vault-key" {
-		t.Errorf("VaultKey = %q", cfg.VaultKey)
+	if cfg.ProjectKey != "my-project-key" {
+		t.Errorf("ProjectKey = %q", cfg.ProjectKey)
 	}
 	if cfg.Project != "proj-123" {
 		t.Errorf("Project = %q", cfg.Project)
@@ -91,7 +91,7 @@ func TestLoad_GlobalConfigFile(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	// Clear env vars so config file values win.
-	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_VAULT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
+	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_PROJECT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
 		t.Setenv(k, "")
 	}
 
@@ -102,7 +102,7 @@ func TestLoad_GlobalConfigFile(t *testing.T) {
 	os.WriteFile(filepath.Join(zenvDir, "config"), []byte("api_url=http://file-api\nauth_url=http://file-auth\n"), 0644)
 
 	// Write credentials.
-	os.WriteFile(filepath.Join(zenvDir, "credentials"), []byte("token=ze_dev_filetoken\nvault_key=file-vault\n"), 0600)
+	os.WriteFile(filepath.Join(zenvDir, "credentials"), []byte("token=ze_dev_filetoken\nproject_key=file-vault\n"), 0600)
 
 	cfg := Load("", "")
 
@@ -115,8 +115,8 @@ func TestLoad_GlobalConfigFile(t *testing.T) {
 	if cfg.Token != "ze_dev_filetoken" {
 		t.Errorf("Token = %q, want ze_dev_filetoken", cfg.Token)
 	}
-	if cfg.VaultKey != "file-vault" {
-		t.Errorf("VaultKey = %q, want file-vault", cfg.VaultKey)
+	if cfg.ProjectKey != "file-vault" {
+		t.Errorf("ProjectKey = %q, want file-vault", cfg.ProjectKey)
 	}
 }
 
@@ -178,8 +178,8 @@ func TestIsSecret(t *testing.T) {
 	if !IsSecret("token") {
 		t.Error("token should be secret")
 	}
-	if !IsSecret("vault_key") {
-		t.Error("vault_key should be secret")
+	if !IsSecret("project_key") {
+		t.Error("project_key should be secret")
 	}
 	if IsSecret("api_url") {
 		t.Error("api_url should not be secret")
