@@ -6,7 +6,7 @@
  *
  *   const vault = zenv({
  *     token: process.env.ZENV_TOKEN!,
- *     vaultKey: process.env.ZENV_VAULT_KEY!,
+ *     projectKey: process.env.ZENV_PROJECT_KEY!,
  *     projectId: process.env.ZENV_PROJECT_ID!,
  *     schema: z.object({
  *       STRIPE_API_KEY: z.string().min(1),

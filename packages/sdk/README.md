@@ -16,7 +16,7 @@ import { z } from "zod";
 
 const vault = zenv({
   token: process.env.ZENV_TOKEN!,
-  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectKey: process.env.ZENV_PROJECT_KEY!,
   projectId: process.env.ZENV_PROJECT_ID!,
   environment: process.env.NODE_ENV,
   schema: z.object({
@@ -37,7 +37,7 @@ const secrets = await vault.load();
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `token` | `string` | required | Service token (`ZENV_TOKEN`) |
-| `vaultKey` | `string` | required | Project Vault Key (`ZENV_VAULT_KEY`) — never sent to server |
+| `projectKey` | `string` | required | Project Project Key (`ZENV_PROJECT_KEY`) — never sent to server |
 | `projectId` | `string` | required | Project ID |
 | `environment` | `string` | `"development"` | Environment name |
 | `schema` | `object` | optional | Standard Schema compliant validator (Zod, Valibot, ArkType) or plain object |
@@ -122,17 +122,17 @@ schema: { PORT: {} }
 
 ## Browser Ban
 
-The SDK throws a hard error if `window` is defined. `ZENV_TOKEN` and `ZENV_VAULT_KEY` are server credentials — they must never reach the browser.
+The SDK throws a hard error if `window` is defined. `ZENV_TOKEN` and `ZENV_PROJECT_KEY` are server credentials — they must never reach the browser.
 
 For browser/edge runtimes, use `@zenv/vite-plugin` which moves all crypto to build time.
 
 ## How It Works
 
 ```
-ZENV_VAULT_KEY + project_salt (from API)
+ZENV_PROJECT_KEY + project_salt (from API)
   → Argon2id → Project KEK (client-side, never sent)
     → AES-256-GCM unwrap → Project DEK (client-side, never sent)
       → AES-256-GCM decrypt → plaintext secrets
 ```
 
-The server never sees the Vault Key, KEK, or DEK. It stores only ciphertext.
+The server never sees the Project Key, KEK, or DEK. It stores only ciphertext.

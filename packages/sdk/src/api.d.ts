@@ -222,6 +222,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/recovery/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Toggle recovery disabled
+         * @description Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Toggle recovery */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.DisableRecoveryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/recovery/incoming-requests": {
         parameters: {
             query?: never;
@@ -307,7 +353,55 @@ export interface paths {
                 };
             };
         };
-        put?: never;
+        /**
+         * Regenerate recovery kit
+         * @description Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description New recovery wrapped DEK */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.RegenerateKitRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Recovery disabled */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -1635,6 +1729,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sdk/whoami": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Token identity
+         * @description Returns the token name, creator, project, environment, and permission.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.WhoamiResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/secrets": {
         parameters: {
             query?: never;
@@ -2278,6 +2411,9 @@ export interface components {
             /** @description shown exactly once — never stored */
             token?: string;
         };
+        "api_internal_handler.DisableRecoveryRequest": {
+            disabled?: boolean;
+        };
         "api_internal_handler.ErrorResponse": {
             error?: string;
         };
@@ -2331,6 +2467,8 @@ export interface components {
         "api_internal_handler.ProjectCryptoResponse": {
             /** @description base64 */
             project_salt?: string;
+            /** @description "pin" or "passphrase" */
+            vault_key_type?: string;
             /** @description base64 */
             wrapped_project_dek?: string;
         };
@@ -2369,6 +2507,10 @@ export interface components {
             has_contact?: boolean;
             has_kit?: boolean;
             recovery_disabled?: boolean;
+        };
+        "api_internal_handler.RegenerateKitRequest": {
+            /** @description base64 */
+            recovery_wrapped_dek?: string;
         };
         "api_internal_handler.RollbackRequest": {
             version?: number;
@@ -2453,6 +2595,16 @@ export interface components {
         "api_internal_handler.VersionsResponse": {
             current_version?: number;
             versions?: components["schemas"]["api_internal_handler.VersionItem"][];
+        };
+        "api_internal_handler.WhoamiResponse": {
+            environment?: string;
+            organization_id?: string;
+            permission?: string;
+            project_id?: string;
+            project_name?: string;
+            token_name?: string;
+            user_email?: string;
+            user_name?: string;
         };
     };
     responses: never;

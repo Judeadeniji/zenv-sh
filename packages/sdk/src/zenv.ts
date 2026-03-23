@@ -7,7 +7,7 @@
  * Usage:
  *   const vault = zenv({
  *     token: process.env.ZENV_TOKEN,
- *     vaultKey: process.env.ZENV_VAULT_KEY,
+ *     projectKey: process.env.ZENV_PROJECT_KEY,
  *     projectId: process.env.ZENV_PROJECT_ID,
  *     environment: process.env.NODE_ENV,
  *     schema: z.object({
@@ -32,7 +32,7 @@ export interface ZEnvConfig<S extends Record<string, unknown> = Record<string, u
   /** Service token — authenticates with the API. */
   token: string;
   /** Project Vault Key — derives the encryption key locally. Never sent to server. */
-  vaultKey: string;
+  projectKey: string;
   /** Project ID — which project to fetch secrets from. */
   projectId: string;
   /** Environment — development, staging, or production. */
@@ -83,7 +83,7 @@ function base64ToBytes(b64: string): Uint8Array {
 
 export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
   private client: ApiClient;
-  private vaultKey: string;
+  private projectKey: string;
   private projectId: string;
   private environment: string;
   private schema: S | undefined;
@@ -92,11 +92,11 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
   private crypto: CryptoState | null = null;
 
   constructor(config: ZEnvConfig<S>) {
-    // Browser ban — ZENV_TOKEN and ZENV_VAULT_KEY must never reach the browser.
+    // Browser ban — ZENV_TOKEN and ZENV_PROJECT_KEY must never reach the browser.
     if (typeof globalThis.window !== "undefined") {
       throw new Error(
         "[zEnv] @zenv/sdk detected a browser environment (window is defined). " +
-          "ZENV_TOKEN and ZENV_VAULT_KEY are server credentials — they must never " +
+          "ZENV_TOKEN and ZENV_PROJECT_KEY are server credentials — they must never " +
           "reach the browser. Use @zenv/vite-plugin for build-time injection instead.",
       );
     }
@@ -107,10 +107,10 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
           "  export ZENV_TOKEN=ze_...",
       );
     }
-    if (!config.vaultKey) {
+    if (!config.projectKey) {
       throw new Error(
-        "[zEnv] Missing ZENV_VAULT_KEY. Set it in your environment:\n" +
-          "  export ZENV_VAULT_KEY=...",
+        "[zEnv] Missing ZENV_PROJECT_KEY. Set it in your environment:\n" +
+          "  export ZENV_PROJECT_KEY=...",
       );
     }
     if (!config.projectId) {
@@ -129,7 +129,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       baseUrl: config.baseUrl ?? "https://api.zenv.sh",
       token: config.token,
     });
-    this.vaultKey = config.vaultKey;
+    this.projectKey = config.projectKey;
     this.projectId = config.projectId;
     this.environment = config.environment ?? "development";
     this.schema = config.schema;
@@ -142,7 +142,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
    *
    * Flow (matches master plan Section 2.4.3):
    * 1. GET /sdk/projects/{id}/crypto → project_salt + wrapped_project_dek
-   * 2. Argon2id(ZENV_VAULT_KEY + project_salt) → Project KEK
+   * 2. Argon2id(ZENV_PROJECT_KEY + project_salt) → Project KEK
    * 3. AES-256-GCM unwrap(wrapped_project_dek, Project KEK) → Project DEK
    * 4. Project DEK used for all encrypt/decrypt + HMAC operations
    *
@@ -170,7 +170,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     const wrappedProjectDEK = base64ToBytes(wrapped_project_dek!);
 
     const { kek: projectKEK } = await deriveKeys(
-      this.vaultKey,
+      this.projectKey,
       projectSalt,
       "passphrase",
     );
@@ -542,7 +542,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
  * @example
  * const vault = zenv({
  *   token: process.env.ZENV_TOKEN!,
- *   vaultKey: process.env.ZENV_VAULT_KEY!,
+ *   projectKey: process.env.ZENV_PROJECT_KEY!,
  *   projectId: process.env.ZENV_PROJECT_ID!,
  *   schema: z.object({
  *     STRIPE_API_KEY: z.string().min(1),
