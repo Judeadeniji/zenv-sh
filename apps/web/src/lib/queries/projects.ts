@@ -1,10 +1,10 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { generateSalt, generateKey, wrapKey, wrapWithPublicKey, unwrapWithPrivateKey } from "@zenv/amnesia"
+import { generateSalt, generateKey, wrapKey, unwrapKey, wrapWithPublicKey, unwrapWithPrivateKey } from "@zenv/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
 import { queryKeys, mutationKeys } from "#/lib/keys"
-import { toBase64, fromBase64, pack } from "#/lib/encoding"
+import { toBase64, fromBase64, unpack, pack } from "#/lib/encoding"
 
 export function projectsQueryOptions(orgId: string) {
 	return queryOptions({
@@ -92,6 +92,22 @@ export function useCreateProject() {
 	})
 }
 
+export function useDeleteProject() {
+	const qc = useQueryClient()
+	return useMutation({
+		mutationKey: mutationKeys.projects.delete,
+		mutationFn: async ({ projectId }: { projectId: string }) => {
+			const { error } = await api().DELETE("/projects/{projectID}" as never, {
+				params: { path: { projectID: projectId } },
+			})
+			if (error) throw new Error("Failed to delete project")
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["projects"] })
+		},
+	})
+}
+
 /**
  * Fetch and unwrap the Project Vault Key from the user's key grant.
  *
@@ -115,6 +131,59 @@ export function useProjectKey(projectId: string) {
 			const wrappedBytes = fromBase64(res.wrapped_project_vault_key)
 			const plaintext = unwrapWithPrivateKey(wrappedBytes, crypto.privateKey)
 			return new TextDecoder().decode(plaintext)
+		},
+		enabled: !!crypto && !!projectId,
+		staleTime: Number.POSITIVE_INFINITY,
+	})
+}
+
+/**
+ * Derive the Project DEK for encrypting/decrypting secrets.
+ *
+ * Flow:
+ *   1. Unwrap Project Vault Key from key grant (via user's private key)
+ *   2. Fetch project_salt + wrapped_project_dek from /projects/{id}/crypto
+ *   3. Argon2id(projectVaultKey + projectSalt) → Project KEK
+ *   4. AES-256-GCM unwrap(wrapped_project_dek, Project KEK) → Project DEK
+ */
+export function useProjectDEK(projectId: string) {
+	const crypto = useAuthStore((s) => s.crypto)
+
+	return useQuery({
+		queryKey: [...queryKeys.projects.detail(projectId), "dek"],
+		queryFn: async () => {
+			if (!crypto) throw new Error("Vault must be unlocked")
+
+			// 1. Get project vault key from key grant
+			const { data: grantData, error: grantErr } = await api().GET("/projects/{projectID}/key-grant", {
+				params: { path: { projectID: projectId } },
+			})
+			if (grantErr || !grantData) throw new Error("No key grant found")
+
+			const grant = grantData as { wrapped_project_vault_key: string }
+			const wrappedBytes = fromBase64(grant.wrapped_project_vault_key)
+			const projectVaultKey = new TextDecoder().decode(
+				unwrapWithPrivateKey(wrappedBytes, crypto.privateKey),
+			)
+
+			// 2. Get project crypto material (salt + wrapped DEK)
+			const { data: cryptoData, error: cryptoErr } = await api().GET("/projects/{projectID}/crypto" as never, {
+				params: { path: { projectID: projectId } },
+			})
+			if (cryptoErr || !cryptoData) throw new Error("Project crypto not found")
+
+			const cm = cryptoData as { project_salt: string; wrapped_project_dek: string }
+			const projectSalt = fromBase64(cm.project_salt)
+			const wrappedDEK = fromBase64(cm.wrapped_project_dek)
+
+			// 3. Derive project KEK from project vault key + salt
+			const { kek: projectKEK } = await deriveKeysAsync(projectVaultKey, projectSalt, "passphrase")
+
+			// 4. Unwrap project DEK
+			const { nonce, ciphertext } = unpack(wrappedDEK)
+			const projectDEK = await unwrapKey(ciphertext, nonce, projectKEK)
+
+			return projectDEK
 		},
 		enabled: !!crypto && !!projectId,
 		staleTime: Number.POSITIVE_INFINITY,

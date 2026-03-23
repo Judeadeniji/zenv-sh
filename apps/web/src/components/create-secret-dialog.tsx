@@ -8,6 +8,7 @@ import { Textarea } from "#/components/ui/textarea"
 import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { useCreateSecret } from "#/lib/queries/secrets"
+import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
 import { createSecretSchema, type CreateSecretInput } from "#/lib/schemas/secrets"
 import { AlertCircle } from "lucide-react"
@@ -20,6 +21,7 @@ interface CreateSecretDialogProps {
 export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogProps) {
 	const [open, setOpen] = useState(false)
 	const environment = useNavStore((s) => s.activeEnvironment)
+	const { data: projectDEK } = useProjectDEK(projectId)
 	const create = useCreateSecret()
 
 	const form = useForm<CreateSecretInput>({
@@ -28,8 +30,9 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	})
 
 	const onSubmit = (data: CreateSecretInput) => {
+		if (!projectDEK) return
 		create.mutate(
-			{ projectId, environment, ...data },
+			{ projectId, environment, projectDEK, ...data },
 			{
 				onSuccess: () => {
 					setOpen(false)
