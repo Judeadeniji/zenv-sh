@@ -31,6 +31,7 @@ export const queryKeys = {
 		status: ["recovery", "status"] as const,
 		request: ["recovery", "request"] as const,
 	},
+	preferences: ["preferences"] as const,
 } as const
 
 // ── Mutation Keys ──
@@ -81,6 +82,9 @@ export const mutationKeys = {
 	},
 	invite: {
 		accept: ["invite", "accept"] as const,
+	},
+	preferences: {
+		update: ["preferences", "update"] as const,
 	},
 } as const
 

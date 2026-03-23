@@ -30,6 +30,7 @@ type usersTable struct {
 	IdentityID         postgres.ColumnString
 	RecoveryWrappedDek postgres.ColumnBytea
 	RecoveryDisabled   postgres.ColumnBool
+	Preferences        postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -84,9 +85,10 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		IdentityIDColumn         = postgres.StringColumn("identity_id")
 		RecoveryWrappedDekColumn = postgres.ByteaColumn("recovery_wrapped_dek")
 		RecoveryDisabledColumn   = postgres.BoolColumn("recovery_disabled")
-		allColumns               = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn}
-		mutableColumns           = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn}
-		defaultColumns           = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn, RecoveryDisabledColumn}
+		PreferencesColumn        = postgres.StringColumn("preferences")
+		allColumns               = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn, PreferencesColumn}
+		mutableColumns           = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn, PreferencesColumn}
+		defaultColumns           = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn, RecoveryDisabledColumn, PreferencesColumn}
 	)
 
 	return usersTable{
@@ -106,6 +108,7 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		IdentityID:         IdentityIDColumn,
 		RecoveryWrappedDek: RecoveryWrappedDekColumn,
 		RecoveryDisabled:   RecoveryDisabledColumn,
+		Preferences:        PreferencesColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

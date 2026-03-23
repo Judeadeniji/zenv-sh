@@ -22,6 +22,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 	projects := handler.NewProjectsHandler(db)
 	orgs := handler.NewOrgsHandler(db)
 	auditH := handler.NewAuditHandler(db, al)
+	prefs := handler.NewPreferencesHandler(db)
 
 	// Identity session routes — verified via session cookie or Bearer token
 	r.Group(func(r chi.Router) {
@@ -93,6 +94,9 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 		r.Get("/audit-logs", auditH.List)
 		r.Get("/audit-logs/export", auditH.Export)
 		r.Post("/audit-logs/drain", auditH.Drain)
+
+		r.Get("/preferences", prefs.Get)
+		r.Put("/preferences", prefs.Update)
 	})
 
 	// SDK/CLI routes — authenticate via service token (machine access)

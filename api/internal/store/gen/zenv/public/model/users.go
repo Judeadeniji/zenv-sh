@@ -26,4 +26,5 @@ type Users struct {
 	IdentityID         *string
 	RecoveryWrappedDek *[]byte
 	RecoveryDisabled   bool
+	Preferences        string
 }
