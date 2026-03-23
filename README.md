@@ -36,7 +36,7 @@ REDIS_URL="redis://localhost:6379" \
 
 # Use the CLI
 export ZENV_TOKEN=ze_...
-export ZENV_VAULT_KEY=...
+export ZENV_PROJECT_KEY=...
 export ZENV_PROJECT=<project-id>
 export ZENV_ENV=development
 
@@ -53,7 +53,7 @@ import { z } from "zod";
 
 const vault = zenv({
   token: process.env.ZENV_TOKEN!,
-  vaultKey: process.env.ZENV_VAULT_KEY!,
+  projectKey: process.env.ZENV_PROJECT_KEY!,
   projectId: process.env.ZENV_PROJECT_ID!,
   environment: process.env.NODE_ENV,
   schema: z.object({

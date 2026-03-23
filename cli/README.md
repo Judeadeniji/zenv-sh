@@ -75,7 +75,7 @@ env=development
 ```bash
 export ZENV_API_URL=http://localhost:8080   # API base URL
 export ZENV_TOKEN=ze_development_...       # Service token
-export ZENV_VAULT_KEY=...                   # Project Vault Key
+export ZENV_PROJECT_KEY=...                   # Project Vault Key
 export ZENV_PROJECT=<project-id>            # Project ID
 export ZENV_ENV=development                 # Environment
 ```
@@ -96,9 +96,9 @@ Future distribution paths: `curl -fsSL https://zenv.sh/install | bash`, `npx zen
 ## How It Works
 
 ```
-ZENV_VAULT_KEY
+ZENV_PROJECT_KEY
   → API: GET /sdk/projects/{id}/crypto → project_salt + wrapped_dek
-  → Argon2id(ZENV_VAULT_KEY + project_salt) → Project KEK
+  → Argon2id(ZENV_PROJECT_KEY + project_salt) → Project KEK
   → AES-256-GCM unwrap(wrapped_dek, KEK) → Project DEK
   → All encrypt/decrypt uses Project DEK locally
   → Server never sees plaintext

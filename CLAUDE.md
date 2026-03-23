@@ -35,7 +35,7 @@ make lint           # Run golangci-lint
 
 1. **Amnesia purity** — Never add network, database, filesystem, or config imports to `amnesia/`. It takes bytes in and gives bytes out. If you need to import `net/http` or `database/sql` into amnesia, something is wrong.
 2. **Zero-knowledge invariant** — The DEK, KEK, and Vault Key never leave the client. The API never decrypts user data. Never write server-side code that accesses plaintext secrets.
-3. **Browser ban** — ZENV_TOKEN and ZENV_VAULT_KEY are server credentials. The SDK must throw a hard error if `window` is defined.
+3. **Browser ban** — ZENV_TOKEN and ZENV_PROJECT_KEY are server credentials. The SDK must throw a hard error if `window` is defined.
 4. **Argon2id runs once** — One run per unlock, 64-byte output split: bytes 0-31 → KEK, bytes 32-63 → Auth Key. Never run it twice.
 5. **Item-per-row storage** — Each secret is its own encrypted DB row. Never use a single-blob vault model.
 6. **Cross-language parity** — Go Amnesia and TypeScript Amnesia must produce byte-identical outputs. Enforced by shared JSON test vectors in CI.
