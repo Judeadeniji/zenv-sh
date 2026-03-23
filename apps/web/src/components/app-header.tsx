@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
 import { useNavStore, ENVIRONMENTS } from "#/lib/stores/nav"
+import { useUpdatePreferences } from "#/lib/queries/preferences"
 import { Link, useParams, useMatches } from "@tanstack/react-router"
 
 export function AppHeader() {
@@ -123,6 +124,12 @@ const ENV_DOT: Record<string, string> = {
 function EnvSwitcher() {
 	const active = useNavStore((s) => s.activeEnvironment)
 	const setEnv = useNavStore((s) => s.setActiveEnvironment)
+	const updatePrefs = useUpdatePreferences()
+
+	const handleChange = (env: string) => {
+		setEnv(env)
+		updatePrefs.mutate({ active_environment: env })
+	}
 
 	return (
 		<div className="flex items-center rounded-md bg-muted p-0.5">
@@ -132,7 +139,7 @@ function EnvSwitcher() {
 					<button
 						key={env}
 						type="button"
-						onClick={() => setEnv(env)}
+						onClick={() => handleChange(env)}
 						className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-all ${
 							isActive
 								? "bg-background text-foreground shadow-sm"

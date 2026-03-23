@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react"
 import { cn } from "#/lib/utils"
+import { useNavStore } from "#/lib/stores/nav"
+import { useUpdatePreferences } from "#/lib/queries/preferences"
 import { SettingsRow } from "./settings-row"
 import { Sun, Moon, Monitor, Check } from "lucide-react"
 
@@ -37,11 +39,15 @@ const themes: { value: ThemeMode; label: string; description: string; icon: type
 
 export function AppearanceSection() {
 	const [mode, setMode] = useState<ThemeMode>(getStoredTheme)
+	const setStoreTheme = useNavStore((s) => s.setTheme)
+	const updatePrefs = useUpdatePreferences()
 
 	const select = useCallback((value: ThemeMode) => {
 		setMode(value)
 		applyTheme(value)
-	}, [])
+		setStoreTheme(value)
+		updatePrefs.mutate({ theme: value })
+	}, [setStoreTheme, updatePrefs])
 
 	return (
 		<div>

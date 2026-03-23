@@ -1,9 +1,12 @@
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
+import { useUpdatePreferences } from "#/lib/queries/preferences"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { useAuthStore } from "#/lib/stores/auth"
+import { useNavStore } from "#/lib/stores/nav"
 import { authClient } from "#/lib/auth-client"
 import { getProjectItems, getOrgItems } from "#/lib/nav-items"
 import { CreateProjectDialog } from "#/components/create-project-dialog"
@@ -16,11 +19,13 @@ import {
 	SidebarGroupContent,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarMenuSkeleton,
 	useSidebar,
 } from "#/components/ui/sidebar"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "#/components/ui/collapsible"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -36,8 +41,11 @@ import {
 	LogOut,
 	Plus,
 	ChevronDown,
+	ChevronRight,
 	Building2,
 	ChevronsUpDown,
+	Pin,
+	PinOff,
 } from "lucide-react"
 
 export function AppSidebar() {
@@ -46,8 +54,6 @@ export function AppSidebar() {
 	const { data: me } = useQuery(meQueryOptions)
 	const { data: orgsData, isLoading: orgsLoading } = useQuery(orgsQueryOptions)
 
-	// Read orgId and projectId from URL — these may be undefined
-	// when on routes like /settings or /onboarding
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const orgId = params.orgId
 	const projectId = params.projectId
@@ -61,9 +67,30 @@ export function AppSidebar() {
 	})
 	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
 
+	const pinnedIds = useNavStore((s) => s.pinnedProjects)
+	const pinProject = useNavStore((s) => s.pinProject)
+	const unpinProject = useNavStore((s) => s.unpinProject)
+	const updatePrefs = useUpdatePreferences()
+
+	const pinned = pinnedIds
+		.map((id) => projectList.find((p) => p.id === id))
+		.filter(Boolean) as { id: string; name: string }[]
+	const unpinned = projectList.filter((p) => !pinnedIds.includes(p.id))
+	const hasPins = pinned.length > 0
+
+	const handlePin = (id: string) => {
+		pinProject(id)
+		const next = [id, ...pinnedIds.filter((p) => p !== id)]
+		updatePrefs.mutate({ pinned_projects: next })
+	}
+	const handleUnpin = (id: string) => {
+		unpinProject(id)
+		const next = pinnedIds.filter((p) => p !== id)
+		updatePrefs.mutate({ pinned_projects: next })
+	}
+
 	const initials = me?.email?.slice(0, 2).toUpperCase() ?? "?"
 
-	// Build nav items based on current context
 	const manageItems = [
 		...(activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []),
 		...(activeOrg ? getOrgItems(activeOrg.id) : []),
@@ -141,23 +168,40 @@ export function AppSidebar() {
 									No projects yet
 								</p>
 							) : (
-								projectList.map((project) => (
-									<SidebarMenuItem key={project.id}>
-										<SidebarMenuButton
+								<>
+									{/* Pinned — always visible */}
+									{pinned.map((project) => (
+										<ProjectItem
+											key={project.id}
+											project={project}
+											orgId={activeOrg?.id ?? ""}
 											isActive={project.id === projectId}
-											tooltip={project.name}
-											render={(
-												<Link
-													to="/orgs/$orgId/projects/$projectId"
-													params={{ orgId: activeOrg?.id ?? "", projectId: project.id! }}
-												/>
-											)}
-										>
-											<FolderKey />
-											<span>{project.name}</span>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								))
+											isPinned
+											onTogglePin={() => handleUnpin(project.id)}
+										/>
+									))}
+
+									{/* Unpinned — collapsible when pins exist */}
+									{unpinned.length > 0 && hasPins ? (
+										<UnpinnedSection
+											projects={unpinned}
+											orgId={activeOrg?.id ?? ""}
+											activeProjectId={projectId}
+											onPin={handlePin}
+										/>
+									) : (
+										unpinned.map((project) => (
+											<ProjectItem
+												key={project.id}
+												project={project}
+												orgId={activeOrg?.id ?? ""}
+												isActive={project.id === projectId}
+												isPinned={false}
+												onTogglePin={() => handlePin(project.id)}
+											/>
+										))
+									)}
+								</>
 							)}
 							{activeOrg && (
 								<SidebarMenuItem>
@@ -176,7 +220,7 @@ export function AppSidebar() {
 					</SidebarGroupContent>
 				</SidebarGroup>
 
-				{/* ── Manage (data-driven from URL context) ── */}
+				{/* ── Manage ── */}
 				{manageItems.length > 0 && (
 					<SidebarGroup>
 						<SidebarGroupLabel>Manage</SidebarGroupLabel>
@@ -249,5 +293,91 @@ export function AppSidebar() {
 				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
+	)
+}
+
+/* ── Sub-components ── */
+
+function ProjectItem({
+	project,
+	orgId,
+	isActive,
+	isPinned,
+	onTogglePin,
+}: {
+	project: { id: string; name: string }
+	orgId: string
+	isActive: boolean
+	isPinned: boolean
+	onTogglePin: () => void
+}) {
+	return (
+		<SidebarMenuItem>
+			<SidebarMenuButton
+				isActive={isActive}
+				tooltip={project.name}
+				render={
+					<Link
+						to="/orgs/$orgId/projects/$projectId"
+						params={{ orgId, projectId: project.id }}
+					/>
+				}
+			>
+				<FolderKey />
+				<span>{project.name}</span>
+			</SidebarMenuButton>
+			<SidebarMenuAction
+				showOnHover
+				onClick={(e) => {
+					e.preventDefault()
+					e.stopPropagation()
+					onTogglePin()
+				}}
+				className={isPinned ? "text-muted-foreground" : "text-muted-foreground/60"}
+			>
+				{isPinned ? <PinOff /> : <Pin />}
+			</SidebarMenuAction>
+		</SidebarMenuItem>
+	)
+}
+
+function UnpinnedSection({
+	projects,
+	orgId,
+	activeProjectId,
+	onPin,
+}: {
+	projects: { id: string; name: string }[]
+	orgId: string
+	activeProjectId?: string
+	onPin: (id: string) => void
+}) {
+	const [open, setOpen] = useState(false)
+
+	return (
+		<Collapsible open={open} onOpenChange={setOpen}>
+			<SidebarMenuItem>
+				<CollapsibleTrigger
+					render={
+						<SidebarMenuButton className="text-muted-foreground text-xs">
+							<ChevronRight className={`size-3 transition-transform ${open ? "rotate-90" : ""}`} />
+							<span>{open ? "Other projects" : `${projects.length} more`}</span>
+						</SidebarMenuButton>
+					}
+				/>
+			</SidebarMenuItem>
+			<CollapsibleContent>
+				{projects.map((project) => (
+					<ProjectItem
+						key={project.id}
+						project={project}
+						orgId={orgId}
+						isActive={project.id === activeProjectId}
+						isPinned={false}
+						onTogglePin={() => onPin(project.id)}
+					/>
+				))}
+			</CollapsibleContent>
+		</Collapsible>
 	)
 }

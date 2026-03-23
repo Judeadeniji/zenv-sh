@@ -26,6 +26,13 @@ interface DataTableProps<TData> {
 	emptyDescription?: string
 	emptyAction?: React.ReactNode
 	pageSize?: number
+	/** Server-side pagination — pass these to let the server control paging. */
+	pagination?: {
+		page: number
+		totalPages: number
+		total: number
+		onPageChange: (page: number) => void
+	}
 }
 
 export function DataTable<TData>({
@@ -39,18 +46,22 @@ export function DataTable<TData>({
 	emptyDescription = "No items match your search.",
 	emptyAction,
 	pageSize = 20,
+	pagination,
 }: DataTableProps<TData>) {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+	const isServerPaginated = !!pagination
 
 	const table = useReactTable({
 		data,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		...(!isServerPaginated && { getPaginationRowModel: getPaginationRowModel() }),
 		onColumnFiltersChange: setColumnFilters,
 		state: { columnFilters },
 		initialState: { pagination: { pageSize } },
+		manualPagination: isServerPaginated,
+		...(isServerPaginated && { pageCount: pagination.totalPages }),
 	})
 
 	const filterValue = filterColumn
@@ -58,8 +69,25 @@ export function DataTable<TData>({
 		: ""
 
 	const rows = table.getRowModel().rows
-	const pageCount = table.getPageCount()
-	const pageIndex = table.getState().pagination.pageIndex
+
+	// Pagination state — server or client
+	const showPagination = isServerPaginated
+		? pagination.totalPages > 1
+		: table.getPageCount() > 1
+	const currentPage = isServerPaginated ? pagination.page : table.getState().pagination.pageIndex + 1
+	const totalPages = isServerPaginated ? pagination.totalPages : table.getPageCount()
+	const totalItems = isServerPaginated ? pagination.total : table.getFilteredRowModel().rows.length
+
+	const handlePrev = () => {
+		if (isServerPaginated) pagination.onPageChange(pagination.page - 1)
+		else table.previousPage()
+	}
+	const handleNext = () => {
+		if (isServerPaginated) pagination.onPageChange(pagination.page + 1)
+		else table.nextPage()
+	}
+	const canPrev = isServerPaginated ? pagination.page > 1 : table.getCanPreviousPage()
+	const canNext = isServerPaginated ? pagination.page < pagination.totalPages : table.getCanNextPage()
 
 	return (
 		<div className="space-y-3">
@@ -133,26 +161,16 @@ export function DataTable<TData>({
 				</Table>
 			)}
 
-			{pageCount > 1 && (
+			{showPagination && (
 				<div className="flex items-center justify-between">
 					<p className="text-xs text-muted-foreground">
-						Page {pageIndex + 1} of {pageCount} &middot; {table.getFilteredRowModel().rows.length} items
+						{totalItems} entries &middot; page {currentPage} of {totalPages}
 					</p>
 					<div className="flex items-center gap-1">
-						<Button
-							variant="outline"
-							size="icon-sm"
-							onClick={() => table.previousPage()}
-							disabled={!table.getCanPreviousPage()}
-						>
+						<Button variant="outline" size="icon-sm" onClick={handlePrev} disabled={!canPrev}>
 							<ChevronLeft />
 						</Button>
-						<Button
-							variant="outline"
-							size="icon-sm"
-							onClick={() => table.nextPage()}
-							disabled={!table.getCanNextPage()}
-						>
+						<Button variant="outline" size="icon-sm" onClick={handleNext} disabled={!canNext}>
 							<ChevronRight />
 						</Button>
 					</div>

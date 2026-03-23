@@ -38,7 +38,7 @@ function ProjectDashboard() {
 
 	return (
 		<div>
-			<DashboardHeader orgId={orgId} projectId={projectId} name={name} />
+			<DashboardHeader projectId={projectId} name={name} />
 			<EnvironmentBreakdown orgId={orgId} projectId={projectId} />
 			<StatsGrid orgId={orgId} projectId={projectId} />
 
@@ -58,7 +58,7 @@ function ProjectDashboard() {
 
 /* ── Header ── */
 
-function DashboardHeader({ orgId, projectId, name }: { orgId: string; projectId: string; name: string }) {
+function DashboardHeader({ projectId, name }: { projectId: string; name: string }) {
 	const [copied, setCopied] = useState(false)
 
 	const handleCopyId = () => {
@@ -323,8 +323,7 @@ function Step({ n, label, cmd }: { n: number; label: string; cmd: string }) {
 
 function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string }) {
 	const { data, isLoading } = useQuery(auditQueryOptions(projectId, { perPage: 5 }))
-	const logs: { id: string; action?: string; result?: string; created_at?: string }[] =
-		(data as { logs?: { id: string; action?: string; result?: string; created_at?: string }[] })?.logs ?? []
+	const logs = data?.entries ?? []
 
 	return (
 		<section className="rounded-lg border border-border p-4">
