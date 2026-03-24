@@ -46,7 +46,7 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 
 	return (
 		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true) }}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Invite a member</DialogTitle>

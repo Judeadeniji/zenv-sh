@@ -3091,6 +3091,46 @@
                 }
             }
         },
+        "/tokens/{tokenID}/destroy": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Permanently removes a service token from the database.",
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Delete service token",
+                "parameters": [
+                    {
+                        "description": "Token UUID",
+                        "name": "tokenID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/users/public-key": {
             "get": {
                 "security": [

@@ -2410,6 +2410,27 @@ paths:
       summary: Revoke service token
       tags:
       - tokens
+  /tokens/{tokenID}/destroy:
+    delete:
+      description: Permanently removes a service token from the database.
+      parameters:
+      - description: Token UUID
+        in: path
+        name: tokenID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Delete service token
+      tags:
+      - tokens
   /users/public-key:
     get:
       parameters:

@@ -44,7 +44,7 @@ export function CreateProjectDialog({ orgId, trigger }: CreateProjectDialogProps
 
 	return (
 		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { form.reset(); create.reset() } }}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>New project</DialogTitle>

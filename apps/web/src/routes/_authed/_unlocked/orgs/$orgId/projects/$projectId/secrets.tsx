@@ -5,12 +5,19 @@ import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Spinner } from "#/components/ui/spinner"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "#/components/ui/alert-dialog"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import { Input } from "#/components/ui/input"
+import { Alert, AlertDescription } from "#/components/ui/alert"
+import { Separator } from "#/components/ui/separator"
 import { DataTable } from "#/components/data-table"
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { ImportSecretsDialog } from "#/components/import-secrets-dialog"
-import { useDecryptedSecrets, useDeleteSecret } from "#/lib/queries/secrets"
+import { EditSecretDialog } from "#/components/edit-secret-dialog"
+import { useDecryptedSecrets, useDeleteSecret, useSecretVersions, useRollbackSecret } from "#/lib/queries/secrets"
 import { useNavStore } from "#/lib/stores/nav"
-import { KeyRound, Plus, Upload, Eye, EyeOff, Trash2, Copy, Check } from "lucide-react"
+import { toast } from "sonner"
+import { KeyRound, Plus, Upload, Eye, EyeOff, Trash2, Copy, Check, Pencil, History, RotateCcw, AlertCircle } from "lucide-react"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets")({
 	component: SecretsPage,
@@ -28,10 +35,10 @@ function SecretsPage() {
 	const { projectId } = Route.useParams()
 	const environment = useNavStore((s) => s.activeEnvironment)
 	const { data: secrets, isLoading } = useDecryptedSecrets(projectId, environment)
-	const deleteSecret = useDeleteSecret()
 	const [selectedSecret, setSelectedSecret] = useState<DecryptedSecret | null>(null)
+	const [editingSecret, setEditingSecret] = useState<DecryptedSecret | null>(null)
 
-	const rows = secrets ?? []
+	const rows = secrets as DecryptedSecret[] ?? []
 
 	const columns: ColumnDef<DecryptedSecret, unknown>[] = [
 		{
@@ -68,18 +75,24 @@ function SecretsPage() {
 			id: "actions",
 			header: "",
 			cell: ({ row }) => (
-				<div className="text-right">
+				<div className="flex items-center justify-end gap-0.5">
 					<Button
 						variant="ghost"
 						size="icon-sm"
-						className="text-muted-foreground hover:text-destructive"
+						className="text-muted-foreground hover:text-foreground"
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation()
-							deleteSecret.mutate({ projectId, environment, nameHash: row.original.name_hash })
+							setEditingSecret(row.original)
 						}}
 					>
-						<Trash2 className="size-3.5" />
+						<Pencil />
 					</Button>
+					<DeleteSecretButton
+						projectId={projectId}
+						environment={environment}
+						secret={row.original}
+					/>
 				</div>
 			),
 		},
@@ -141,21 +154,64 @@ function SecretsPage() {
 						<SheetTitle>{selectedSecret?.name ?? "Secret"}</SheetTitle>
 						<SheetDescription>Decrypted in your browser. Never sent to the server.</SheetDescription>
 					</SheetHeader>
-					{selectedSecret && <SecretDetailSheet secret={selectedSecret} />}
+					{selectedSecret && (
+						<SecretDetailSheet
+							projectId={projectId}
+							environment={environment}
+							secret={selectedSecret}
+							onEdit={() => {
+								setEditingSecret(selectedSecret)
+								setSelectedSecret(null)
+							}}
+							onDeleted={() => setSelectedSecret(null)}
+						/>
+					)}
 				</SheetContent>
 			</Sheet>
+
+			{editingSecret && (
+				<EditSecretDialog
+					projectId={projectId}
+					secret={editingSecret}
+					open={!!editingSecret}
+					onOpenChange={(open) => { if (!open) setEditingSecret(null) }}
+				/>
+			)}
 		</div>
 	)
 }
 
-function SecretDetailSheet({ secret }: { secret: DecryptedSecret }) {
+function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }: {
+	projectId: string
+	environment: string
+	secret: DecryptedSecret
+	onEdit: () => void
+	onDeleted: () => void
+}) {
 	const [copied, setCopied] = useState<string | null>(null)
+	const [confirmOpen, setConfirmOpen] = useState(false)
+	const [confirmText, setConfirmText] = useState("")
+	const deleteSecret = useDeleteSecret()
 
 	const handleCopy = (text: string, key: string) => {
 		navigator.clipboard?.writeText(text).then(() => {
 			setCopied(key)
 			setTimeout(() => setCopied(null), 2000)
 		})
+	}
+
+	const handleDelete = () => {
+		deleteSecret.mutate(
+			{ projectId, environment, nameHash: secret.name_hash },
+			{
+				onSuccess: () => {
+					setConfirmOpen(false)
+					toast.success(`Deleted ${secret.name}`)
+					onDeleted()
+				},
+				onError: (err) => toast.error(err.message || "Failed to delete secret"),
+			},
+		)
 	}
 
 	return (
@@ -204,7 +260,251 @@ function SecretDetailSheet({ secret }: { secret: DecryptedSecret }) {
 					</Button>
 				</div>
 			</div>
+
+			<div className="flex gap-2 pt-2">
+				<Button variant="outline" size="sm" onClick={onEdit}>
+					<Pencil /> Edit value
+				</Button>
+			</div>
+
+			<Separator />
+
+			{/* Version History */}
+			<VersionHistory
+				projectId={projectId}
+				environment={environment}
+				nameHash={secret.name_hash}
+			/>
+
+			<Separator />
+
+			{/* Danger Zone — type-to-confirm delete */}
+			<div className="rounded-lg border border-destructive/30 p-4">
+				<div className="flex items-center justify-between">
+					<div>
+						<p className="text-sm font-medium">Delete this secret</p>
+						<p className="mt-0.5 text-xs text-muted-foreground">
+							This action cannot be undone.
+						</p>
+					</div>
+					<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+						<DialogTrigger render={<Button variant="danger" size="sm">Delete</Button>} />
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Delete {secret.name}?</DialogTitle>
+								<DialogDescription>
+									This will permanently delete the secret and all its version history.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="py-2">
+								<label className="text-xs font-medium text-muted-foreground">
+									Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{secret.name}</code> to confirm
+								</label>
+								<Input
+									className="mt-1.5"
+									placeholder={secret.name}
+									value={confirmText}
+									onChange={(e) => setConfirmText(e.target.value)}
+									autoFocus
+								/>
+							</div>
+
+							<DialogFooter>
+								<DialogClose>
+									<Button variant="ghost" size="sm" type="button">Cancel</Button>
+								</DialogClose>
+								<Button
+									variant="danger"
+									size="sm"
+									disabled={confirmText !== secret.name}
+									isLoading={deleteSecret.isPending}
+									onClick={handleDelete}
+								>
+									Delete permanently
+								</Button>
+							</DialogFooter>
+
+							{deleteSecret.error && (
+								<Alert variant="danger" className="mt-2">
+									<AlertCircle />
+									<AlertDescription>{deleteSecret.error.message}</AlertDescription>
+								</Alert>
+							)}
+						</DialogContent>
+					</Dialog>
+				</div>
+			</div>
 		</div>
+	)
+}
+
+function VersionHistory({ projectId, environment, nameHash }: {
+	projectId: string
+	environment: string
+	nameHash: string
+}) {
+	const { data, isLoading } = useSecretVersions(projectId, environment, nameHash)
+	const rollback = useRollbackSecret()
+
+	const versions = data?.versions ?? []
+	const currentVersion = data?.current_version
+
+	return (
+		<div>
+			<div className="flex items-center gap-2">
+				<History className="size-3.5 text-muted-foreground" />
+				<label className="text-xs font-medium text-muted-foreground">Version History</label>
+			</div>
+
+			{isLoading ? (
+				<div className="flex items-center justify-center py-4"><Spinner /></div>
+			) : versions.length === 0 ? (
+				<p className="mt-2 text-xs text-muted-foreground">No previous versions.</p>
+			) : (
+				<div className="mt-2 space-y-1.5">
+					{/* Current version */}
+					<div className="flex items-center justify-between rounded-md bg-muted/50 px-2.5 py-1.5">
+						<div className="flex items-center gap-2">
+							<Badge variant="neutral" className="text-[10px]">v{currentVersion}</Badge>
+							<span className="text-xs text-muted-foreground">current</span>
+						</div>
+					</div>
+
+					{/* Archived versions */}
+					{versions.map((v) => (
+						<div key={v.version} className="flex items-center justify-between rounded-md bg-muted/30 px-2.5 py-1.5">
+							<div className="flex items-center gap-2">
+								<Badge variant="neutral" className="text-[10px]">v{v.version}</Badge>
+								<span className="text-xs text-muted-foreground">
+									{v.created_at ? new Date(v.created_at).toLocaleString() : ""}
+								</span>
+							</div>
+							<AlertDialog>
+								<AlertDialogTrigger
+									render={
+										<Button
+											variant="ghost"
+											size="icon-sm"
+											className="size-6 text-muted-foreground hover:text-foreground"
+											title={`Rollback to v${v.version}`}
+										/>
+									}
+								>
+									<RotateCcw className="size-3" />
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Rollback to v{v.version}</AlertDialogTitle>
+										<AlertDialogDescription>
+											This will revert the secret to version {v.version}. The current version will be archived.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={() => rollback.mutate(
+												{ projectId, environment, nameHash, version: v.version! },
+												{
+													onSuccess: () => toast.success(`Rolled back to v${v.version}`),
+													onError: (err) => toast.error(err.message || "Rollback failed"),
+												},
+											)}
+										>
+											{rollback.isPending ? <Spinner className="animate-spin" /> : "Rollback"}
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</div>
+					))}
+				</div>
+			)}
+		</div>
+	)
+}
+
+function DeleteSecretButton({ projectId, environment, secret }: {
+	projectId: string
+	environment: string
+	secret: DecryptedSecret
+}) {
+	const [confirmOpen, setConfirmOpen] = useState(false)
+	const [confirmText, setConfirmText] = useState("")
+	const deleteSecret = useDeleteSecret()
+
+	const handleDelete = () => {
+		deleteSecret.mutate(
+			{ projectId, environment, nameHash: secret.name_hash },
+			{
+				onSuccess: () => {
+					setConfirmOpen(false)
+					toast.success(`Deleted ${secret.name}`)
+				},
+				onError: (err) => toast.error(err.message || "Failed to delete secret"),
+			},
+		)
+	}
+
+	return (
+		<Dialog open={confirmOpen} onOpenChange={(v) => { setConfirmOpen(v); if (!v) { setConfirmText(""); deleteSecret.reset() } }}>
+			<DialogTrigger
+				render={
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						className="text-muted-foreground hover:text-destructive"
+						type="button"
+						onClick={(e) => e.stopPropagation()}
+					/>
+				}
+			>
+				<Trash2 />
+			</DialogTrigger>
+			<DialogContent onClick={(e) => e.stopPropagation()}>
+				<DialogHeader>
+					<DialogTitle>Delete {secret.name}?</DialogTitle>
+					<DialogDescription>
+						This will permanently delete the secret and all its version history.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="py-2">
+					<label className="text-xs font-medium text-muted-foreground">
+						Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{secret.name}</code> to confirm
+					</label>
+					<Input
+						className="mt-1.5"
+						placeholder={secret.name}
+						value={confirmText}
+						onChange={(e) => setConfirmText(e.target.value)}
+						autoFocus
+					/>
+				</div>
+
+				<DialogFooter>
+					<DialogClose>
+						<Button variant="ghost" size="sm" type="button">Cancel</Button>
+					</DialogClose>
+					<Button
+						variant="danger"
+						size="sm"
+						disabled={confirmText !== secret.name}
+						isLoading={deleteSecret.isPending}
+						onClick={handleDelete}
+					>
+						Delete permanently
+					</Button>
+				</DialogFooter>
+
+				{deleteSecret.error && (
+					<Alert variant="danger" className="mt-2">
+						<AlertCircle />
+						<AlertDescription>{deleteSecret.error.message}</AlertDescription>
+					</Alert>
+				)}
+			</DialogContent>
+		</Dialog>
 	)
 }
 

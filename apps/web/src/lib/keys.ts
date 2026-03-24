@@ -70,10 +70,12 @@ export const mutationKeys = {
 		create: ["secrets", "create"] as const,
 		update: ["secrets", "update"] as const,
 		delete: ["secrets", "delete"] as const,
+		rollback: ["secrets", "rollback"] as const,
 	},
 	tokens: {
 		create: ["tokens", "create"] as const,
 		revoke: ["tokens", "revoke"] as const,
+		destroy: ["tokens", "destroy"] as const,
 	},
 	recovery: {
 		recoverWithKit: ["recovery", "recover-kit"] as const,

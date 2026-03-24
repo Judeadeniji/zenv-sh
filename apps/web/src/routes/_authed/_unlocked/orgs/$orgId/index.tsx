@@ -60,7 +60,7 @@ function OrgDashboard() {
 				<CreateProjectDialog
 					orgId={orgId}
 					trigger={
-						<ActionCard className="cursor-pointer transition-all hover:scale-[1.02]">
+						<ActionCard className="cursor-pointer transition-all hover:scale-[1.02] shadow-none border">
 							<div className="flex items-center gap-3">
 								<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
 									<Plus className="size-4" />
@@ -76,7 +76,7 @@ function OrgDashboard() {
 				<InviteMemberDialog
 					orgId={orgId}
 					trigger={
-						<ActionCard className="cursor-pointer transition-all hover:scale-[1.02]">
+						<ActionCard className="cursor-pointer transition-all hover:scale-[1.02] shadow-none border">
 							<div className="flex items-center gap-3">
 								<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-500">
 									<UserPlus className="size-4" />
@@ -90,7 +90,7 @@ function OrgDashboard() {
 					}
 				/>
 				<Link to="/orgs/$orgId/settings" params={{ orgId }}>
-					<ActionCard className="h-full cursor-pointer transition-all hover:scale-[1.02]">
+					<ActionCard className="h-full cursor-pointer transition-all hover:scale-[1.02] shadow-none border">
 						<div className="flex items-center gap-3">
 							<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
 								<Settings className="size-4" />

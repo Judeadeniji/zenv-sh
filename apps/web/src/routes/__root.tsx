@@ -1,4 +1,5 @@
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router"
+import { Toaster } from "#/components/ui/sonner"
 
 import appCss from "../styles.css?url"
 import type { MyRouteContext } from "#/integrations/tanstack-query/root-provider"
@@ -34,5 +35,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-	return <Outlet />
+	return (
+		<>
+			<Outlet />
+			<Toaster position="bottom-right" richColors />
+		</>
+	)
 }
+

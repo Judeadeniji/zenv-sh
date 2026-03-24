@@ -66,6 +66,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Post("/", tokens.Create)
 			r.Get("/", tokens.List)
 			r.Delete("/{tokenID}", tokens.Revoke)
+			r.Delete("/{tokenID}/destroy", tokens.Destroy)
 		})
 
 		r.Route("/projects", func(r chi.Router) {

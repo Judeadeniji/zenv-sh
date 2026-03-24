@@ -54,7 +54,7 @@ func newSecretsGetCmd() *cobra.Command {
 				return fmt.Errorf("decrypt: %w", err)
 			}
 
-			fmt.Print(payload.Value)
+			fmt.Println(payload.Value)
 			return nil
 		},
 	}

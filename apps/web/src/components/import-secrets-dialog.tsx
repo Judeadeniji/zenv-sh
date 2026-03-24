@@ -112,7 +112,7 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Bulk Import</DialogTitle>

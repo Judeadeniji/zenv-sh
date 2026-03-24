@@ -11,6 +11,7 @@ import { useCreateSecret } from "#/lib/queries/secrets"
 import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
 import { createSecretSchema, type CreateSecretInput } from "#/lib/schemas/secrets"
+import { toast } from "sonner"
 import { AlertCircle } from "lucide-react"
 
 interface CreateSecretDialogProps {
@@ -37,14 +38,16 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 				onSuccess: () => {
 					setOpen(false)
 					form.reset()
+					toast.success(`Created ${data.name}`)
 				},
+				onError: (err) => toast.error(err.message || "Failed to create secret"),
 			},
 		)
 	}
 
 	return (
 		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Add a secret</DialogTitle>

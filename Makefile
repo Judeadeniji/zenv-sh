@@ -73,6 +73,14 @@ dev-api:
 dev-auth:
 	portless auth.zenv pnpm -C apps/auth run dev
 
+dev-app:
+	portless app.zenv pnpm -C apps/web dev
+
+dev:
+	dev-api 
+	dev-auth
+	dev-app
+
 # --- Auth server ---
 auth-build:
 	pnpm -C apps/auth run build

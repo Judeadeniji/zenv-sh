@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
+import { toast } from "sonner"
 
 export function tokensQueryOptions(projectId: string) {
 	return queryOptions({
@@ -33,14 +34,18 @@ export function useCreateToken() {
 			environment: string
 		}) => {
 			const { data, error } = await api().POST("/tokens", {
-				params: { query: { project_id: projectId } },
-				body: { name, permission, project_id: projectId, environment } as never,
+				query: { project_id: projectId },
+				body: { name, permission, project_id: projectId, environment },
 			})
 			if (error || !data) throw new Error("Failed to create token")
 			return data
 		},
 		onSuccess: (_, { projectId }) => {
 			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+			toast.success("Token created successfully")
+		},
+		onError: (error) => {
+			toast.error(error.message)
 		},
 	})
 }
@@ -57,12 +62,36 @@ export function useRevokeToken() {
 			tokenId: string
 		}) => {
 			const { error } = await api().DELETE("/tokens/{tokenID}", {
-				params: {
-					path: { tokenID: tokenId },
-					query: { project_id: projectId },
-				},
+				params: { path: { tokenID: tokenId } },
+				query: { project_id: projectId },
 			})
 			if (error) throw new Error("Failed to revoke token")
+		},
+		onSuccess: (_, { projectId }) => {
+			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+		},
+		onError: (error) => {
+			toast.error(error.message)
+		},
+	})
+}
+
+export function useDestroyToken() {
+	const qc = useQueryClient()
+	return useMutation({
+		mutationKey: mutationKeys.tokens.destroy,
+		mutationFn: async ({
+			tokenId,
+		}: {
+			tokenId: string;
+			projectId: string;
+		}) => {
+			const { error } = await api().DELETE("/tokens/{tokenID}/destroy", {
+				params: {
+					path: { tokenID: tokenId },
+				},
+			})
+			if (error) throw new Error("Failed to delete token")
 		},
 		onSuccess: (_, { projectId }) => {
 			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })

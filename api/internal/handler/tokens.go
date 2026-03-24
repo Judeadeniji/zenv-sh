@@ -5,16 +5,16 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
@@ -37,14 +37,14 @@ func NewTokensHandler(db *sql.DB) *TokensHandler {
 type CreateTokenRequest struct {
 	ProjectID   string  `json:"project_id"`
 	Name        string  `json:"name"`
-	Environment string  `json:"environment"`  // development | staging | production
-	Permission  string  `json:"permission"`   // read | read_write
-	ExpiresAt   *string `json:"expires_at"`   // optional RFC3339
+	Environment string  `json:"environment"` // development | staging | production
+	Permission  string  `json:"permission"`  // read | read_write
+	ExpiresAt   *string `json:"expires_at"`  // optional RFC3339
 }
 
 type CreateTokenResponse struct {
 	ID          string  `json:"id"`
-	Token       string  `json:"token"`        // shown exactly once — never stored
+	Token       string  `json:"token"` // shown exactly once — never stored
 	Name        string  `json:"name"`
 	ProjectID   string  `json:"project_id"`
 	Environment string  `json:"environment"`
@@ -53,16 +53,16 @@ type CreateTokenResponse struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
-//	@Summary		Create service token
-//	@Description	Generate a scoped service token. Plaintext shown once, SHA-256 hashed before storage.
-//	@Tags			tokens
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		CreateTokenRequest	true	"Token config"
-//	@Success		201		{object}	CreateTokenResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Security		SessionAuth
-//	@Router			/tokens [post]
+// @Summary		Create service token
+// @Description	Generate a scoped service token. Plaintext shown once, SHA-256 hashed before storage.
+// @Tags			tokens
+// @Accept			json
+// @Produce		json
+// @Param			body	body		CreateTokenRequest	true	"Token config"
+// @Success		201		{object}	CreateTokenResponse
+// @Failure		400		{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/tokens [post]
 func (h *TokensHandler) Create(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -180,14 +180,14 @@ func (h *TokensHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // --- Revoke ---
 
-//	@Summary		Revoke service token
-//	@Description	Marks a service token as revoked. Immediate effect.
-//	@Tags			tokens
-//	@Param			tokenID	path	string	true	"Token UUID"
-//	@Success		200
-//	@Failure		400	{object}	ErrorResponse
-//	@Security		SessionAuth
-//	@Router			/tokens/{tokenID} [delete]
+// @Summary		Revoke service token
+// @Description	Marks a service token as revoked. Immediate effect.
+// @Tags			tokens
+// @Param			tokenID	path	string	true	"Token UUID"
+// @Success		200
+// @Failure		400	{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/tokens/{tokenID} [delete]
 func (h *TokensHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	tokenID, err := uuid.Parse(chi.URLParam(r, "tokenID"))
 	if err != nil {
@@ -222,6 +222,43 @@ func (h *TokensHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 
+// --- Destroy (hard delete) ---
+
+// @Summary		Delete service token
+// @Description	Permanently removes a service token from the database.
+// @Tags			tokens
+// @Param			tokenID	path	string	true	"Token UUID"
+// @Success		200
+// @Failure		400	{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/tokens/{tokenID}/destroy [delete]
+func (h *TokensHandler) Destroy(w http.ResponseWriter, r *http.Request) {
+	tokenID, err := uuid.Parse(chi.URLParam(r, "tokenID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid token ID"})
+		return
+	}
+
+	deleteStmt := table.ServiceTokens.DELETE().WHERE(
+		table.ServiceTokens.ID.EQ(UUID(tokenID)),
+	)
+
+	result, err := deleteStmt.Exec(h.db)
+	if err != nil {
+		slog.Error("tokens.destroy: exec", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete token"})
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "token not found"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
 // --- List ---
 
 type TokenListItem struct {
@@ -239,14 +276,14 @@ type ListTokensResponse struct {
 	Tokens []TokenListItem `json:"tokens"`
 }
 
-//	@Summary		List service tokens
-//	@Description	List all tokens for a project. Never exposes token hash or plaintext.
-//	@Tags			tokens
-//	@Produce		json
-//	@Param			project_id	query		string	true	"Project ID"
-//	@Success		200			{object}	ListTokensResponse
-//	@Security		SessionAuth
-//	@Router			/tokens [get]
+// @Summary		List service tokens
+// @Description	List all tokens for a project. Never exposes token hash or plaintext.
+// @Tags			tokens
+// @Produce		json
+// @Param			project_id	query		string	true	"Project ID"
+// @Success		200			{object}	ListTokensResponse
+// @Security		SessionAuth
+// @Router			/tokens [get]
 func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := r.URL.Query().Get("project_id")
 	if projectIDStr == "" {

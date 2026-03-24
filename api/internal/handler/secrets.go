@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
@@ -34,9 +35,9 @@ func NewSecretsHandler(db *sql.DB) *SecretsHandler {
 type CreateSecretRequest struct {
 	ProjectID   string `json:"project_id"`
 	Environment string `json:"environment"`
-	NameHash    string `json:"name_hash"`   // base64 HMAC-SHA256 of secret name
-	Ciphertext  string `json:"ciphertext"`  // base64 AES-256-GCM encrypted item JSON
-	Nonce       string `json:"nonce"`        // base64 96-bit nonce
+	NameHash    string `json:"name_hash"`  // base64 HMAC-SHA256 of secret name
+	Ciphertext  string `json:"ciphertext"` // base64 AES-256-GCM encrypted item JSON
+	Nonce       string `json:"nonce"`      // base64 96-bit nonce
 }
 
 type SecretResponse struct {
@@ -51,18 +52,18 @@ type SecretResponse struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-//	@Summary		Create secret
-//	@Description	Store an encrypted vault item. Server stores opaque ciphertext only.
-//	@Tags			secrets
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		CreateSecretRequest	true	"Encrypted secret"
-//	@Success		201		{object}	SecretResponse
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		409		{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets [post]
-//	@Router			/secrets [post]
+// @Summary		Create secret
+// @Description	Store an encrypted vault item. Server stores opaque ciphertext only.
+// @Tags			secrets
+// @Accept			json
+// @Produce		json
+// @Param			body	body		CreateSecretRequest	true	"Encrypted secret"
+// @Success		201		{object}	SecretResponse
+// @Failure		400		{object}	ErrorResponse
+// @Failure		409		{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets [post]
+// @Router			/secrets [post]
 func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Auth is enforced by middleware (session or token) before this handler runs.
 	var req CreateSecretRequest
@@ -151,18 +152,18 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // --- Get single secret by name_hash ---
 
-//	@Summary		Get secret
-//	@Description	Retrieve a single encrypted secret by name hash.
-//	@Tags			secrets
-//	@Produce		json
-//	@Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64)"
-//	@Param			project_id	query		string	true	"Project ID"
-//	@Param			environment	query		string	true	"Environment (development/staging/production)"
-//	@Success		200			{object}	SecretResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/{nameHash} [get]
-//	@Router			/secrets/{nameHash} [get]
+// @Summary		Get secret
+// @Description	Retrieve a single encrypted secret by name hash.
+// @Tags			secrets
+// @Produce		json
+// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64)"
+// @Param			project_id	query		string	true	"Project ID"
+// @Param			environment	query		string	true	"Environment (development/staging/production)"
+// @Success		200			{object}	SecretResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash} [get]
+// @Router			/secrets/{nameHash} [get]
 func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -171,7 +172,7 @@ func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
-	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
 		return
@@ -211,16 +212,16 @@ type BulkFetchResponse struct {
 	Secrets []SecretResponse `json:"secrets"`
 }
 
-//	@Summary		Bulk fetch secrets
-//	@Description	Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
-//	@Tags			secrets
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		BulkFetchRequest	true	"Name hashes to fetch"
-//	@Success		200		{array}		SecretResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/bulk [post]
-//	@Router			/secrets/bulk [post]
+// @Summary		Bulk fetch secrets
+// @Description	Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+// @Tags			secrets
+// @Accept			json
+// @Produce		json
+// @Param			body	body		BulkFetchRequest	true	"Name hashes to fetch"
+// @Success		200		{array}		SecretResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/bulk [post]
+// @Router			/secrets/bulk [post]
 func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 	var req BulkFetchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -277,23 +278,23 @@ func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 
 type UpdateSecretRequest struct {
 	Ciphertext string `json:"ciphertext"` // base64
-	Nonce      string `json:"nonce"`       // base64
+	Nonce      string `json:"nonce"`      // base64
 }
 
-//	@Summary		Update secret
-//	@Description	Update ciphertext and nonce. Version auto-incremented.
-//	@Tags			secrets
-//	@Accept			json
-//	@Produce		json
-//	@Param			nameHash	path		string				true	"HMAC-SHA256 name hash"
-//	@Param			project_id	query		string				true	"Project ID"
-//	@Param			environment	query		string				true	"Environment"
-//	@Param			body		body		UpdateSecretRequest	true	"New ciphertext"
-//	@Success		200			{object}	SecretResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/{nameHash} [put]
-//	@Router			/secrets/{nameHash} [put]
+// @Summary		Update secret
+// @Description	Update ciphertext and nonce. Version auto-incremented.
+// @Tags			secrets
+// @Accept			json
+// @Produce		json
+// @Param			nameHash	path		string				true	"HMAC-SHA256 name hash"
+// @Param			project_id	query		string				true	"Project ID"
+// @Param			environment	query		string				true	"Environment"
+// @Param			body		body		UpdateSecretRequest	true	"New ciphertext"
+// @Success		200			{object}	SecretResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash} [put]
+// @Router			/secrets/{nameHash} [put]
 func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -302,7 +303,7 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
-	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
 		return
@@ -392,17 +393,17 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // --- Delete ---
 
-//	@Summary		Delete secret
-//	@Description	Remove a secret from the vault.
-//	@Tags			secrets
-//	@Param			nameHash	path	string	true	"HMAC-SHA256 name hash"
-//	@Param			project_id	query	string	true	"Project ID"
-//	@Param			environment	query	string	true	"Environment"
-//	@Success		200
-//	@Failure		404	{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/{nameHash} [delete]
-//	@Router			/secrets/{nameHash} [delete]
+// @Summary		Delete secret
+// @Description	Remove a secret from the vault.
+// @Tags			secrets
+// @Param			nameHash	path	string	true	"HMAC-SHA256 name hash"
+// @Param			project_id	query	string	true	"Project ID"
+// @Param			environment	query	string	true	"Environment"
+// @Success			200
+// @Failure			404	{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash} [delete]
+// @Router			/secrets/{nameHash} [delete]
 func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -411,7 +412,8 @@ func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
-	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	slog.Info("secrets.delete: raw path param", "nameHash", nameHashB64)
+	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
 		return
@@ -453,16 +455,16 @@ type SecretListItem struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-//	@Summary		List secrets
-//	@Description	List secret metadata (name hash, version, updated_at). Never returns ciphertext.
-//	@Tags			secrets
-//	@Produce		json
-//	@Param			project_id	query		string	true	"Project ID"
-//	@Param			environment	query		string	true	"Environment"
-//	@Success		200			{object}	ListSecretsResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets [get]
-//	@Router			/secrets [get]
+// @Summary		List secrets
+// @Description	List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+// @Tags			secrets
+// @Produce		json
+// @Param			project_id	query		string	true	"Project ID"
+// @Param			environment	query		string	true	"Environment"
+// @Success		200			{object}	ListSecretsResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets [get]
+// @Router			/secrets [get]
 func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -514,18 +516,18 @@ type VersionsResponse struct {
 	Versions []VersionItem `json:"versions"`
 }
 
-//	@Summary		List secret versions
-//	@Description	Show version history for a secret. Returns version numbers and timestamps.
-//	@Tags			secrets
-//	@Produce		json
-//	@Param			nameHash	path		string	true	"HMAC-SHA256 name hash"
-//	@Param			project_id	query		string	true	"Project ID"
-//	@Param			environment	query		string	true	"Environment"
-//	@Success		200			{object}	VersionsResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/{nameHash}/versions [get]
-//	@Router			/secrets/{nameHash}/versions [get]
+// @Summary		List secret versions
+// @Description	Show version history for a secret. Returns version numbers and timestamps.
+// @Tags			secrets
+// @Produce		json
+// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash"
+// @Param			project_id	query		string	true	"Project ID"
+// @Param			environment	query		string	true	"Environment"
+// @Success		200			{object}	VersionsResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash}/versions [get]
+// @Router			/secrets/{nameHash}/versions [get]
 func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -534,7 +536,7 @@ func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
-	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
 		return
@@ -586,20 +588,20 @@ type RollbackRequest struct {
 	Version int `json:"version"`
 }
 
-//	@Summary		Rollback secret
-//	@Description	Revert a secret to a previous version. The current version is archived first.
-//	@Tags			secrets
-//	@Accept			json
-//	@Produce		json
-//	@Param			nameHash	path		string			true	"HMAC-SHA256 name hash"
-//	@Param			project_id	query		string			true	"Project ID"
-//	@Param			environment	query		string			true	"Environment"
-//	@Param			body		body		RollbackRequest	true	"Target version"
-//	@Success		200			{object}	SecretResponse
-//	@Failure		404			{object}	ErrorResponse
-//	@Security		BearerAuth
-//	@Router			/sdk/secrets/{nameHash}/rollback [post]
-//	@Router			/secrets/{nameHash}/rollback [post]
+// @Summary		Rollback secret
+// @Description	Revert a secret to a previous version. The current version is archived first.
+// @Tags			secrets
+// @Accept			json
+// @Produce		json
+// @Param			nameHash	path		string			true	"HMAC-SHA256 name hash"
+// @Param			project_id	query		string			true	"Project ID"
+// @Param			environment	query		string			true	"Environment"
+// @Param			body		body		RollbackRequest	true	"Target version"
+// @Success		200			{object}	SecretResponse
+// @Failure		404			{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash}/rollback [post]
+// @Router			/secrets/{nameHash}/rollback [post]
 func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
@@ -608,7 +610,7 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
-	nameHash, err := base64.URLEncoding.DecodeString(nameHashB64)
+	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
 		return
@@ -715,6 +717,31 @@ func parseProjectEnv(r *http.Request) (uuid.UUID, string, error) {
 	}
 
 	return pid, env, nil
+}
+
+// decodeNameHash accepts both URL-safe and standard base64, with or without padding.
+// It also URL-unescapes the input first, since HTTP clients may percent-encode
+// characters like = (%3D) in path parameters.
+func decodeNameHash(s string) ([]byte, error) {
+	// URL-unescape first (handles %3D, %2B, %2F etc.)
+	if decoded, err := url.PathUnescape(s); err == nil {
+		s = decoded
+	}
+
+	// Try URL-safe base64 with padding
+	if b, err := base64.URLEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
+	// Try standard base64 with padding
+	if b, err := base64.StdEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
+	// Try URL-safe base64 without padding
+	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
+	// Try standard base64 without padding
+	return base64.RawStdEncoding.DecodeString(s)
 }
 
 func toSecretResponse(item model.VaultItems) SecretResponse {

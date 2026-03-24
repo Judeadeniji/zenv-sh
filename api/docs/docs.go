@@ -2776,6 +2776,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/tokens/{tokenID}/destroy": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Permanently removes a service token from the database.",
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Delete service token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token UUID",
+                        "name": "tokenID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/public-key": {
             "get": {
                 "security": [

@@ -69,7 +69,7 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 			await rotateProjectDEK({
 				projectId,
 				oldProjectDEK: projectDEK,
-				members,
+				members: members as { user_id: string; public_key: string }[],
 				onProgress: handleProgress,
 			})
 			// Invalidate all caches after successful rotation
@@ -95,7 +95,7 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				{step === "confirm" && (
 					<>

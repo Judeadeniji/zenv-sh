@@ -10,6 +10,12 @@ export const createSecretSchema = z.object({
 
 export type CreateSecretInput = z.infer<typeof createSecretSchema>
 
+export const updateSecretSchema = z.object({
+	value: z.string().min(1, "Value is required"),
+})
+
+export type UpdateSecretInput = z.infer<typeof updateSecretSchema>
+
 export const createTokenSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	permission: z.enum(["read", "read_write"]),

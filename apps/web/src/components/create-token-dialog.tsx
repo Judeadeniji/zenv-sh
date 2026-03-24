@@ -11,6 +11,7 @@ import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { useCreateToken } from "#/lib/queries/tokens"
 import { useNavStore } from "#/lib/stores/nav"
 import { createTokenSchema, type CreateTokenInput } from "#/lib/schemas/secrets"
+import { toast } from "sonner"
 import { AlertCircle } from "lucide-react"
 
 interface CreateTokenDialogProps {
@@ -37,11 +38,13 @@ export function CreateTokenDialog({ projectId, trigger }: CreateTokenDialogProps
 					const token = (res as { token?: string })?.token
 					if (token) {
 						setCreatedToken(token)
+						toast.success(`Created token ${data.name}`)
 					} else {
 						setOpen(false)
 						form.reset()
 					}
 				},
+				onError: (err) => toast.error(err.message || "Failed to create token"),
 			},
 		)
 	}
@@ -54,7 +57,7 @@ export function CreateTokenDialog({ projectId, trigger }: CreateTokenDialogProps
 
 	return (
 		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true) }}>
-			<DialogTrigger render={trigger} />
+			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				{createdToken ? (
 					<>
