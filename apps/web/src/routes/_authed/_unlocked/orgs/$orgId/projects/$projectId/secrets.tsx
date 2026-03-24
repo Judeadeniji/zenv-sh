@@ -215,7 +215,7 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 	}
 
 	return (
-		<div className="space-y-4 px-6 py-4">
+		<div className="flex-1 overflow-y-auto space-y-4 px-6 py-4">
 			<div>
 				<label className="text-xs font-medium text-muted-foreground">Name</label>
 				<div className="mt-1 flex items-center gap-2">

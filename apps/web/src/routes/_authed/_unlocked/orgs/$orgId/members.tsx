@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
@@ -13,7 +14,17 @@ import { orgMembersQueryOptions, useRemoveMember } from "#/lib/queries/orgs"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { Users, UserPlus, Trash2 } from "lucide-react"
 
+const searchSchema = z.object({
+	page: z.number().catch(1),
+	per_page: z.number().catch(50),
+	search: z.string().optional(),
+	role: z.string().optional(),
+	sort_by: z.string().optional(),
+	sort_dir: z.enum(["asc", "desc"]).optional(),
+})
+
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/members")({
+	validateSearch: searchSchema,
 	component: MembersPage,
 })
 
@@ -37,8 +48,11 @@ function getInitials(name?: string, email?: string): string {
 
 function MembersPage() {
 	const { orgId } = Route.useParams()
+	const search = Route.useSearch()
+	const navigate = useNavigate({ from: Route.fullPath })
+
 	const { data: me } = useQuery(meQueryOptions)
-	const { data, isLoading } = useQuery(orgMembersQueryOptions(orgId))
+	const { data, isLoading } = useQuery(orgMembersQueryOptions(orgId, search))
 	const removeMember = useRemoveMember()
 	const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null)
 
@@ -131,6 +145,16 @@ function MembersPage() {
 				columns={columns}
 				data={members}
 				filterColumn="name"
+				searchValue={search.search}
+				onSearchChange={(val) => {
+					navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+				}}
+				pagination={data?.meta ? {
+					page: data.meta.page ?? 1,
+					totalPages: data.meta.total_pages ?? 1,
+					total: data.meta.total ?? 0,
+					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
+				} : undefined}
 				filterPlaceholder="Search members..."
 				onRowClick={(row) => setSelectedMember(row.original)}
 				emptyIcon={<Users />}

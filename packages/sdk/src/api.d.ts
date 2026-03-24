@@ -932,7 +932,18 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page number */
+                    page?: number;
+                    /** @description Items per page */
+                    per_page?: number;
+                    /** @description Sort by field */
+                    sort_by?: string;
+                    /** @description Sort direction (asc/desc) */
+                    sort_dir?: string;
+                    /** @description Search by organization name */
+                    search?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1068,7 +1079,20 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page number */
+                    page?: number;
+                    /** @description Items per page */
+                    per_page?: number;
+                    /** @description Sort by field */
+                    sort_by?: string;
+                    /** @description Sort direction (asc/desc) */
+                    sort_dir?: string;
+                    /** @description Search by email */
+                    search?: string;
+                    /** @description Filter by role */
+                    role?: string;
+                };
                 header?: never;
                 path: {
                     /** @description Organization UUID */
@@ -1353,6 +1377,16 @@ export interface paths {
                 query: {
                     /** @description Organization ID */
                     organization_id: string;
+                    /** @description Page number */
+                    page?: number;
+                    /** @description Items per page */
+                    per_page?: number;
+                    /** @description Sort by field */
+                    sort_by?: string;
+                    /** @description Sort direction (asc/desc) */
+                    sort_dir?: string;
+                    /** @description Search by project name */
+                    search?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1517,6 +1551,57 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectID}/crypto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project crypto
+         * @description Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectCryptoResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2828,6 +2913,18 @@ export interface paths {
                 query: {
                     /** @description Project ID */
                     project_id: string;
+                    /** @description Page number */
+                    page?: number;
+                    /** @description Items per page */
+                    per_page?: number;
+                    /** @description Sort by field */
+                    sort_by?: string;
+                    /** @description Sort direction (asc/desc) */
+                    sort_dir?: string;
+                    /** @description Search by token name */
+                    search?: string;
+                    /** @description Filter by status: active, revoked, all */
+                    status?: string;
                 };
                 header?: never;
                 path?: never;
@@ -3058,9 +3155,7 @@ export interface components {
         };
         "api_internal_handler.AuditLogListResponse": {
             entries?: components["schemas"]["api_internal_handler.AuditLogEntry"][];
-            page?: number;
-            per_page?: number;
-            total?: number;
+            meta?: components["schemas"]["api_internal_handler.Meta"];
         };
         "api_internal_handler.BulkFetchRequest": {
             environment?: string;
@@ -3177,17 +3272,21 @@ export interface components {
         };
         "api_internal_handler.ListMembersResponse": {
             members?: components["schemas"]["api_internal_handler.MemberResponse"][];
+            meta?: components["schemas"]["api_internal_handler.Meta"];
         };
         "api_internal_handler.ListOrgsResponse": {
+            meta?: components["schemas"]["api_internal_handler.Meta"];
             organizations?: components["schemas"]["api_internal_handler.OrgResponse"][];
         };
         "api_internal_handler.ListProjectsResponse": {
+            meta?: components["schemas"]["api_internal_handler.Meta"];
             projects?: components["schemas"]["api_internal_handler.ProjectResponse"][];
         };
         "api_internal_handler.ListSecretsResponse": {
             secrets?: components["schemas"]["api_internal_handler.SecretListItem"][];
         };
         "api_internal_handler.ListTokensResponse": {
+            meta?: components["schemas"]["api_internal_handler.Meta"];
             tokens?: components["schemas"]["api_internal_handler.TokenListItem"][];
         };
         "api_internal_handler.MeResponse": {
@@ -3205,6 +3304,12 @@ export interface components {
             joined_at?: string;
             role?: string;
             user_id?: string;
+        };
+        "api_internal_handler.Meta": {
+            page?: number;
+            per_page?: number;
+            total?: number;
+            total_pages?: number;
         };
         "api_internal_handler.OrgResponse": {
             created_at?: string;

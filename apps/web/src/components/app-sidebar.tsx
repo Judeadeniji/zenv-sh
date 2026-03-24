@@ -53,7 +53,7 @@ export function AppSidebar() {
 	const navigate = useNavigate()
 	const { state } = useSidebar()
 	const { data: me } = useQuery(meQueryOptions)
-	const { data: orgsData, isLoading: orgsLoading } = useQuery(orgsQueryOptions)
+	const { data: orgsData, isLoading: orgsLoading } = useQuery(orgsQueryOptions())
 
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const orgId = params.orgId
@@ -98,9 +98,11 @@ export function AppSidebar() {
 
 	const handleLock = () => {
 		useAuthStore.getState().lock()
-		navigate({ to: "/unlock", search: {
-			redirect: location.pathname
-		} })
+		navigate({
+			to: "/unlock", search: {
+				redirect: location.pathname
+			}
+		})
 	}
 
 	const handleSignOut = () => {

@@ -4,14 +4,23 @@ import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
 import { queryKeys, mutationKeys } from "#/lib/keys"
-import { toBase64, fromBase64, unpack, pack } from "#/lib/encoding"
+import { toBase64, fromBase64, unpack } from "#/lib/encoding"
 
-export function projectsQueryOptions(orgId: string) {
+export function projectsQueryOptions(
+	orgId: string,
+	opts?: {
+		page?: number
+		per_page?: number
+		sort_by?: string
+		sort_dir?: "asc" | "desc"
+		search?: string
+	},
+) {
 	return queryOptions({
-		queryKey: queryKeys.projects.list(orgId),
+		queryKey: queryKeys.projects.list(orgId, opts),
 		queryFn: async () => {
 			const { data, error } = await api().GET("/projects", {
-				params: { query: { organization_id: orgId } },
+				params: { query: { organization_id: orgId, ...opts } as any },
 			})
 			if (error || !data) throw new Error("Failed to fetch projects")
 			return data
@@ -99,7 +108,7 @@ export function useDeleteProject() {
 		mutationFn: async ({ projectId }: { projectId: string }) => {
 			const { error } = await api().DELETE("/projects/{projectID}" as never, {
 				params: { path: { projectID: projectId } },
-			})
+			} as any)
 			if (error) throw new Error("Failed to delete project")
 		},
 		onSuccess: () => {
@@ -167,14 +176,14 @@ export function useProjectDEK(projectId: string) {
 			)
 
 			// 2. Get project crypto material (salt + wrapped DEK)
-			const { data: cryptoData, error: cryptoErr } = await api().GET("/projects/{projectID}/crypto" as never, {
+			const { data: cryptoData, error: cryptoErr } = await api().GET("/projects/{projectID}/crypto", {
 				params: { path: { projectID: projectId } },
 			})
 			if (cryptoErr || !cryptoData) throw new Error("Project crypto not found")
 
-			const cm = cryptoData as { project_salt: string; wrapped_project_dek: string }
-			const projectSalt = fromBase64(cm.project_salt)
-			const wrappedDEK = fromBase64(cm.wrapped_project_dek)
+			const cm = cryptoData
+			const projectSalt = fromBase64(cm.project_salt!)
+			const wrappedDEK = fromBase64(cm.wrapped_project_dek!)
 
 			// 3. Derive project KEK from project vault key + salt
 			const { kek: projectKEK } = await deriveKeysAsync(projectVaultKey, projectSalt, "passphrase")

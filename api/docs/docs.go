@@ -864,6 +864,38 @@ const docTemplate = `{
                     "organizations"
                 ],
                 "summary": "List organizations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by organization name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -985,6 +1017,42 @@ const docTemplate = `{
                         "name": "orgID",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by email",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by role",
+                        "name": "role",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1232,6 +1300,36 @@ const docTemplate = `{
                         "name": "organization_id",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by project name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1373,6 +1471,46 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/crypto": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project crypto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ProjectCryptoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2687,6 +2825,42 @@ const docTemplate = `{
                         "name": "project_id",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by token name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status: active, revoked, all",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2915,14 +3089,8 @@ const docTemplate = `{
                         "$ref": "#/definitions/api_internal_handler.AuditLogEntry"
                     }
                 },
-                "page": {
-                    "type": "integer"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
                 }
             }
         },
@@ -3219,12 +3387,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api_internal_handler.MemberResponse"
                     }
+                },
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
                 }
             }
         },
         "api_internal_handler.ListOrgsResponse": {
             "type": "object",
             "properties": {
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
+                },
                 "organizations": {
                     "type": "array",
                     "items": {
@@ -3236,6 +3410,9 @@ const docTemplate = `{
         "api_internal_handler.ListProjectsResponse": {
             "type": "object",
             "properties": {
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
+                },
                 "projects": {
                     "type": "array",
                     "items": {
@@ -3258,6 +3435,9 @@ const docTemplate = `{
         "api_internal_handler.ListTokensResponse": {
             "type": "object",
             "properties": {
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
+                },
                 "tokens": {
                     "type": "array",
                     "items": {
@@ -3307,6 +3487,23 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.Meta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },

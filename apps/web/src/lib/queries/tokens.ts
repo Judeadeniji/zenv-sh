@@ -3,12 +3,22 @@ import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { toast } from "sonner"
 
-export function tokensQueryOptions(projectId: string) {
+export function tokensQueryOptions(
+	projectId: string,
+	opts?: {
+		page?: number
+		per_page?: number
+		sort_by?: string
+		sort_dir?: "asc" | "desc"
+		search?: string
+		status?: "active" | "revoked" | "all"
+	},
+) {
 	return queryOptions({
-		queryKey: queryKeys.tokens.list(projectId),
+		queryKey: queryKeys.tokens.list(projectId, opts),
 		queryFn: async () => {
 			const { data, error } = await api().GET("/tokens", {
-				params: { query: { project_id: projectId } },
+				params: { query: { project_id: projectId, ...opts } as any },
 			})
 			if (error || !data) throw new Error("Failed to fetch tokens")
 			return data

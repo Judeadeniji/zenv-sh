@@ -6,26 +6,27 @@ export const queryKeys = {
 	},
 	orgs: {
 		all: ["orgs"] as const,
+		list: (params?: Record<string, unknown>) => [...queryKeys.orgs.all, "list", params] as const,
 		detail: (orgId: string) => ["orgs", orgId] as const,
-		members: (orgId: string) => ["orgs", orgId, "members"] as const,
+		members: (orgId: string, params?: Record<string, unknown>) => ["orgs", orgId, "members", params] as const,
 	},
 	projects: {
-		list: (orgId: string) => ["projects", orgId] as const,
+		list: (orgId: string, params?: Record<string, unknown>) => ["projects", orgId, params] as const,
 		detail: (projectId: string) => ["project", projectId] as const,
 	},
 	secrets: {
-		list: (projectId: string) => ["secrets", projectId] as const,
+		list: (projectId: string, params?: Record<string, unknown>) => ["secrets", projectId, params] as const,
 		detail: (projectId: string, nameHash: string) => ["secrets", projectId, nameHash] as const,
 		versions: (projectId: string, nameHash: string) => ["secrets", projectId, nameHash, "versions"] as const,
 	},
 	tokens: {
-		list: (projectId: string) => ["tokens", projectId] as const,
+		list: (projectId: string, params?: Record<string, unknown>) => ["tokens", projectId, params] as const,
 	},
 	members: {
-		list: (orgId: string) => ["members", orgId] as const,
+		list: (orgId: string, params?: Record<string, unknown>) => ["members", orgId, params] as const,
 	},
 	audit: {
-		list: (projectId: string) => ["audit", projectId] as const,
+		list: (projectId: string, params?: Record<string, unknown>) => ["audit", projectId, params] as const,
 	},
 	recovery: {
 		status: ["recovery", "status"] as const,

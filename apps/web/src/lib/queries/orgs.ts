@@ -2,15 +2,25 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 
-export const orgsQueryOptions = queryOptions({
-	queryKey: queryKeys.orgs.all,
-	queryFn: async () => {
-		const { data, error } = await api().GET("/orgs")
-		if (error || !data) throw new Error("Failed to fetch organizations")
-		return data
-	},
-	staleTime: 30_000,
-})
+export function orgsQueryOptions(opts?: {
+	page?: number
+	per_page?: number
+	sort_by?: string
+	sort_dir?: "asc" | "desc"
+	search?: string
+}) {
+	return queryOptions({
+		queryKey: queryKeys.orgs.list(opts),
+		queryFn: async () => {
+			const { data, error } = await api().GET("/orgs", {
+				params: { query: { ...opts } as any },
+			})
+			if (error || !data) throw new Error("Failed to fetch organizations")
+			return data
+		},
+		staleTime: 30_000,
+	})
+}
 
 export function orgQueryOptions(orgId: string) {
 	return queryOptions({
@@ -26,12 +36,22 @@ export function orgQueryOptions(orgId: string) {
 	})
 }
 
-export function orgMembersQueryOptions(orgId: string) {
+export function orgMembersQueryOptions(
+	orgId: string,
+	opts?: {
+		page?: number
+		per_page?: number
+		sort_by?: string
+		sort_dir?: "asc" | "desc"
+		search?: string
+		role?: string
+	},
+) {
 	return queryOptions({
-		queryKey: queryKeys.orgs.members(orgId),
+		queryKey: queryKeys.orgs.members(orgId, opts),
 		queryFn: async () => {
 			const { data, error } = await api().GET("/orgs/{orgID}/members", {
-				params: { path: { orgID: orgId } },
+				params: { path: { orgID: orgId }, query: { ...opts } as any },
 			})
 			if (error || !data) throw new Error("Failed to fetch members")
 			return data

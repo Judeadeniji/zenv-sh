@@ -19,7 +19,7 @@ export function AppHeader() {
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const matches = useMatches()
 
-	const { data: orgsData } = useQuery(orgsQueryOptions)
+	const { data: orgsData } = useQuery(orgsQueryOptions())
 	const orgList = (orgsData as { organizations?: { id: string; name: string }[] })?.organizations ?? []
 	const activeOrg = orgList.find((o) => o.id === params.orgId)
 
@@ -140,11 +140,10 @@ function EnvSwitcher() {
 						key={env}
 						type="button"
 						onClick={() => handleChange(env)}
-						className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-all ${
-							isActive
+						className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-all ${isActive
 								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground"
-						}`}
+							}`}
 					>
 						<span className={`size-1.5 rounded-full ${ENV_DOT[env] ?? "bg-muted-foreground"}`} />
 						{ENV_SHORT[env] ?? env}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -134,12 +135,18 @@ func (h *OrgsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 type ListOrgsResponse struct {
 	Organizations []OrgResponse `json:"organizations"`
+	Meta          Meta          `json:"meta"`
 }
 
 // @Summary		List organizations
 // @Description	List all organizations the current user is a member of.
 // @Tags			organizations
 // @Produce		json
+// @Param			page			query		int		false	"Page number"
+// @Param			per_page		query		int		false	"Items per page"
+// @Param			sort_by			query		string	false	"Sort by field"
+// @Param			sort_dir		query		string	false	"Sort direction (asc/desc)"
+// @Param			search			query		string	false	"Search by organization name"
 // @Success		200	{object}	ListOrgsResponse
 // @Security		SessionAuth
 // @Router			/orgs [get]
@@ -156,6 +163,39 @@ func (h *OrgsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	params := ParseListParams(r)
+
+	condition := table.OrganizationMembers.UserID.EQ(UUID(userID))
+	if params.Search != "" {
+		condition = condition.AND(LOWER(table.Organizations.Name).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
+	}
+
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.Organizations.ID).AS("count")).
+		FROM(table.Organizations.INNER_JOIN(
+			table.OrganizationMembers,
+			table.OrganizationMembers.OrganizationID.EQ(table.Organizations.ID),
+		)).WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "name":
+		if params.SortDir == "asc" {
+			orderBy = table.Organizations.Name.ASC()
+		} else {
+			orderBy = table.Organizations.Name.DESC()
+		}
+	default:
+		if params.SortDir == "asc" {
+			orderBy = table.Organizations.CreatedAt.ASC()
+		} else {
+			orderBy = table.Organizations.CreatedAt.DESC()
+		}
+	}
+
 	var orgs []model.Organizations
 	stmt := SELECT(
 		table.Organizations.ID,
@@ -167,9 +207,10 @@ func (h *OrgsHandler) List(w http.ResponseWriter, r *http.Request) {
 			table.OrganizationMembers,
 			table.OrganizationMembers.OrganizationID.EQ(table.Organizations.ID),
 		),
-	).WHERE(
-		table.OrganizationMembers.UserID.EQ(UUID(userID)),
-	).ORDER_BY(table.Organizations.Name.ASC())
+	).WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &orgs); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("orgs.list: query", "error", err)
@@ -177,7 +218,10 @@ func (h *OrgsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := ListOrgsResponse{Organizations: make([]OrgResponse, 0, len(orgs))}
+	resp := ListOrgsResponse{
+		Organizations: make([]OrgResponse, 0, len(orgs)),
+		Meta:          NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	}
 	for _, o := range orgs {
 		resp.Organizations = append(resp.Organizations, OrgResponse{
 			ID:        o.ID.String(),
@@ -245,6 +289,7 @@ type MemberResponse struct {
 
 type ListMembersResponse struct {
 	Members []MemberResponse `json:"members"`
+	Meta    Meta             `json:"meta"`
 }
 
 // memberRow is used to scan the JOIN result.
@@ -260,7 +305,13 @@ type memberRow struct {
 // @Description	List all members of an organization with their roles.
 // @Tags			organizations
 // @Produce		json
-// @Param			orgID	path		string	true	"Organization UUID"
+// @Param			orgID			path	string	true	"Organization UUID"
+// @Param			page			query	int		false	"Page number"
+// @Param			per_page		query	int		false	"Items per page"
+// @Param			sort_by			query	string	false	"Sort by field"
+// @Param			sort_dir		query	string	false	"Sort direction (asc/desc)"
+// @Param			search			query	string	false	"Search by email"
+// @Param			role			query	string	false	"Filter by role"
 // @Success		200		{object}	ListMembersResponse
 // @Failure		400		{object}	ErrorResponse
 // @Security		SessionAuth
@@ -270,6 +321,48 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid organization ID"})
 		return
+	}
+
+	params := ParseListParams(r)
+	role := r.URL.Query().Get("role")
+
+	condition := table.OrganizationMembers.OrganizationID.EQ(UUID(orgID))
+	if role != "" && role != "all" {
+		condition = condition.AND(table.OrganizationMembers.Role.EQ(String(role)))
+	}
+	if params.Search != "" {
+		condition = condition.AND(LOWER(table.Users.Email).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
+	}
+
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.OrganizationMembers.ID).AS("count")).
+		FROM(table.OrganizationMembers.INNER_JOIN(
+			table.Users, table.Users.ID.EQ(table.OrganizationMembers.UserID),
+		)).WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "email":
+		if params.SortDir == "asc" {
+			orderBy = table.Users.Email.ASC()
+		} else {
+			orderBy = table.Users.Email.DESC()
+		}
+	case "role":
+		if params.SortDir == "asc" {
+			orderBy = table.OrganizationMembers.Role.ASC()
+		} else {
+			orderBy = table.OrganizationMembers.Role.DESC()
+		}
+	default: // "joined_at"
+		if params.SortDir == "asc" {
+			orderBy = table.OrganizationMembers.JoinedAt.ASC()
+		} else {
+			orderBy = table.OrganizationMembers.JoinedAt.DESC()
+		}
 	}
 
 	var rows []memberRow
@@ -284,9 +377,10 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 			table.Users,
 			table.Users.ID.EQ(table.OrganizationMembers.UserID),
 		),
-	).WHERE(
-		table.OrganizationMembers.OrganizationID.EQ(UUID(orgID)),
-	).ORDER_BY(table.OrganizationMembers.JoinedAt.ASC())
+	).WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &rows); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("orgs.list_members: query", "error", err)
@@ -294,7 +388,10 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := ListMembersResponse{Members: make([]MemberResponse, 0, len(rows))}
+	resp := ListMembersResponse{
+		Members: make([]MemberResponse, 0, len(rows)),
+		Meta:    NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	}
 	for _, m := range rows {
 		resp.Members = append(resp.Members, MemberResponse{
 			ID:       m.ID.String(),
@@ -558,6 +655,39 @@ func (h *OrgsHandler) ListForToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	params := ParseListParams(r)
+
+	condition := table.OrganizationMembers.UserID.EQ(UUID(userID))
+	if params.Search != "" {
+		condition = condition.AND(LOWER(table.Organizations.Name).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
+	}
+
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.Organizations.ID).AS("count")).
+		FROM(table.Organizations.INNER_JOIN(
+			table.OrganizationMembers,
+			table.OrganizationMembers.OrganizationID.EQ(table.Organizations.ID),
+		)).WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "name":
+		if params.SortDir == "asc" {
+			orderBy = table.Organizations.Name.ASC()
+		} else {
+			orderBy = table.Organizations.Name.DESC()
+		}
+	default:
+		if params.SortDir == "asc" {
+			orderBy = table.Organizations.CreatedAt.ASC()
+		} else {
+			orderBy = table.Organizations.CreatedAt.DESC()
+		}
+	}
+
 	var orgs []model.Organizations
 	stmt := SELECT(
 		table.Organizations.ID,
@@ -569,9 +699,10 @@ func (h *OrgsHandler) ListForToken(w http.ResponseWriter, r *http.Request) {
 			table.OrganizationMembers,
 			table.OrganizationMembers.OrganizationID.EQ(table.Organizations.ID),
 		),
-	).WHERE(
-		table.OrganizationMembers.UserID.EQ(UUID(userID)),
-	).ORDER_BY(table.Organizations.Name.ASC())
+	).WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &orgs); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("orgs.list_for_token: query", "error", err)
@@ -579,7 +710,10 @@ func (h *OrgsHandler) ListForToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := ListOrgsResponse{Organizations: make([]OrgResponse, 0, len(orgs))}
+	resp := ListOrgsResponse{
+		Organizations: make([]OrgResponse, 0, len(orgs)),
+		Meta:          NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	}
 	for _, o := range orgs {
 		resp.Organizations = append(resp.Organizations, OrgResponse{
 			ID:        o.ID.String(),

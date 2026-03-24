@@ -47,12 +47,8 @@ definitions:
         items:
           $ref: '#/definitions/api_internal_handler.AuditLogEntry'
         type: array
-      page:
-        type: integer
-      per_page:
-        type: integer
-      total:
-        type: integer
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
     type: object
   api_internal_handler.BulkFetchRequest:
     properties:
@@ -252,9 +248,13 @@ definitions:
         items:
           $ref: '#/definitions/api_internal_handler.MemberResponse'
         type: array
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
     type: object
   api_internal_handler.ListOrgsResponse:
     properties:
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
       organizations:
         items:
           $ref: '#/definitions/api_internal_handler.OrgResponse'
@@ -262,6 +262,8 @@ definitions:
     type: object
   api_internal_handler.ListProjectsResponse:
     properties:
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
       projects:
         items:
           $ref: '#/definitions/api_internal_handler.ProjectResponse'
@@ -276,6 +278,8 @@ definitions:
     type: object
   api_internal_handler.ListTokensResponse:
     properties:
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
       tokens:
         items:
           $ref: '#/definitions/api_internal_handler.TokenListItem'
@@ -309,6 +313,17 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  api_internal_handler.Meta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
     type: object
   api_internal_handler.OrgResponse:
     properties:
@@ -1163,6 +1178,27 @@ paths:
   /orgs:
     get:
       description: List all organizations the current user is a member of.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort direction (asc/desc)
+        in: query
+        name: sort_dir
+        type: string
+      - description: Search by organization name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -1240,6 +1276,30 @@ paths:
         in: path
         name: orgID
         required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort direction (asc/desc)
+        in: query
+        name: sort_dir
+        type: string
+      - description: Search by email
+        in: query
+        name: search
+        type: string
+      - description: Filter by role
+        in: query
+        name: role
         type: string
       produces:
       - application/json
@@ -1399,6 +1459,26 @@ paths:
         name: organization_id
         required: true
         type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort direction (asc/desc)
+        in: query
+        name: sort_dir
+        type: string
+      - description: Search by project name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -1497,6 +1577,32 @@ paths:
       security:
       - SessionAuth: []
       summary: Get project
+      tags:
+      - projects
+  /projects/{projectID}/crypto:
+    get:
+      description: Returns project salt and wrapped Project DEK. SDK uses this to
+        derive Project KEK and unwrap DEK.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectCryptoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get project crypto
       tags:
       - projects
   /projects/{projectID}/key-grant:
@@ -2348,6 +2454,30 @@ paths:
         in: query
         name: project_id
         required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort direction (asc/desc)
+        in: query
+        name: sort_dir
+        type: string
+      - description: Search by token name
+        in: query
+        name: search
+        type: string
+      - description: 'Filter by status: active, revoked, all'
+        in: query
+        name: status
         type: string
       produces:
       - application/json

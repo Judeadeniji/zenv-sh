@@ -3,10 +3,11 @@ package handler
 import (
 	"database/sql"
 	"encoding/base64"
-	"errors"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -178,6 +179,7 @@ func (h *ProjectsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 type ListProjectsResponse struct {
 	Projects []ProjectResponse `json:"projects"`
+	Meta     Meta              `json:"meta"`
 }
 
 // @Summary		List projects
@@ -185,6 +187,11 @@ type ListProjectsResponse struct {
 // @Tags			projects
 // @Produce		json
 // @Param			organization_id	query		string	true	"Organization ID"
+// @Param			page			query		int		false	"Page number"
+// @Param			per_page		query		int		false	"Items per page"
+// @Param			sort_by			query		string	false	"Sort by field"
+// @Param			sort_dir		query		string	false	"Sort direction (asc/desc)"
+// @Param			search			query		string	false	"Search by project name"
 // @Success		200				{object}	ListProjectsResponse
 // @Security		SessionAuth
 // @Router			/projects [get]
@@ -201,15 +208,48 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	params := ParseListParams(r)
+
+	condition := table.Projects.OrganizationID.EQ(UUID(orgID))
+	if params.Search != "" {
+		condition = condition.AND(LOWER(table.Projects.Name).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
+	}
+
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.Projects.ID).AS("count")).
+		FROM(table.Projects).
+		WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "name":
+		if params.SortDir == "asc" {
+			orderBy = table.Projects.Name.ASC()
+		} else {
+			orderBy = table.Projects.Name.DESC()
+		}
+	default: // "created_at"
+		if params.SortDir == "asc" {
+			orderBy = table.Projects.CreatedAt.ASC()
+		} else {
+			orderBy = table.Projects.CreatedAt.DESC()
+		}
+	}
+
 	var projects []model.Projects
 	stmt := SELECT(
 		table.Projects.ID,
 		table.Projects.OrganizationID,
 		table.Projects.Name,
 		table.Projects.CreatedAt,
-	).FROM(table.Projects).WHERE(
-		table.Projects.OrganizationID.EQ(UUID(orgID)),
-	).ORDER_BY(table.Projects.Name.ASC())
+	).FROM(table.Projects).
+		WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	err = stmt.Query(h.db, &projects)
 	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
@@ -218,7 +258,10 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := ListProjectsResponse{Projects: make([]ProjectResponse, 0, len(projects))}
+	resp := ListProjectsResponse{
+		Projects: make([]ProjectResponse, 0, len(projects)),
+		Meta:     NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	}
 	for _, p := range projects {
 		resp.Projects = append(resp.Projects, ProjectResponse{
 			ID:             p.ID.String(),
@@ -396,7 +439,7 @@ func (h *ProjectsHandler) StartRotation(w http.ResponseWriter, r *http.Request) 
 type StageItem struct {
 	VaultItemID   string `json:"vault_item_id"`
 	NewCiphertext string `json:"new_ciphertext"` // base64
-	NewNonce      string `json:"new_nonce"`       // base64
+	NewNonce      string `json:"new_nonce"`      // base64
 }
 
 type StageRequest struct {
@@ -820,9 +863,9 @@ func (h *ProjectsHandler) CreateForToken(w http.ResponseWriter, r *http.Request)
 // --- Project Crypto (SDK machine access) ---
 
 type ProjectCryptoResponse struct {
-	ProjectSalt       string `json:"project_salt"`                  // base64
-	WrappedProjectDEK string `json:"wrapped_project_dek"`           // base64
-	VaultKeyType      string `json:"vault_key_type,omitempty"`      // "pin" or "passphrase"
+	ProjectSalt       string `json:"project_salt"`             // base64
+	WrappedProjectDEK string `json:"wrapped_project_dek"`      // base64
+	VaultKeyType      string `json:"vault_key_type,omitempty"` // "pin" or "passphrase"
 }
 
 // @Summary		Get project crypto
@@ -833,6 +876,7 @@ type ProjectCryptoResponse struct {
 // @Success		200			{object}	ProjectCryptoResponse
 // @Failure		404			{object}	ErrorResponse
 // @Security		BearerAuth
+// @Router			/projects/{projectID}/crypto [get]
 // @Router			/sdk/projects/{projectID}/crypto [get]
 func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))

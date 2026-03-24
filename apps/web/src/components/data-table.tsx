@@ -19,6 +19,8 @@ interface DataTableProps<TData> {
 	columns: ColumnDef<TData, unknown>[]
 	data: TData[]
 	filterColumn?: string
+	searchValue?: string
+	onSearchChange?: (val: string) => void
 	filterPlaceholder?: string
 	onRowClick?: (row: Row<TData>) => void
 	emptyIcon?: React.ReactNode
@@ -39,6 +41,8 @@ export function DataTable<TData>({
 	columns,
 	data,
 	filterColumn,
+	searchValue,
+	onSearchChange,
 	filterPlaceholder = "Search...",
 	onRowClick,
 	emptyIcon,
@@ -64,9 +68,9 @@ export function DataTable<TData>({
 		...(isServerPaginated && { pageCount: pagination.totalPages }),
 	})
 
-	const filterValue = filterColumn
-		? (table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""
-		: ""
+	const filterValue = onSearchChange !== undefined
+		? (searchValue ?? "")
+		: (filterColumn ? (table.getColumn(filterColumn)?.getFilterValue() as string) ?? "" : "")
 
 	const rows = table.getRowModel().rows
 
@@ -98,7 +102,13 @@ export function DataTable<TData>({
 						<Input
 							placeholder={filterPlaceholder}
 							value={filterValue}
-							onChange={(e) => table.getColumn(filterColumn)?.setFilterValue(e.target.value)}
+							onChange={(e) => {
+								if (onSearchChange) {
+									onSearchChange(e.target.value)
+								} else if (filterColumn) {
+									table.getColumn(filterColumn)?.setFilterValue(e.target.value)
+								}
+							}}
 							className="pl-8"
 							inputSize="sm"
 						/>

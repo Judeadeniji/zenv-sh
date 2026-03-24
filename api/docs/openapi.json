@@ -923,6 +923,48 @@
                     "organizations"
                 ],
                 "summary": "List organizations",
+                "parameters": [
+                    {
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by organization name",
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1057,6 +1099,54 @@
                         "name": "orgID",
                         "in": "path",
                         "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by email",
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by role",
+                        "name": "role",
+                        "in": "query",
                         "schema": {
                             "type": "string"
                         }
@@ -1356,6 +1446,46 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by project name",
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -1521,6 +1651,53 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{projectID}/crypto": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns project salt and wrapped Project DEK. SDK uses this to derive Project KEK and unwrap DEK.",
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project crypto",
+                "parameters": [
+                    {
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ProjectCryptoResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2990,6 +3167,54 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction (asc/desc)",
+                        "name": "sort_dir",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Search by token name",
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by status: active, revoked, all",
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -3304,14 +3529,8 @@
                             "$ref": "#/components/schemas/api_internal_handler.AuditLogEntry"
                         }
                     },
-                    "page": {
-                        "type": "integer"
-                    },
-                    "per_page": {
-                        "type": "integer"
-                    },
-                    "total": {
-                        "type": "integer"
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
                     }
                 }
             },
@@ -3608,12 +3827,18 @@
                         "items": {
                             "$ref": "#/components/schemas/api_internal_handler.MemberResponse"
                         }
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
                     }
                 }
             },
             "api_internal_handler.ListOrgsResponse": {
                 "type": "object",
                 "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
+                    },
                     "organizations": {
                         "type": "array",
                         "items": {
@@ -3625,6 +3850,9 @@
             "api_internal_handler.ListProjectsResponse": {
                 "type": "object",
                 "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
+                    },
                     "projects": {
                         "type": "array",
                         "items": {
@@ -3647,6 +3875,9 @@
             "api_internal_handler.ListTokensResponse": {
                 "type": "object",
                 "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
+                    },
                     "tokens": {
                         "type": "array",
                         "items": {
@@ -3696,6 +3927,23 @@
                     },
                     "user_id": {
                         "type": "string"
+                    }
+                }
+            },
+            "api_internal_handler.Meta": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer"
+                    },
+                    "per_page": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "total_pages": {
+                        "type": "integer"
                     }
                 }
             },

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -47,9 +46,7 @@ type AuditLogEntry struct {
 
 type AuditLogListResponse struct {
 	Entries []AuditLogEntry `json:"entries"`
-	Total   int             `json:"total"`
-	Page    int             `json:"page"`
-	PerPage int             `json:"per_page"`
+	Meta    Meta            `json:"meta"`
 }
 
 // List returns paginated audit log entries filtered by query params.
@@ -88,15 +85,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse pagination.
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
-	if perPage < 1 || perPage > 100 {
-		perPage = 50
-	}
+	params := ParseListParams(r)
 
 	// Build WHERE conditions.
 	conditions := []BoolExpression{
@@ -131,7 +120,9 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Count total.
-	var countResult struct{ Count int }
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
 	countStmt := SELECT(COUNT(table.AuditLogs.ID).AS("count")).
 		FROM(table.AuditLogs).WHERE(where)
 
@@ -141,8 +132,21 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch page with actor email via LEFT JOIN.
-	offset := (page - 1) * perPage
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "action":
+		if params.SortDir == "asc" {
+			orderBy = table.AuditLogs.Action.ASC()
+		} else {
+			orderBy = table.AuditLogs.Action.DESC()
+		}
+	default: // "created_at"
+		if params.SortDir == "asc" {
+			orderBy = table.AuditLogs.CreatedAt.ASC()
+		} else {
+			orderBy = table.AuditLogs.CreatedAt.DESC()
+		}
+	}
 
 	type auditRow struct {
 		model.AuditLogs
@@ -156,9 +160,9 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 	).FROM(
 		table.AuditLogs.LEFT_JOIN(table.Users, RawBool("audit_logs.user_id::text = users.id::text")),
 	).WHERE(where).
-		ORDER_BY(table.AuditLogs.CreatedAt.DESC()).
-		LIMIT(int64(perPage)).
-		OFFSET(int64(offset))
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &rows); err != nil {
 		slog.Error("audit-list: query", "error", err)
@@ -175,9 +179,7 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, AuditLogListResponse{
 		Entries: entries,
-		Total:   countResult.Count,
-		Page:    page,
-		PerPage: perPage,
+		Meta:    NewMeta(int(countResult.Count), params.Page, params.PerPage),
 	})
 }
 

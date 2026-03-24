@@ -3,7 +3,7 @@ import { orgsQueryOptions } from "#/lib/queries/orgs"
 
 export const Route = createFileRoute("/_authed/_unlocked/")({
 	beforeLoad: async ({ context }) => {
-		const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions)
+		const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions())
 		const orgList = (orgs as { organizations?: { id: string }[] }).organizations ?? []
 
 		if (orgList.length === 0) {

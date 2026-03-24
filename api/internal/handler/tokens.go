@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -274,6 +275,7 @@ type TokenListItem struct {
 
 type ListTokensResponse struct {
 	Tokens []TokenListItem `json:"tokens"`
+	Meta   Meta            `json:"meta"`
 }
 
 // @Summary		List service tokens
@@ -281,6 +283,12 @@ type ListTokensResponse struct {
 // @Tags			tokens
 // @Produce		json
 // @Param			project_id	query		string	true	"Project ID"
+// @Param			page		query		int		false	"Page number"
+// @Param			per_page	query		int		false	"Items per page"
+// @Param			sort_by		query		string	false	"Sort by field"
+// @Param			sort_dir	query		string	false	"Sort direction (asc/desc)"
+// @Param			search		query		string	false	"Search by token name"
+// @Param			status		query		string	false	"Filter by status: active, revoked, all"
 // @Success		200			{object}	ListTokensResponse
 // @Security		SessionAuth
 // @Router			/tokens [get]
@@ -297,6 +305,54 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	params := ParseListParams(r)
+	status := r.URL.Query().Get("status")
+
+	condition := table.ServiceTokens.ProjectID.EQ(UUID(projectID))
+
+	if params.Search != "" {
+		condition = condition.AND(LOWER(table.ServiceTokens.Name).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
+	}
+
+	switch status {
+	case "active":
+		condition = condition.AND(table.ServiceTokens.RevokedAt.IS_NULL())
+	case "revoked":
+		condition = condition.AND(table.ServiceTokens.RevokedAt.IS_NOT_NULL())
+	}
+
+	// Count total
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.ServiceTokens.ID).AS("count")).
+		FROM(table.ServiceTokens).
+		WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	// Sort mapping
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "name":
+		if params.SortDir == "asc" {
+			orderBy = table.ServiceTokens.Name.ASC()
+		} else {
+			orderBy = table.ServiceTokens.Name.DESC()
+		}
+	case "environment":
+		if params.SortDir == "asc" {
+			orderBy = table.ServiceTokens.Environment.ASC()
+		} else {
+			orderBy = table.ServiceTokens.Environment.DESC()
+		}
+	default:
+		if params.SortDir == "asc" {
+			orderBy = table.ServiceTokens.CreatedAt.ASC()
+		} else {
+			orderBy = table.ServiceTokens.CreatedAt.DESC()
+		}
+	}
+
 	var tokens []model.ServiceTokens
 	stmt := SELECT(
 		table.ServiceTokens.ID,
@@ -307,9 +363,11 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.ServiceTokens.ExpiresAt,
 		table.ServiceTokens.RevokedAt,
 		table.ServiceTokens.CreatedAt,
-	).FROM(table.ServiceTokens).WHERE(
-		table.ServiceTokens.ProjectID.EQ(UUID(projectID)),
-	).ORDER_BY(table.ServiceTokens.CreatedAt.DESC())
+	).FROM(table.ServiceTokens).
+		WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &tokens); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("tokens.list: query", "error", err)
@@ -338,7 +396,10 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 		result = append(result, item)
 	}
 
-	writeJSON(w, http.StatusOK, ListTokensResponse{Tokens: result})
+	writeJSON(w, http.StatusOK, ListTokensResponse{
+		Tokens: result,
+		Meta:   NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	})
 }
 
 // --- SDK Token Create ---

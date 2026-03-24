@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
@@ -16,7 +17,17 @@ import { tokensQueryOptions, useRevokeToken, useDestroyToken } from "#/lib/queri
 import { toast } from "sonner"
 import { FileKey, Plus, Trash2, AlertCircle } from "lucide-react"
 
+const searchSchema = z.object({
+	page: z.number().catch(1),
+	per_page: z.number().catch(50),
+	search: z.string().optional(),
+	status: z.enum(["active", "revoked", "all"]).optional(),
+	sort_by: z.string().optional(),
+	sort_dir: z.enum(["asc", "desc"]).optional(),
+})
+
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens")({
+	validateSearch: searchSchema,
 	component: TokensPage,
 })
 
@@ -32,7 +43,10 @@ interface TokenRow {
 
 function TokensPage() {
 	const { projectId } = Route.useParams()
-	const { data, isLoading } = useQuery(tokensQueryOptions(projectId))
+	const search = Route.useSearch()
+	const navigate = useNavigate({ from: Route.fullPath })
+
+	const { data, isLoading } = useQuery(tokensQueryOptions(projectId, search))
 	const [selectedToken, setSelectedToken] = useState<TokenRow | null>(null)
 
 	const tokens: TokenRow[] = (data as { tokens?: TokenRow[] })?.tokens ?? []
@@ -113,6 +127,16 @@ function TokensPage() {
 				columns={columns}
 				data={tokens}
 				filterColumn="name"
+				searchValue={search.search}
+				onSearchChange={(val) => {
+					navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+				}}
+				pagination={data?.meta ? {
+					page: data.meta.page ?? 1,
+					totalPages: data.meta.total_pages ?? 1,
+					total: data.meta.total ?? 0,
+					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
+				} : undefined}
 				filterPlaceholder="Search tokens..."
 				onRowClick={(row) => setSelectedToken(row.original)}
 				emptyIcon={<FileKey />}
@@ -178,13 +202,13 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 					toast.success(`Deleted ${token.name} permanently`)
 					onRevoked()
 				},
-				onError: (err: any) => toast.error(err.message || "Failed to delete token"),
+				onError: (err) => toast.error(err.message || "Failed to delete token"),
 			},
 		)
 	}
 
 	return (
-		<div className="space-y-4 px-6 py-4">
+		<div className="flex-1 overflow-y-auto space-y-4 px-6 py-4">
 			<div>
 				<label className="text-xs font-medium text-muted-foreground">Permission</label>
 				<p className="mt-1">
