@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query"
+import { queryOptions, keepPreviousData } from "@tanstack/react-query"
 import { api } from "#/lib/api-client"
 import { queryKeys } from "#/lib/keys"
 
@@ -25,5 +25,6 @@ export function auditQueryOptions(
 		},
 		enabled: !!projectId,
 		staleTime: 10_000,
+		placeholderData: keepPreviousData,
 	})
 }

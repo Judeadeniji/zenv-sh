@@ -137,7 +137,7 @@ function MembersRow({ orgId }: { orgId: string }) {
 				{members.length > 5 && (
 					<p className="text-xs text-muted-foreground">and {members.length - 5} more...</p>
 				)}
-				<Button variant="outline" size="xs" render={<Link to="/orgs/$orgId/members" params={{ orgId }} />}>
+				<Button variant="outline" size="xs" render={<Link to="/orgs/$orgId/members" params={{ orgId }} search={{}} />}>
 					Manage members
 				</Button>
 			</div>

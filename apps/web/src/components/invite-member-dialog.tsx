@@ -21,14 +21,14 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 	const [success, setSuccess] = useState(false)
 	const addMember = useAddMember()
 
-	const form = useForm<InviteMemberInput>({
+	const form = useForm({
 		resolver: zodResolver(inviteMemberSchema),
-		defaultValues: { email: "", role: "member" },
+		defaultValues: { email: "", role: "dev" },
 	})
 
 	const onSubmit = (data: InviteMemberInput) => {
 		addMember.mutate(
-			{ orgId, userId: data.email },
+			{ orgId, userId: data.email, role: data.role },
 			{
 				onSuccess: () => {
 					setSuccess(true)
@@ -92,12 +92,15 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 							name="role"
 							render={({ field }) => (
 								<Select value={field.value} onValueChange={field.onChange}>
-									<SelectTrigger>
+									<SelectTrigger className={"w-full"}>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="member">Member</SelectItem>
 										<SelectItem value="admin">Admin</SelectItem>
+										<SelectItem value="senior_dev">Senior Dev</SelectItem>
+										<SelectItem value="dev">Dev</SelectItem>
+										<SelectItem value="contractor">Contractor</SelectItem>
+										<SelectItem value="ci_bot">CI Bot</SelectItem>
 									</SelectContent>
 								</Select>
 							)}

@@ -359,6 +359,19 @@ definitions:
       organization_id:
         type: string
     type: object
+  api_internal_handler.ProjectStatsResponse:
+    properties:
+      secrets_by_env:
+        additionalProperties:
+          type: integer
+        type: object
+      total_audit_logs:
+        type: integer
+      total_secrets:
+        type: integer
+      total_service_tokens:
+        type: integer
+    type: object
   api_internal_handler.PublicKeyResponse:
     properties:
       email:
@@ -1839,6 +1852,27 @@ paths:
       summary: Start DEK rotation
       tags:
       - rotation
+  /projects/{projectID}/stats:
+    get:
+      description: Get summary statistics for a project (secrets, tokens, audit logs).
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectStatsResponse'
+      security:
+      - SessionAuth: []
+      summary: Get project stats
+      tags:
+      - projects
   /sdk/projects/{projectID}/crypto:
     get:
       description: Returns project salt and wrapped Project DEK. SDK uses this to

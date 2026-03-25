@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
@@ -11,6 +11,8 @@ import { Input } from "#/components/ui/input"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Separator } from "#/components/ui/separator"
 import { DataTable } from "#/components/data-table"
+import { SearchInput } from "#/components/search-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { ImportSecretsDialog } from "#/components/import-secrets-dialog"
 import { EditSecretDialog } from "#/components/edit-secret-dialog"
@@ -37,8 +39,31 @@ function SecretsPage() {
 	const { data: secrets, isLoading } = useDecryptedSecrets(projectId, environment)
 	const [selectedSecret, setSelectedSecret] = useState<DecryptedSecret | null>(null)
 	const [editingSecret, setEditingSecret] = useState<DecryptedSecret | null>(null)
+	const [searchTerm, setSearchTerm] = useState("")
+	const [sortBy, setSortBy] = useState<"name" | "updated">("name")
+	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+	const [versionFilter, setVersionFilter] = useState<"all" | "multi">("all")
 
-	const rows = secrets as DecryptedSecret[] ?? []
+	const allRows = secrets as DecryptedSecret[] ?? []
+	const rows = useMemo(() => {
+		let filtered = allRows
+		if (searchTerm) {
+			const q = searchTerm.toLowerCase()
+			filtered = filtered.filter((s) => s.name.toLowerCase().includes(q))
+		}
+		if (versionFilter === "multi") {
+			filtered = filtered.filter((s) => (s.version ?? 1) > 1)
+		}
+		return [...filtered].sort((a, b) => {
+			if (sortBy === "name") {
+				const cmp = a.name.localeCompare(b.name)
+				return sortDir === "asc" ? cmp : -cmp
+			}
+			const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0
+			const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0
+			return sortDir === "asc" ? aTime - bTime : bTime - aTime
+		})
+	}, [allRows, searchTerm, sortBy, sortDir, versionFilter])
 
 	const columns: ColumnDef<DecryptedSecret, unknown>[] = [
 		{
@@ -125,11 +150,49 @@ function SecretsPage() {
 				</div>
 			</div>
 
+			<div className="mb-4 flex items-center gap-3">
+				<SearchInput
+					placeholder="Search secrets..."
+					value={searchTerm}
+					onChange={setSearchTerm}
+					debounceMs={150}
+				/>
+				<Select
+					value={`${sortBy}-${sortDir}`}
+					onValueChange={(val) => {
+						if (!val) return
+						const [by, dir] = val.split("-") as ["name" | "updated", "asc" | "desc"]
+						setSortBy(by)
+						setSortDir(dir)
+					}}
+				>
+					<SelectTrigger className="w-36">
+						<SelectValue placeholder="Sort" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="name-asc">Name A→Z</SelectItem>
+						<SelectItem value="name-desc">Name Z→A</SelectItem>
+						<SelectItem value="updated-desc">Newest first</SelectItem>
+						<SelectItem value="updated-asc">Oldest first</SelectItem>
+					</SelectContent>
+				</Select>
+				<Select
+					value={versionFilter}
+					onValueChange={(val) => setVersionFilter(val as "all" | "multi")}
+				>
+					<SelectTrigger className="w-36">
+						<SelectValue placeholder="All versions" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All versions</SelectItem>
+						<SelectItem value="multi">Multi-version</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
 			<DataTable
 				columns={columns}
 				data={rows}
-				filterColumn="name"
-				filterPlaceholder="Search secrets..."
 				onRowClick={(row) => setSelectedSecret(row.original)}
 				emptyIcon={<KeyRound />}
 				emptyTitle="No secrets yet"

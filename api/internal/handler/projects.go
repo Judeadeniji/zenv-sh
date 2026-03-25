@@ -1134,3 +1134,89 @@ func (h *ProjectsHandler) GetVaultMaterial(w http.ResponseWriter, r *http.Reques
 		PublicKey:         base64.StdEncoding.EncodeToString(user.PublicKey),
 	})
 }
+
+// --- Stats ---
+
+type ProjectStatsResponse struct {
+	TotalSecrets       int            `json:"total_secrets"`
+	SecretsByEnv       map[string]int `json:"secrets_by_env"`
+	TotalServiceTokens int            `json:"total_service_tokens"`
+	TotalAuditLogs     int            `json:"total_audit_logs"`
+}
+
+// @Summary		Get project stats
+// @Description	Get summary statistics for a project (secrets, tokens, audit logs).
+// @Tags			projects
+// @Produce		json
+// @Param			projectID	path		string	true	"Project ID"
+// @Success		200			{object}	ProjectStatsResponse
+// @Failure		400			{object}	ErrorResponse
+// @Failure		500			{object}	ErrorResponse
+// @Security		SessionAuth
+// @Router			/projects/{projectID}/stats [get]
+func (h *ProjectsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
+	projectIDStr := chi.URLParam(r, "projectID")
+	projectID, err := uuid.Parse(projectIDStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	// 1. Secrets count by environment
+	secretsStmt := SELECT(
+		table.VaultItems.Environment,
+		COUNT(table.VaultItems.ID).AS("count"),
+	).FROM(table.VaultItems).
+		WHERE(table.VaultItems.ProjectID.EQ(UUID(projectID))).
+		GROUP_BY(table.VaultItems.Environment)
+
+	var secretCounts []struct {
+		Environment string `alias:"vault_items.environment"`
+		Count       int    `alias:"count"`
+	}
+	if err := secretsStmt.Query(h.db, &secretCounts); err != nil {
+		slog.Error("get project stats: secrets count", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch project stats"})
+		return
+	}
+
+	totalSecrets := 0
+	secretsByEnv := make(map[string]int)
+	for _, sc := range secretCounts {
+		secretsByEnv[sc.Environment] = sc.Count
+		totalSecrets += sc.Count
+	}
+
+	// 2. Tokens count
+	var tokensCount struct {
+		Count int `alias:"count"`
+	}
+	tokensStmt := SELECT(COUNT(table.ServiceTokens.ID).AS("count")).
+		FROM(table.ServiceTokens).
+		WHERE(table.ServiceTokens.ProjectID.EQ(UUID(projectID)))
+	if err := tokensStmt.Query(h.db, &tokensCount); err != nil {
+		slog.Error("get project stats: tokens count", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch project stats"})
+		return
+	}
+
+	// 3. Audit logs count
+	var auditCount struct {
+		Count int `alias:"count"`
+	}
+	auditStmt := SELECT(COUNT(table.AuditLogs.ID).AS("count")).
+		FROM(table.AuditLogs).
+		WHERE(table.AuditLogs.ProjectID.EQ(UUID(projectID)))
+	if err := auditStmt.Query(h.db, &auditCount); err != nil {
+		slog.Error("get project stats: audit logs count", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch project stats"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ProjectStatsResponse{
+		TotalSecrets:       totalSecrets,
+		SecretsByEnv:       secretsByEnv,
+		TotalServiceTokens: tokensCount.Count,
+		TotalAuditLogs:     auditCount.Count,
+	})
+}

@@ -106,7 +106,7 @@ function OrgDashboard() {
 
 			{/* ── Stat Cards ── */}
 			<div className="mb-6 grid gap-4 sm:grid-cols-2">
-				<div className="rounded-lg border border-border p-4">
+				<Link to="/orgs/$orgId/projects" params={{ orgId }} className="rounded-lg border border-border p-4 transition-colors hover:bg-muted/50">
 					<div className="flex items-center gap-3">
 						<div className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
 							<FolderKey className="size-4" />
@@ -116,10 +116,11 @@ function OrgDashboard() {
 							<p className="text-xs text-muted-foreground">Projects</p>
 						</div>
 					</div>
-				</div>
+				</Link>
 				<Link
 					to="/orgs/$orgId/members"
 					params={{ orgId }}
+					search={{}}
 					className="group rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
 				>
 					<div className="flex items-center gap-3">
@@ -167,6 +168,7 @@ function OrgDashboard() {
 					<Link
 						to="/orgs/$orgId/members"
 						params={{ orgId }}
+						search={{}}
 						className="text-xs text-muted-foreground hover:text-foreground"
 					>
 						View all <ArrowRight className="ml-0.5 inline size-3" />

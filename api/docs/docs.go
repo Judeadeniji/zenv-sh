@@ -1875,6 +1875,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/projects/{projectID}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Get summary statistics for a project (secrets, tokens, audit logs).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Get project stats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ProjectStatsResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/sdk/projects/{projectID}/crypto": {
             "get": {
                 "security": [
@@ -3555,6 +3589,26 @@ const docTemplate = `{
                 },
                 "organization_id": {
                     "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.ProjectStatsResponse": {
+            "type": "object",
+            "properties": {
+                "secrets_by_env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total_audit_logs": {
+                    "type": "integer"
+                },
+                "total_secrets": {
+                    "type": "integer"
+                },
+                "total_service_tokens": {
+                    "type": "integer"
                 }
             }
         },

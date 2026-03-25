@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { generateSalt, generateKey, wrapKey, unwrapKey, wrapWithPublicKey, unwrapWithPrivateKey } from "@zenv/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
@@ -26,6 +26,7 @@ export function projectsQueryOptions(
 			return data
 		},
 		staleTime: 30_000,
+		placeholderData: keepPreviousData,
 	})
 }
 
@@ -196,5 +197,20 @@ export function useProjectDEK(projectId: string) {
 		},
 		enabled: !!crypto && !!projectId,
 		staleTime: Number.POSITIVE_INFINITY,
+	})
+}
+
+export function projectStatsQueryOptions(projectId: string) {
+	return queryOptions({
+		queryKey: queryKeys.projects.stats(projectId),
+		queryFn: async () => {
+			const { data, error } = await api().GET("/projects/{projectID}/stats", {
+				params: { path: { projectID: projectId } },
+			})
+			if (error || !data) throw new Error("Failed to fetch project stats")
+			return data
+		},
+		enabled: !!projectId,
+		staleTime: 30_000,
 	})
 }

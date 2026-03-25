@@ -13,6 +13,7 @@ export const queryKeys = {
 	projects: {
 		list: (orgId: string, params?: Record<string, unknown>) => ["projects", orgId, params] as const,
 		detail: (projectId: string) => ["project", projectId] as const,
+		stats: (projectId: string) => ["project", projectId, "stats"] as const,
 	},
 	secrets: {
 		list: (projectId: string, params?: Record<string, unknown>) => ["secrets", projectId, params] as const,

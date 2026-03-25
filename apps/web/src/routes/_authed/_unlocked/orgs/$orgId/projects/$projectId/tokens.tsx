@@ -11,7 +11,9 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Input } from "#/components/ui/input"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Separator } from "#/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
 import { DataTable } from "#/components/data-table"
+import { SearchInput } from "#/components/search-input"
 import { CreateTokenDialog } from "#/components/create-token-dialog"
 import { tokensQueryOptions, useRevokeToken, useDestroyToken } from "#/lib/queries/tokens"
 import { toast } from "sonner"
@@ -21,10 +23,10 @@ const searchSchema = z.object({
 	page: z.number().catch(1),
 	per_page: z.number().catch(50),
 	search: z.string().optional(),
-	status: z.enum(["active", "revoked", "all"]).optional(),
-	sort_by: z.string().optional(),
-	sort_dir: z.enum(["asc", "desc"]).optional(),
-})
+	status: z.enum(["active", "revoked", "all"]),
+	sort_by: z.string(),
+	sort_dir: z.enum(["asc", "desc"]),
+}).partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens")({
 	validateSearch: searchSchema,
@@ -123,21 +125,47 @@ function TokensPage() {
 				/>
 			</div>
 
+			<div className="mb-4 flex items-center gap-3">
+				<SearchInput
+					placeholder="Search tokens..."
+					value={search.search}
+					onChange={(val) => {
+						navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+					}}
+				/>
+				<Select
+					value={search.status ?? "all"}
+					onValueChange={(val) => {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								status: val === "all" ? undefined : (val as "active" | "revoked" | "all"),
+								page: 1,
+							}),
+							replace: true,
+						})
+					}}
+				>
+					<SelectTrigger className="w-32.5">
+						<SelectValue placeholder="All status" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All status</SelectItem>
+						<SelectItem value="active">Active</SelectItem>
+						<SelectItem value="revoked">Revoked</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
 			<DataTable
 				columns={columns}
 				data={tokens}
-				filterColumn="name"
-				searchValue={search.search}
-				onSearchChange={(val) => {
-					navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
-				}}
 				pagination={data?.meta ? {
 					page: data.meta.page ?? 1,
 					totalPages: data.meta.total_pages ?? 1,
 					total: data.meta.total ?? 0,
 					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
 				} : undefined}
-				filterPlaceholder="Search tokens..."
 				onRowClick={(row) => setSelectedToken(row.original)}
 				emptyIcon={<FileKey />}
 				emptyTitle="No service tokens"

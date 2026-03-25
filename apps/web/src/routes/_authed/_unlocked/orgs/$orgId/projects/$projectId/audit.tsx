@@ -1,17 +1,31 @@
-import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 import { type ColumnDef } from "@tanstack/react-table"
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
 import { DataTable } from "#/components/data-table"
+import { SearchInput } from "#/components/search-input"
 import { auditQueryOptions } from "#/lib/queries/audit"
 import { formatRelativeTime } from "#/lib/format"
 import { env } from "#/lib/env"
 import { Shield, Download } from "lucide-react"
 
+const searchSchema = z.object({
+	page: z.number().catch(1),
+	per_page: z.number().catch(50),
+	action: z.string(),
+	actor_id: z.string(),
+	target_id: z.string(),
+	sort_by: z.string(),
+	sort_dir: z.enum(["asc", "desc"]),
+	result: z.string(),
+}).partial();
+
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit")({
+	validateSearch: searchSchema,
 	component: AuditPage,
 })
 
@@ -28,14 +42,12 @@ interface AuditRow {
 
 function AuditPage() {
 	const { projectId } = Route.useParams()
-	const [page, setPage] = useState(1)
-	const perPage = 50
+	const search = Route.useSearch()
+	const navigate = Route.useNavigate()
 
-	const { data, isLoading } = useQuery(auditQueryOptions(projectId, { page, perPage }))
-	const resp = data as { entries?: AuditRow[]; total?: number; page?: number; per_page?: number } | undefined
+	const { data, isLoading } = useQuery(auditQueryOptions(projectId, search))
+	const resp = data as { entries?: AuditRow[]; meta?: { total?: number; page?: number; total_pages?: number } } | undefined
 	const entries = resp?.entries ?? []
-	const total = resp?.total ?? 0
-	const totalPages = Math.max(1, Math.ceil(total / perPage))
 
 	const handleExport = () => {
 		const url = `${env.VITE_API_URL}/audit-logs/export?project_id=${projectId}`
@@ -105,17 +117,47 @@ function AuditPage() {
 				<PageHeader onExport={handleExport} />
 			</div>
 
+			<div className="mb-4 flex items-center gap-3">
+				<SearchInput
+					placeholder="Filter by action..."
+					value={search.action}
+					onChange={(val) => {
+						navigate({ search: (prev) => ({ ...prev, action: val || undefined, page: 1 }), replace: true })
+					}}
+				/>
+				<Select
+					value={search.result ?? "all"}
+					onValueChange={(val) => {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								result: val === "all" ? undefined : (val as string),
+								page: 1,
+							}),
+							replace: true,
+						})
+					}}
+				>
+					<SelectTrigger className="w-32.5">
+						<SelectValue placeholder="All results" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All results</SelectItem>
+						<SelectItem value="success">Success</SelectItem>
+						<SelectItem value="denied">Denied</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
 			<DataTable
 				columns={columns}
 				data={entries}
-				filterColumn="action"
-				filterPlaceholder="Filter by action..."
-				pagination={{
-					page,
-					totalPages,
-					total,
-					onPageChange: setPage,
-				}}
+				pagination={resp?.meta ? {
+					page: resp.meta.page ?? 1,
+					totalPages: resp.meta.total_pages ?? 1,
+					total: resp.meta.total ?? 0,
+					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }), replace: true })
+				} : undefined}
 				emptyIcon={<Shield />}
 				emptyTitle="No activity yet"
 				emptyDescription="Every secret access, change, and token usage is logged here automatically. Activity will appear once you start using your project."

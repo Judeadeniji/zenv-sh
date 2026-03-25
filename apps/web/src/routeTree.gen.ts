@@ -27,6 +27,7 @@ import { Route as AuthedUnlockedOrgsOrgIdRouteRouteImport } from './routes/_auth
 import { Route as AuthedUnlockedOrgsOrgIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/index'
 import { Route as AuthedUnlockedOrgsOrgIdSettingsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/settings'
 import { Route as AuthedUnlockedOrgsOrgIdMembersRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/members'
+import { Route as AuthedUnlockedOrgsOrgIdProjectsIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/index'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/route'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/index'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdTokensRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens'
@@ -127,6 +128,12 @@ const AuthedUnlockedOrgsOrgIdMembersRoute =
     path: '/members',
     getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
   } as any)
+const AuthedUnlockedOrgsOrgIdProjectsIndexRoute =
+  AuthedUnlockedOrgsOrgIdProjectsIndexRouteImport.update({
+    id: '/projects/',
+    path: '/projects/',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
 const AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute =
   AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport.update({
     id: '/projects/$projectId',
@@ -182,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
   '/orgs/$orgId/projects/$projectId': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+  '/orgs/$orgId/projects/': typeof AuthedUnlockedOrgsOrgIdProjectsIndexRoute
   '/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
   '/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
   '/orgs/$orgId/projects/$projectId/settings': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSettingsRoute
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
   '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdIndexRoute
+  '/orgs/$orgId/projects': typeof AuthedUnlockedOrgsOrgIdProjectsIndexRoute
   '/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
   '/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
   '/orgs/$orgId/projects/$projectId/settings': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSettingsRoute
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/_authed/_unlocked/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/_authed/_unlocked/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
   '/_authed/_unlocked/orgs/$orgId/projects/$projectId': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+  '/_authed/_unlocked/orgs/$orgId/projects/': typeof AuthedUnlockedOrgsOrgIdProjectsIndexRoute
   '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
   '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
   '/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings': typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSettingsRoute
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId/'
     | '/orgs/$orgId/projects/$projectId'
+    | '/orgs/$orgId/projects/'
     | '/orgs/$orgId/projects/$projectId/audit'
     | '/orgs/$orgId/projects/$projectId/secrets'
     | '/orgs/$orgId/projects/$projectId/settings'
@@ -279,6 +290,7 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/members'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId'
+    | '/orgs/$orgId/projects'
     | '/orgs/$orgId/projects/$projectId/audit'
     | '/orgs/$orgId/projects/$projectId/secrets'
     | '/orgs/$orgId/projects/$projectId/settings'
@@ -305,6 +317,7 @@ export interface FileRouteTypes {
     | '/_authed/_unlocked/orgs/$orgId/settings'
     | '/_authed/_unlocked/orgs/$orgId/'
     | '/_authed/_unlocked/orgs/$orgId/projects/$projectId'
+    | '/_authed/_unlocked/orgs/$orgId/projects/'
     | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit'
     | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets'
     | '/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings'
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdMembersRouteImport
       parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
     }
+    '/_authed/_unlocked/orgs/$orgId/projects/': {
+      id: '/_authed/_unlocked/orgs/$orgId/projects/'
+      path: '/projects'
+      fullPath: '/orgs/$orgId/projects/'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdProjectsIndexRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
+    }
     '/_authed/_unlocked/orgs/$orgId/projects/$projectId': {
       id: '/_authed/_unlocked/orgs/$orgId/projects/$projectId'
       path: '/projects/$projectId'
@@ -528,6 +548,7 @@ interface AuthedUnlockedOrgsOrgIdRouteRouteChildren {
   AuthedUnlockedOrgsOrgIdSettingsRoute: typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   AuthedUnlockedOrgsOrgIdIndexRoute: typeof AuthedUnlockedOrgsOrgIdIndexRoute
   AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren
+  AuthedUnlockedOrgsOrgIdProjectsIndexRoute: typeof AuthedUnlockedOrgsOrgIdProjectsIndexRoute
 }
 
 const AuthedUnlockedOrgsOrgIdRouteRouteChildren: AuthedUnlockedOrgsOrgIdRouteRouteChildren =
@@ -537,6 +558,8 @@ const AuthedUnlockedOrgsOrgIdRouteRouteChildren: AuthedUnlockedOrgsOrgIdRouteRou
     AuthedUnlockedOrgsOrgIdIndexRoute: AuthedUnlockedOrgsOrgIdIndexRoute,
     AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRoute:
       AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren,
+    AuthedUnlockedOrgsOrgIdProjectsIndexRoute:
+      AuthedUnlockedOrgsOrgIdProjectsIndexRoute,
   }
 
 const AuthedUnlockedOrgsOrgIdRouteRouteWithChildren =

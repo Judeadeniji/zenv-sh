@@ -11,17 +11,12 @@ import {
 } from "@tanstack/react-table"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "#/components/ui/table"
 import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "#/components/ui/empty"
-import { ChevronLeft, ChevronRight, Search, SearchX } from "lucide-react"
+import { ChevronLeft, ChevronRight, SearchX } from "lucide-react"
 
 interface DataTableProps<TData> {
 	columns: ColumnDef<TData, unknown>[]
 	data: TData[]
-	filterColumn?: string
-	searchValue?: string
-	onSearchChange?: (val: string) => void
-	filterPlaceholder?: string
 	onRowClick?: (row: Row<TData>) => void
 	emptyIcon?: React.ReactNode
 	emptyTitle?: string
@@ -40,10 +35,6 @@ interface DataTableProps<TData> {
 export function DataTable<TData>({
 	columns,
 	data,
-	filterColumn,
-	searchValue,
-	onSearchChange,
-	filterPlaceholder = "Search...",
 	onRowClick,
 	emptyIcon,
 	emptyTitle = "No results",
@@ -68,10 +59,6 @@ export function DataTable<TData>({
 		...(isServerPaginated && { pageCount: pagination.totalPages }),
 	})
 
-	const filterValue = onSearchChange !== undefined
-		? (searchValue ?? "")
-		: (filterColumn ? (table.getColumn(filterColumn)?.getFilterValue() as string) ?? "" : "")
-
 	const rows = table.getRowModel().rows
 
 	// Pagination state — server or client
@@ -95,27 +82,6 @@ export function DataTable<TData>({
 
 	return (
 		<div className="space-y-3">
-			{filterColumn && (
-				<div className="flex items-center gap-2">
-					<div className="relative max-w-xs flex-1">
-						<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-						<Input
-							placeholder={filterPlaceholder}
-							value={filterValue}
-							onChange={(e) => {
-								if (onSearchChange) {
-									onSearchChange(e.target.value)
-								} else if (filterColumn) {
-									table.getColumn(filterColumn)?.setFilterValue(e.target.value)
-								}
-							}}
-							className="pl-8"
-							inputSize="sm"
-						/>
-					</div>
-				</div>
-			)}
-
 			{rows.length === 0 ? (
 				data.length === 0 ? (
 					<Empty className="min-h-60">

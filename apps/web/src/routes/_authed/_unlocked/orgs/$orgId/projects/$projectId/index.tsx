@@ -8,8 +8,7 @@ import { Alert, AlertDescription } from "#/components/ui/alert"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { CreateTokenDialog } from "#/components/create-token-dialog"
-import { projectQueryOptions, useProjectKey } from "#/lib/queries/projects"
-import { secretsQueryOptions } from "#/lib/queries/secrets"
+import { projectQueryOptions, projectStatsQueryOptions, useProjectKey } from "#/lib/queries/projects"
 import { tokensQueryOptions } from "#/lib/queries/tokens"
 import { auditQueryOptions } from "#/lib/queries/audit"
 import { useNavStore, ENVIRONMENTS } from "#/lib/stores/nav"
@@ -101,11 +100,7 @@ function EnvironmentBreakdown({ orgId, projectId }: { orgId: string; projectId: 
 	const activeEnv = useNavStore((s) => s.activeEnvironment)
 	const setEnv = useNavStore((s) => s.setActiveEnvironment)
 
-	const envQueries = ENVIRONMENTS.map((env) => ({
-		env,
-		// eslint-disable-next-line react-hooks/rules-of-hooks
-		query: useQuery({ ...secretsQueryOptions(projectId, env), staleTime: 30_000 }),
-	}))
+	const { data: stats, isLoading } = useQuery(projectStatsQueryOptions(projectId))
 
 	const envColors: Record<string, string> = {
 		development: "bg-blue-500",
@@ -115,8 +110,8 @@ function EnvironmentBreakdown({ orgId, projectId }: { orgId: string; projectId: 
 
 	return (
 		<div className="mb-4 grid gap-3 sm:grid-cols-3">
-			{envQueries.map(({ env, query }) => {
-				const count = ((query.data as { secrets?: unknown[] })?.secrets ?? []).length
+			{ENVIRONMENTS.map((env) => {
+				const count = stats?.secrets_by_env?.[env] ?? 0
 				const isActive = env === activeEnv
 				return (
 					<Link
@@ -132,7 +127,7 @@ function EnvironmentBreakdown({ orgId, projectId }: { orgId: string; projectId: 
 							{isActive && <Badge variant="primary" className="ml-auto text-[10px]">active</Badge>}
 						</div>
 						<p className="mt-2 text-xl font-semibold tabular-nums">
-							{query.isLoading ? <Spinner className="size-4" /> : count}
+							{isLoading ? <Spinner className="size-4" /> : count}
 						</p>
 						<p className="text-[11px] text-muted-foreground">secrets</p>
 					</Link>
@@ -145,18 +140,11 @@ function EnvironmentBreakdown({ orgId, projectId }: { orgId: string; projectId: 
 /* ── Stat Cards ── */
 
 function StatsGrid({ orgId, projectId }: { orgId: string; projectId: string }) {
-	const { data: tokensData } = useQuery(tokensQueryOptions(projectId))
-	const tokenList = (tokensData as { tokens?: unknown[] })?.tokens ?? []
+	const { data: stats } = useQuery(projectStatsQueryOptions(projectId))
 
-	// Sum secrets across all envs (use the env breakdown queries via cache)
-	const devQ = useQuery({ ...secretsQueryOptions(projectId, "development"), staleTime: 30_000 })
-	const stgQ = useQuery({ ...secretsQueryOptions(projectId, "staging"), staleTime: 30_000 })
-	const prdQ = useQuery({ ...secretsQueryOptions(projectId, "production"), staleTime: 30_000 })
-
-	const totalSecrets =
-		((devQ.data as { secrets?: unknown[] })?.secrets ?? []).length +
-		((stgQ.data as { secrets?: unknown[] })?.secrets ?? []).length +
-		((prdQ.data as { secrets?: unknown[] })?.secrets ?? []).length
+	const totalTokens = stats?.total_service_tokens ?? 0
+	const totalSecrets = stats?.total_secrets ?? 0
+	const totalAuditLogs = stats?.total_audit_logs ?? 0
 
 	return (
 		<div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -186,7 +174,7 @@ function StatsGrid({ orgId, projectId }: { orgId: string; projectId: string }) {
 						<FileKey className="size-4" />
 					</div>
 					<div>
-						<p className="text-2xl font-semibold tabular-nums">{tokenList.length}</p>
+						<p className="text-2xl font-semibold tabular-nums">{totalTokens}</p>
 						<p className="text-xs text-muted-foreground">Service tokens</p>
 					</div>
 				</div>
@@ -202,8 +190,8 @@ function StatsGrid({ orgId, projectId }: { orgId: string; projectId: string }) {
 						<Shield className="size-4" />
 					</div>
 					<div>
-						<p className="text-2xl font-semibold tabular-nums">&mdash;</p>
-						<p className="text-xs text-muted-foreground">Audit log</p>
+						<p className="text-2xl font-semibold tabular-nums">{totalAuditLogs}</p>
+						<p className="text-xs text-muted-foreground">Audit logs</p>
 					</div>
 				</div>
 			</Link>
@@ -322,7 +310,7 @@ function Step({ n, label, cmd }: { n: number; label: string; cmd: string }) {
 /* ── Recent Activity ── */
 
 function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string }) {
-	const { data, isLoading } = useQuery(auditQueryOptions(projectId, { perPage: 5 }))
+	const { data, isLoading } = useQuery(auditQueryOptions(projectId, { per_page: 5 }))
 	const logs = data?.entries ?? []
 
 	return (
@@ -366,11 +354,9 @@ function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string
 /* ── Token Overview ── */
 
 function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string }) {
-	const { data, isLoading } = useQuery(tokensQueryOptions(projectId))
+	const { data, isLoading } = useQuery(tokensQueryOptions(projectId, { per_page: 5 }))
 	const tokens: { id: string; name?: string; permission?: string; environment?: string; last_used_at?: string }[] =
 		(data as { tokens?: { id: string; name?: string; permission?: string; environment?: string; last_used_at?: string }[] })?.tokens ?? []
-
-	const display = tokens.slice(0, 5)
 
 	return (
 		<section className="rounded-lg border border-border p-4">
@@ -379,6 +365,7 @@ function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string 
 				<Link
 					to="/orgs/$orgId/projects/$projectId/tokens"
 					params={{ orgId, projectId }}
+					search={{ status: "all" }}
 					className="text-xs text-muted-foreground hover:text-foreground"
 				>
 					View all <ArrowRight className="ml-0.5 inline size-3" />
@@ -387,11 +374,11 @@ function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string 
 
 			{isLoading ? (
 				<div className="flex justify-center py-4"><Spinner /></div>
-			) : display.length === 0 ? (
+			) : tokens.length === 0 ? (
 				<p className="py-4 text-center text-xs text-muted-foreground">No tokens yet</p>
 			) : (
 				<div className="space-y-2">
-					{display.map((token) => (
+					{tokens.map((token) => (
 						<div key={token.id} className="flex items-center gap-2">
 							<FileKey className="size-3.5 text-muted-foreground" />
 							<span className="flex-1 truncate text-sm font-medium">{token.name}</span>

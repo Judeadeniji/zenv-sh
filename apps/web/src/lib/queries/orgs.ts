@@ -81,10 +81,10 @@ export function useAddMember() {
 	const qc = useQueryClient()
 	return useMutation({
 		mutationKey: mutationKeys.orgs.addMember,
-		mutationFn: async ({ orgId, userId }: { orgId: string; userId: string }) => {
+		mutationFn: async ({ orgId, userId, role }: { orgId: string; userId: string, role: string }) => {
 			const { data, error } = await api().POST("/orgs/{orgID}/members", {
 				params: { path: { orgID: orgId } },
-				body: { user_id: userId },
+				body: { user_id: userId, role },
 			})
 			if (error || !data) throw new Error("Failed to add member")
 			return data

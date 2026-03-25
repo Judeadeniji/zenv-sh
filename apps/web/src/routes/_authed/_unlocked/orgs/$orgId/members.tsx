@@ -8,20 +8,22 @@ import { Badge } from "#/components/ui/badge"
 import { Avatar } from "#/components/ui/avatar"
 import { Spinner } from "#/components/ui/spinner"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
 import { DataTable } from "#/components/data-table"
+import { SearchInput } from "#/components/search-input"
 import { InviteMemberDialog } from "#/components/invite-member-dialog"
 import { orgMembersQueryOptions, useRemoveMember } from "#/lib/queries/orgs"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { Users, UserPlus, Trash2 } from "lucide-react"
 
 const searchSchema = z.object({
-	page: z.number().catch(1),
-	per_page: z.number().catch(50),
-	search: z.string().optional(),
-	role: z.string().optional(),
-	sort_by: z.string().optional(),
-	sort_dir: z.enum(["asc", "desc"]).optional(),
-})
+	page: z.number().default(1),
+	per_page: z.number().default(50),
+	search: z.string().default(""),
+	role: z.string().default(""),
+	sort_by: z.string().default("created_at"),
+	sort_dir: z.enum(["asc", "desc"]).default("desc"),
+}).partial();
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/members")({
 	validateSearch: searchSchema,
@@ -141,21 +143,47 @@ function MembersPage() {
 				/>
 			</div>
 
+			<div className="mb-4 flex items-center gap-3">
+				<SearchInput
+					placeholder="Search members..."
+					value={search.search}
+					onChange={(val) => {
+						navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+					}}
+				/>
+				<Select
+					value={search.role ?? "all"}
+					onValueChange={(val) => {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								role: val === "all" ? undefined : (val as string),
+								page: 1,
+							}),
+							replace: true,
+						})
+					}}
+				>
+					<SelectTrigger className="w-32.5">
+						<SelectValue placeholder="All roles" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All roles</SelectItem>
+						<SelectItem value="admin">Admin</SelectItem>
+						<SelectItem value="member">Member</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
 			<DataTable
 				columns={columns}
 				data={members}
-				filterColumn="name"
-				searchValue={search.search}
-				onSearchChange={(val) => {
-					navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
-				}}
 				pagination={data?.meta ? {
 					page: data.meta.page ?? 1,
 					totalPages: data.meta.total_pages ?? 1,
 					total: data.meta.total ?? 0,
 					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
 				} : undefined}
-				filterPlaceholder="Search members..."
 				onRowClick={(row) => setSelectedMember(row.original)}
 				emptyIcon={<Users />}
 				emptyTitle="Just you for now"

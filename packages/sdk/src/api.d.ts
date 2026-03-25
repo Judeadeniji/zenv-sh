@@ -2019,6 +2019,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectID}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project stats
+         * @description Get summary statistics for a project (secrets, tokens, audit logs).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project ID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectStatsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sdk/projects/{projectID}/crypto": {
         parameters: {
             query?: never;
@@ -3330,6 +3372,14 @@ export interface components {
             id?: string;
             name?: string;
             organization_id?: string;
+        };
+        "api_internal_handler.ProjectStatsResponse": {
+            secrets_by_env?: {
+                [key: string]: number;
+            };
+            total_audit_logs?: number;
+            total_secrets?: number;
+            total_service_tokens?: number;
         };
         "api_internal_handler.PublicKeyResponse": {
             email?: string;
