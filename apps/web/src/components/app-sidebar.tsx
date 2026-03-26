@@ -52,8 +52,12 @@ export function AppSidebar() {
 	const location = useLocation()
 	const navigate = useNavigate()
 	const { state } = useSidebar()
+	const crypto = useAuthStore((s) => s.crypto)
 	const { data: me } = useQuery(meQueryOptions)
-	const { data: orgsData, isLoading: orgsLoading } = useQuery(orgsQueryOptions())
+	const { data: orgsData, isLoading: orgsLoading } = useQuery({
+		...orgsQueryOptions(),
+		enabled: !!crypto,
+	})
 
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const orgId = params.orgId
@@ -64,7 +68,7 @@ export function AppSidebar() {
 
 	const { data: projectsData, isLoading: projectsLoading } = useQuery({
 		...projectsQueryOptions(activeOrg?.id ?? ""),
-		enabled: !!activeOrg,
+		enabled: !!activeOrg && !!crypto,
 	})
 	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
 

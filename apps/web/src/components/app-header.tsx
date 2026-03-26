@@ -13,19 +13,24 @@ import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
 import { useNavStore, ENVIRONMENTS } from "#/lib/stores/nav"
 import { useUpdatePreferences } from "#/lib/queries/preferences"
+import { useAuthStore } from "#/lib/stores/auth"
 import { Link, useParams, useMatches } from "@tanstack/react-router"
 
 export function AppHeader() {
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const matches = useMatches()
+	const crypto = useAuthStore((s) => s.crypto)
 
-	const { data: orgsData } = useQuery(orgsQueryOptions())
-	const orgList = (orgsData as { organizations?: { id: string; name: string }[] })?.organizations ?? []
+	const { data: orgsData } = useQuery({
+		...orgsQueryOptions(),
+		enabled: !!crypto,
+	})
+	const orgList = orgsData?.organizations ?? []
 	const activeOrg = orgList.find((o) => o.id === params.orgId)
 
 	const { data: projectsData } = useQuery({
 		...projectsQueryOptions(activeOrg?.id ?? ""),
-		enabled: !!activeOrg,
+		enabled: !!activeOrg && !!crypto,
 	})
 	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
 	const activeProject = projectList.find((p) => p.id === params.projectId)
@@ -61,7 +66,7 @@ export function AppHeader() {
 									<Link
 										{...p}
 										to="/orgs/$orgId"
-										params={{ orgId: activeOrg.id }}
+										params={{ orgId: activeOrg.id! }}
 									/>
 								)}
 							>
@@ -79,7 +84,7 @@ export function AppHeader() {
 											<Link
 												{...p}
 												to="/orgs/$orgId/projects/$projectId"
-												params={{ orgId: activeOrg!.id, projectId: activeProject.id }}
+												params={{ orgId: activeOrg!.id!, projectId: activeProject.id }}
 											/>
 										)}
 									>

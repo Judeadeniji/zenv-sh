@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Outlet, redirect } from "@tanstack/react-router"
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { useAuthStore } from "#/lib/stores/auth"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { preferencesQueryOptions } from "#/lib/queries/preferences"
@@ -14,7 +14,11 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 		if (typeof window !== "undefined") {
 			const { crypto } = useAuthStore.getState()
 			if (!crypto) {
-				return { redirect: location.pathname, hash: location.hash }
+				throw redirect({
+					to: "/unlock",
+					search: { redirect: location.pathname },
+					hash: location.hash,
+				})
 			}
 		}
 
@@ -35,19 +39,12 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 
 		// Prefetch preferences so they're ready for hydration.
 		context.queryClient.ensureQueryData(preferencesQueryOptions).catch(() => { })
-
-		return { redirect: undefined }
 	},
 	component: UnlockedLayout,
 })
 
 function UnlockedLayout() {
-	const crypto = useAuthStore((s) => s.crypto)
-	const { redirect, hash } = Route.useRouteContext()
 	usePreferencesSync()
-
-	// If crypto is null here, redirect within component
-	if (!crypto) return <Navigate to="/unlock" search={{ redirect }} hash={hash} />
 
 	return (
 		<SidebarProvider>
