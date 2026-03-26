@@ -51,6 +51,7 @@ export async function rotateProjectDEK({
 	members,
 	onProgress,
 }: RotationParams): Promise<void> {
+	// Captured for cleanup in catch block
 	let rotationId: string | null = null
 
 	try {
@@ -103,7 +104,9 @@ export async function rotateProjectDEK({
 		)
 		if (startErr || !startData) throw new Error("Failed to start rotation")
 
-		rotationId = (startData as { rotation_id: string }).rotation_id
+		// Use a narrowed const so TypeScript knows it's non-null in the staging loop
+		const rid = startData.rotation_id!
+		rotationId = rid
 		onProgress({ phase: "staging", staged: 0, total })
 
 		// ── 4. Re-encrypt and stage in batches ──
@@ -129,9 +132,9 @@ export async function rotateProjectDEK({
 			)
 
 			const { error: stageErr } = await api().POST(
-				"/projects/{projectID}/rotation/{rotationID}/stage" as never,
+				"/projects/{projectID}/rotation/{rotationID}/stage",
 				{
-					params: { path: { projectID: projectId, rotationID: rotationId } },
+					params: { path: { projectID: projectId, rotationID: rid } },
 					body: { items },
 				},
 			)
@@ -149,22 +152,21 @@ export async function rotateProjectDEK({
 		const wrappedProjectDEK = pack(wdNonce, wdCt)
 
 		// Wrap new Project Vault Key with each member's public key
-		const newKeyGrants = members.map((member) => {
-			const wrapped = wrapWithPublicKey(
-				new TextEncoder().encode(newProjectVaultKey),
-				fromBase64(member.public_key),
-			)
-			return {
-				user_id: member.user_id,
-				wrapped_project_vault_key: toBase64(wrapped),
-			}
-		})
+		const newKeyGrants = members.map((member) => ({
+			user_id: member.user_id,
+			wrapped_project_vault_key: toBase64(
+				wrapWithPublicKey(
+					new TextEncoder().encode(newProjectVaultKey),
+					fromBase64(member.public_key),
+				),
+			),
+		}))
 
 		// ── 6. Commit ──
 		const { error: commitErr } = await api().POST(
-			"/projects/{projectID}/rotation/{rotationID}/commit" as never,
+			"/projects/{projectID}/rotation/{rotationID}/commit",
 			{
-				params: { path: { projectID: projectId, rotationID: rotationId } },
+				params: { path: { projectID: projectId, rotationID: rid } },
 				body: {
 					new_wrapped_project_dek: toBase64(wrappedProjectDEK),
 					new_project_salt: toBase64(newSalt),
@@ -179,15 +181,12 @@ export async function rotateProjectDEK({
 		const message = err instanceof Error ? err.message : "Rotation failed"
 		onProgress({ phase: "error", staged: 0, total: 0, error: message })
 
-		// Attempt cleanup if we have a rotation ID
+		// Best-effort cleanup if we have a rotation ID
 		if (rotationId) {
 			try {
-				await api().DELETE(
-					"/projects/{projectID}/rotation/{rotationID}" as never,
-					{
-						params: { path: { projectID: projectId, rotationID: rotationId } },
-					},
-				)
+				await api().DELETE("/projects/{projectID}/rotation/{rotationID}", {
+					params: { path: { projectID: projectId, rotationID: rotationId } },
+				})
 			} catch {
 				// Best-effort cleanup
 			}
