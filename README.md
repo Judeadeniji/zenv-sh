@@ -1,21 +1,48 @@
 # zEnv
 
+> ⚠️ **Pre-alpha. Not ready for use. Breaking changes happen without notice.**
+> This is under active solo development. Do not use this to store real secrets yet.
+
 **Zero-knowledge secret manager. Trust the math, not the server.**
 
-zEnv is an encrypted vault for storing and sharing sensitive data — passwords, API keys, credentials, where even we as the provider cannot read your data. All encryption and decryption happens client-side via the Amnesia engine. The server is a ciphertext warehouse.
+zEnv is an encrypted vault for storing and sharing sensitive data API keys,
+credentials, passwords where even we as the provider cannot read your data.
+All encryption and decryption happens client-side via the Amnesia engine.
+The server is a ciphertext warehouse.
 
 ## Status
 
-| Component       | Status         |
-| --------------- | -------------- |
-| Amnesia (Go)    | ✅ Complete     |
-| Amnesia (TS)    | ✅ Complete     |
-| API             | ✅ Complete     |
-| CLI             | ✅ Complete     |
-| SDK             | ✅ Complete     |
-| Auth server     | ✅ Complete     |
-| Dashboard       | 🚧 In Progress — server-side filtering and caching in progress |
-| Docs site       | 🚧 In Progress  |
+| Component       | Status                                              |
+| --------------- | --------------------------------------------------- |
+| Amnesia (Go)    | ✅ Complete — cross-language parity tests passing   |
+| Amnesia (TS)    | ✅ Complete                                         |
+| API             | ✅ Complete                                         |
+| Auth server     | ✅ Complete — dev auth only, OAuth not yet wired    |
+| CLI             | ✅ Complete                                         |
+| SDK             | ✅ Complete                                         |
+| Dashboard       | 🚧 In progress                                      |
+| Docs site       | 🚧 In progress                                      |
+| Security audit  | ❌ Not done — do not use for real secrets           |
+| OAuth           | ❌ Not done — dev login only                        |
+| Production deploy | ❌ Not done                                       |
+
+## What works right now
+
+The core cryptographic layer and API are functional and tested. You can run
+it locally, create projects, store secrets, and retrieve them via the CLI
+and SDK. Cross-language parity between Go and TypeScript Amnesia is verified
+by test vectors.
+
+What does not exist yet: production deployment, OAuth, a finished dashboard,
+a security audit, and anything resembling stability guarantees.
+
+## What this is not yet
+
+- Not audited by a third party
+- Not production deployed
+- Not stable — APIs will break
+- Not accepting external contributions yet
+- Not ready for storing secrets you care about
 
 ## Architecture
 
