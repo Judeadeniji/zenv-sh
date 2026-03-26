@@ -408,17 +408,18 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 // --- Add Member ---
 
 type AddMemberRequest struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"` // admin, senior_dev, dev, contractor, ci_bot
+	UserID string `json:"user_id"` // UUID — used by CLI
+	Email  string `json:"email"`   // email — used by web; looked up to resolve UUID
+	Role   string `json:"role"`    // admin, senior_dev, dev, contractor, ci_bot
 }
 
 // @Summary		Add organization member
-// @Description	Add a user to an organization with a specified role.
+// @Description	Add a user to an organization. Provide either email (web) or user_id UUID (CLI).
 // @Tags			organizations
 // @Accept			json
 // @Produce		json
 // @Param			orgID	path		string			true	"Organization UUID"
-// @Param			body	body		AddMemberRequest	true	"User and role"
+// @Param			body	body		AddMemberRequest	true	"User (email or user_id) and role"
 // @Success		201		{object}	MemberResponse
 // @Failure		400		{object}	ErrorResponse
 // @Failure		403		{object}	ErrorResponse
@@ -444,8 +445,12 @@ func (h *OrgsHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" || req.Role == "" {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "user_id and role are required"})
+	if req.UserID == "" && req.Email == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "email or user_id is required"})
+		return
+	}
+	if req.Role == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "role is required"})
 		return
 	}
 
@@ -462,10 +467,22 @@ func (h *OrgsHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid user_id"})
-		return
+	// Resolve user: either a direct UUID (CLI) or an email lookup (web).
+	var userID uuid.UUID
+	if req.UserID != "" {
+		var err error
+		userID, err = uuid.Parse(req.UserID)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid user_id"})
+			return
+		}
+	} else {
+		row := h.db.QueryRowContext(r.Context(),
+			`SELECT id FROM users WHERE email = $1`, req.Email)
+		if err := row.Scan(&userID); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "no user found with that email"})
+			return
+		}
 	}
 
 	memberID := uuid.New()

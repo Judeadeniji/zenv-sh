@@ -28,7 +28,7 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 
 	const onSubmit = (data: InviteMemberInput) => {
 		addMember.mutate(
-			{ orgId, userId: data.email, role: data.role },
+			{ orgId, email: data.email, role: data.role },
 			{
 				onSuccess: () => {
 					setSuccess(true)
