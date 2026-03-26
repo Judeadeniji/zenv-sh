@@ -11,10 +11,12 @@ Goal: A developer can use zEnv for a real project end-to-end.
 - [x] CLI — secrets, tokens, projects, orgs, login, whoami, config
 - [x] @zenv/sdk — TypeScript SDK with Standard Schema support
 - [x] 93 tests (handler, middleware, E2E integration, CLI config)
-- [ ] Developer dashboard (TanStack Start)
-- [ ] Encryption API — encrypt/decrypt any data, not just env vars
-- [ ] Dockerfiles + self-hosting guide
-- [ ] Documentation site
+- [x] Developer dashboard (TanStack Start)
+- [x] DEK rotation — two-phase re-encryption (API + web UI)
+- [x] Server-synced user preferences (active environment, pinned projects)
+- [x] Dockerfiles + self-hosting guide
+- [x] Documentation site (Starlight)
+- [ ] Encryption API — encrypt/decrypt any data, not just secrets
 - [ ] Deploy SaaS (Fly.io + Neon + Upstash + Vercel)
 
 ## Phase 2 — Something Developers Will Adopt

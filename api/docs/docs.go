@@ -1076,7 +1076,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Add a user to an organization with a specified role.",
+                "description": "Add a user to an organization. Provide either email (web) or user_id UUID (CLI).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1096,7 +1096,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "User and role",
+                        "description": "User (email or user_id) and role",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -1904,6 +1904,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ProjectStatsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -3056,11 +3068,16 @@ const docTemplate = `{
         "api_internal_handler.AddMemberRequest": {
             "type": "object",
             "properties": {
+                "email": {
+                    "description": "email — used by web; looked up to resolve UUID",
+                    "type": "string"
+                },
                 "role": {
                     "description": "admin, senior_dev, dev, contractor, ci_bot",
                     "type": "string"
                 },
                 "user_id": {
+                    "description": "UUID — used by CLI",
                     "type": "string"
                 }
             }

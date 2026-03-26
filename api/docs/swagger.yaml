@@ -2,10 +2,14 @@ basePath: /v1
 definitions:
   api_internal_handler.AddMemberRequest:
     properties:
+      email:
+        description: email — used by web; looked up to resolve UUID
+        type: string
       role:
         description: admin, senior_dev, dev, contractor, ci_bot
         type: string
       user_id:
+        description: UUID — used by CLI
         type: string
     type: object
   api_internal_handler.ApproveRecoveryRequest:
@@ -1333,14 +1337,15 @@ paths:
     post:
       consumes:
       - application/json
-      description: Add a user to an organization with a specified role.
+      description: Add a user to an organization. Provide either email (web) or user_id
+        UUID (CLI).
       parameters:
       - description: Organization UUID
         in: path
         name: orgID
         required: true
         type: string
-      - description: User and role
+      - description: User (email or user_id) and role
         in: body
         name: body
         required: true
@@ -1868,6 +1873,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.ProjectStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - SessionAuth: []
       summary: Get project stats

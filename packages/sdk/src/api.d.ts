@@ -1125,7 +1125,7 @@ export interface paths {
         put?: never;
         /**
          * Add organization member
-         * @description Add a user to an organization with a specified role.
+         * @description Add a user to an organization. Provide either email (web) or user_id UUID (CLI).
          */
         post: {
             parameters: {
@@ -1137,7 +1137,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            /** @description User and role */
+            /** @description User (email or user_id) and role */
             requestBody: {
                 content: {
                     "application/json": components["schemas"]["api_internal_handler.AddMemberRequest"];
@@ -2049,6 +2049,24 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.ProjectStatsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -3172,8 +3190,11 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         "api_internal_handler.AddMemberRequest": {
+            /** @description email — used by web; looked up to resolve UUID */
+            email?: string;
             /** @description admin, senior_dev, dev, contractor, ci_bot */
             role?: string;
+            /** @description UUID — used by CLI */
             user_id?: string;
         };
         "api_internal_handler.ApproveRecoveryRequest": {

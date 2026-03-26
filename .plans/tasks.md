@@ -2,15 +2,12 @@
 
 ## Up Next
 
-### Developer Dashboard
+### Fixes + Polish
 
-- [ ] Scaffold apps/web/ — TanStack Start
-- [ ] Auth flow (login → vault setup → unlock)
-- [ ] Protected layouts (\_authed, \_unlocked)
-- [ ] Secrets list/detail pages
-- [ ] Project switcher
-- [ ] Service token management
-- [ ] Organization + member management
+- [ ] Audit log query — Go-Jet JOIN generates `uuid = text` operator mismatch (needs raw SQL cast)
+- [ ] Argon2id in Web Worker — prevent UI freeze during unlock on slow pins
+- [ ] Auth pages protected from authenticated users (redirect /login → /unlock if already authed)
+- [ ] Blob encryption — encrypt arbitrary payloads (files, notes, cards) per the plan doc
 
 ### Deploy SaaS
 
@@ -72,6 +69,8 @@
 - [x] Initial SQL migration — users, linked_providers, organizations, projects, project_vault_keys, project_key_grants, vault_items, service_tokens, organization_members, audit_logs (monthly partitioned)
 - [x] Migration 002: identity_id on users, identity_org_id on organizations
 - [x] Migration 004: renamed better_auth columns to generic identity names
+- [x] Migration 005: dek_version on vault_items + project_vault_keys, project_rotations, vault_item_rotations tables
+- [x] Migration 006: users.preferences jsonb column
 - [x] Docker Compose: Postgres 17 (port 5434) + Redis 7
 - [x] Go-Jet codegen — type-safe models + SQL builders at api/internal/store/gen/
 - [x] pgx connection pool + Redis client wired into API startup
@@ -104,6 +103,10 @@
 - [x] API is vault-only — identity handled by standalone auth server
 - [x] Regenerated OpenAPI spec
 - [x] Smoke tests rewritten for auth server + vault-only API architecture
+- [x] GET /v1/preferences + PUT /v1/preferences — server-synced user preferences (jsonb)
+- [x] Two-phase DEK rotation: start/stage/commit/cancel endpoints
+- [x] All handlers documented with Swagger/OpenAPI annotations
+- [x] Pretty slog TUI handler for readable terminal output
 
 ### API secrets CRUD
 
@@ -114,6 +117,7 @@
 - [x] PUT /v1/secrets/:nameHash — update with version bump
 - [x] DELETE /v1/secrets/:nameHash — hard delete
 - [x] SDK routes at /v1/sdk/* — token-authenticated mirror
+- [x] Server-side filtering, sorting, and pagination across all list endpoints
 
 ### API service tokens
 
@@ -129,6 +133,8 @@
 - [x] POST /v1/projects — create with client-generated crypto (transactional: project + vault key + key grant)
 - [x] GET /v1/projects — list by organization
 - [x] GET /v1/projects/{id} — get single project
+- [x] GET /v1/projects/{id}/stats — secret/token/audit counts by environment
+- [x] DELETE /v1/projects/{id} — delete project + all secrets/tokens/grants
 - [x] GET /v1/sdk/projects/{id}/crypto — return salt + wrapped DEK for SDK key derivation
 
 ### OpenAPI + typed SDK client
@@ -209,3 +215,25 @@
 - [x] GitHub Actions CI: Go tests, TS tests, cross-language parity, cross-compile
 - [x] .editorconfig, .nvmrc
 - [x] READMEs for root + all 5 packages
+
+### Developer Dashboard (TanStack Start)
+
+- [x] Scaffold apps/web/ — TanStack Start + Tailwind + shadcn/ui
+- [x] Auth flow — login, signup, vault setup, unlock (with PIN + passphrase)
+- [x] Protected layouts — `_authed` (session) + `_unlocked` (crypto keys in memory)
+- [x] Vault unlock gating — beforeLoad throws redirect; queries disabled until crypto present
+- [x] Org dashboard — quick actions, stat cards (projects, members), project list, team preview
+- [x] Project dashboard — environment breakdown, stats grid, project key reveal, quick start, recent activity, token overview
+- [x] Project settings — general info, project key reveal, DEK rotation trigger, danger zone (type-to-confirm delete)
+- [x] Secrets page — list with client-side decrypt, search/filter/sort, create, edit, version history, rollback, delete
+- [x] Service tokens page — list, create (scoped to env + permission), revoke
+- [x] Audit log page — server-side paginated DataTable with filters
+- [x] Members page — list, invite, remove, role management
+- [x] Org settings page — general info, danger zone
+- [x] Account settings — profile, security, linked accounts
+- [x] App sidebar — org switcher, project list, pinned projects (hover to pin/unpin), project + org nav
+- [x] App header — breadcrumbs, environment switcher (Dev/Stg/Prod)
+- [x] Server-synced preferences — active environment + pinned projects persisted to users.preferences
+- [x] DEK rotation dialog — multi-step UI (confirm → progress → complete/error) using two-phase rotation API
+- [x] Route files reorganized to `*/route.tsx` convention
+- [x] Portless local dev — .localhost domains, cross-subdomain cookies
