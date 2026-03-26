@@ -1,4 +1,5 @@
-import { createFileRoute, Navigate, Outlet, redirect, useLocation } from "@tanstack/react-router"
+import { createFileRoute, Navigate, Outlet, redirect } from "@tanstack/react-router"
+import { useRef } from "react"
 import { useAuthStore } from "#/lib/stores/auth"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { preferencesQueryOptions } from "#/lib/queries/preferences"
@@ -51,12 +52,17 @@ export const Route = createFileRoute("/_authed/_unlocked")({
  */
 function UnlockedLayout() {
 	const crypto = useAuthStore((s) => s.crypto)
-	const location = useLocation()
+	// Snapshot path at mount time. useLocation() is reactive and would update
+	// to "/unlock" mid-navigation, causing the redirect destination to overwrite
+	// itself and produce /unlock?redirect=%2Funlock.
+	const savedPath = useRef(
+		typeof window !== "undefined" ? window.location.pathname : "/",
+	)
 
 	// Guards the initial page-load / hydration case.
 	// beforeLoad only runs on navigations, not on SSR hydration.
 	if (!crypto) {
-		return <Navigate to="/unlock" search={{ redirect: location.pathname }} />
+		return <Navigate to="/unlock" search={{ redirect: savedPath.current }} />
 	}
 
 	return <UnlockedLayoutInner />
