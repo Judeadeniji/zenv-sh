@@ -2,7 +2,20 @@
 
 **Zero-knowledge secret manager. Trust the math, not the server.**
 
-zEnv is an encrypted vault for storing and sharing sensitive data — passwords, API keys, credentials — where even we as the provider cannot read your data. All encryption and decryption happens client-side via the Amnesia engine. The server is a ciphertext warehouse.
+zEnv is an encrypted vault for storing and sharing sensitive data — passwords, API keys, credentials, where even we as the provider cannot read your data. All encryption and decryption happens client-side via the Amnesia engine. The server is a ciphertext warehouse.
+
+## Status
+
+| Component       | Status         |
+| --------------- | -------------- |
+| Amnesia (Go)    | ✅ Complete     |
+| Amnesia (TS)    | ✅ Complete     |
+| API             | ✅ Complete     |
+| CLI             | ✅ Complete     |
+| SDK             | ✅ Complete     |
+| Auth server     | ✅ Complete     |
+| Dashboard       | 🚧 In Progress — server-side filtering and caching in progress |
+| Docs site       | 🚧 In Progress  |
 
 ## Architecture
 
@@ -14,7 +27,11 @@ Go monorepo (go.work)
 
 TypeScript packages (pnpm workspaces)
 ├── packages/amnesia/     Pure TS reimplementation — byte-identical to Go, cross-language parity enforced
-└── packages/sdk/         @zenv/sdk — typed API client + schema validation, zero crypto logic
+├── packages/sdk/         @zenv/sdk — typed API client + schema validation, zero crypto logic
+└── apps/
+    ├── auth/             Identity layer (TS) — handles authn for both the API and dashboard
+    ├── web/              TanStack Start dashboard — manage projects, environments, and secrets
+    └── docs/             Documentation site (Astro)
 ```
 
 ## Quick Start
@@ -92,6 +109,10 @@ zEnv/
 │   └── internal/commands/       Cobra subcommands
 ├── packages/amnesia/            TypeScript crypto engine (Web Crypto API + hash-wasm)
 ├── packages/sdk/                @zenv/sdk (openapi-fetch + Standard Schema)
+├── apps/
+│   ├── auth/                        Identity server — separate authn layer for API + dashboard
+│   ├── web/                         TanStack Start dashboard
+│   └── docs/                        Astro documentation site
 └── tests/                       Cross-language test vectors + smoke tests
 ```
 
@@ -141,6 +162,9 @@ make smoke          # Run smoke tests against live API
 | [cli/](cli/)                           | Go CLI tool            | [README](cli/README.md)                |
 | [packages/amnesia/](packages/amnesia/) | TypeScript crypto      | [README](packages/amnesia/README.md)   |
 | [packages/sdk/](packages/sdk/)         | TypeScript SDK         | [README](packages/sdk/README.md)       |
+| [apps/auth/](apps/auth/)               | Identity server (TS)   | —                                      |
+| [apps/web/](apps/web/)                 | TanStack Start dashboard | —                                    |
+| [apps/docs/](apps/docs/)               | Docs site (Astro)      | —                                      |
 
 ## License
 
