@@ -8,6 +8,7 @@ import { meQueryOptions } from "#/lib/queries/auth"
 import { useAuthStore } from "#/lib/stores/auth"
 import { useNavStore } from "#/lib/stores/nav"
 import { authClient } from "#/lib/auth-client"
+import { api } from "#/lib/api-client"
 import { getProjectItems, getOrgItems, getSettingsItems } from "#/lib/nav-items"
 import { CreateProjectDialog } from "#/components/create-project-dialog"
 import {
@@ -101,7 +102,8 @@ export function AppSidebar() {
 	const orgItems = activeOrg ? getOrgItems(activeOrg.id, projectId) : []
 	const settingsItems = activeOrg ? getSettingsItems(activeOrg.id, projectId) : []
 
-	const handleLock = () => {
+	const handleLock = async () => {
+		await api().POST("/auth/lock", {})
 		useAuthStore.getState().lock()
 		navigate({
 			to: "/unlock", search: {
@@ -111,8 +113,10 @@ export function AppSidebar() {
 	}
 
 	const handleSignOut = async () => {
-		await authClient.signOut()
+		await api().POST("/auth/lock", {})
 		useAuthStore.getState().lock()
+		await authClient.signOut()
+		await qc.cancelQueries()
 		qc.clear()
 		navigate({ to: "/login" })
 	}

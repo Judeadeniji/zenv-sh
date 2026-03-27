@@ -246,6 +246,25 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/lock": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Removes the vault unlock record, requiring the user to re-enter their Vault Key on next access.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Lock vault",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/auth/me": {
             "get": {
                 "security": [

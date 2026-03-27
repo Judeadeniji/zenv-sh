@@ -32,6 +32,29 @@ func NewAuthHandler(db *sql.DB, identity *middleware.IdentitySession) *AuthHandl
 	return &AuthHandler{db: db, identity: identity}
 }
 
+// --- Vault Lock ---
+
+// Lock clears the vault unlock flag for the current session in Redis.
+//
+//	@Summary		Lock vault
+//	@Description	Removes the vault unlock record, requiring the user to re-enter their Vault Key on next access.
+//	@Tags			auth
+//	@Success		204
+//	@Security		SessionAuth
+//	@Router			/auth/lock [post]
+func (h *AuthHandler) Lock(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(middleware.IdentitySessionCookie)
+	if err != nil || cookie.Value == "" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	sessionToken := strings.Split(cookie.Value, ".")[0]
+	if err := h.identity.ClearVaultUnlocked(r.Context(), sessionToken); err != nil {
+		slog.Error("lock: clear vault state", "error", err)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Vault Unlock ---
 
 type UnlockRequest struct {

@@ -16,6 +16,14 @@
 - [x] Add `sendInvitationEmail` stub to `apps/auth/src/auth.ts` organization plugin
 - [ ] Wire email provider (Resend/Postmark) — replace console.log stub in `sendInvitationEmail`
 
+### Key Grants + Vault Sync (done)
+
+- [x] `ListKeyGrants` returns ALL org members with `has_grant` bool + email — LEFT JOIN from `organization_members`
+- [x] `POST /projects/{id}/grants` — batch-upsert key grants (wrap PVK with each member's public key)
+- [x] `CommitRotation` upgraded to upsert — rotation now covers new members too
+- [x] `POST /auth/lock` — server-side vault lock (clears Redis `vault_unlock:{token}`)
+- [x] `handleLock` / `handleSignOut` in sidebar + unlock page call `/auth/lock` before clearing local state
+
 ### Deploy SaaS
 
 - [ ] Neon Postgres + Upstash Redis accounts

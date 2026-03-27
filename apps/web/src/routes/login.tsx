@@ -1,7 +1,7 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { PasswordInput } from "#/components/ui/password-input"
@@ -12,7 +12,7 @@ import { Separator } from "#/components/ui/separator"
 import { GitHubIcon, GoogleIcon } from "#/components/oauth-icons"
 import { authClient } from "#/lib/auth-client"
 import { meQueryOptions } from "#/lib/queries/auth"
-import { mutationKeys } from "#/lib/keys"
+import { mutationKeys, queryKeys } from "#/lib/keys"
 import { loginSchema, type LoginInput } from "#/lib/schemas/auth"
 import { AlertCircle, ArrowRight } from "lucide-react"
 
@@ -30,6 +30,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
 	const navigate = useNavigate()
+	const qc = useQueryClient()
 
 	const form = useForm<LoginInput>({
 		resolver: zodResolver(loginSchema),
@@ -43,7 +44,12 @@ function LoginPage() {
 			if (result.error) throw new Error(result.error.message ?? "Sign in failed")
 			return result.data
 		},
-		onSuccess: () => navigate({ to: "/" }),
+		onSuccess: () => {
+			// Remove stale me-data so the router's beforeLoad always fetches
+			// fresh identity for the newly signed-in account.
+			qc.removeQueries({ queryKey: queryKeys.auth.me })
+			navigate({ to: "/" })
+		},
 	})
 
 	const handleOAuth = (provider: "github" | "google") => {

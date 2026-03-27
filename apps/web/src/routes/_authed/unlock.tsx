@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { Button } from "#/components/ui/button"
 import { PasswordInput } from "#/components/ui/password-input"
@@ -12,6 +12,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "#/comp
 import { useAuthStore } from "#/lib/stores/auth"
 import { meQueryOptions, useUnlockVault } from "#/lib/queries/auth"
 import { authClient } from "#/lib/auth-client"
+import { api } from "#/lib/api-client"
 import { AlertCircle, Lock } from "lucide-react"
 import { type KeyType } from "@zenv/amnesia";
 
@@ -33,6 +34,7 @@ type UnlockInput = z.infer<typeof unlockSchema>
 
 function UnlockPage() {
 	const navigate = useNavigate()
+	const qc = useQueryClient()
 	const { redirect: redirectTo } = Route.useSearch()
 
 	// Sanitize redirect — never redirect back to unlock itself
@@ -64,9 +66,12 @@ function UnlockPage() {
 		)
 	}
 
-	const handleSignOut = () => {
-		authClient.signOut()
+	const handleSignOut = async () => {
+		await api().POST("/auth/lock", {})
 		useAuthStore.getState().lock()
+		await authClient.signOut()
+		await qc.cancelQueries()
+		qc.clear()
 		navigate({ to: "/login" })
 	}
 

@@ -31,6 +31,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 		r.Get("/auth/me", auth.Me)
 		r.Post("/auth/setup-vault", auth.SetupVault)
 		r.Post("/auth/unlock", auth.Unlock)
+		r.Post("/auth/lock", auth.Lock)
 		r.Put("/auth/change-vault-key", auth.ChangeVaultKey)
 
 		// Recovery — session only (no vault unlock required)

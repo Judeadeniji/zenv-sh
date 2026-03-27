@@ -146,3 +146,8 @@ func (id *IdentitySession) SetVaultUnlocked(ctx context.Context, sessionToken st
 	}
 	return id.rdb.Set(ctx, vaultUnlockPrefix+sessionToken, unlockTime, ttl).Err()
 }
+
+// ClearVaultUnlocked removes the vault unlock record for a session, re-locking the vault.
+func (id *IdentitySession) ClearVaultUnlocked(ctx context.Context, sessionToken string) error {
+	return id.rdb.Del(ctx, vaultUnlockPrefix+sessionToken).Err()
+}

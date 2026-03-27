@@ -829,6 +829,18 @@ paths:
       summary: Change vault key
       tags:
       - auth
+  /auth/lock:
+    post:
+      description: Removes the vault unlock record, requiring the user to re-enter
+        their Vault Key on next access.
+      responses:
+        "204":
+          description: No Content
+      security:
+      - SessionAuth: []
+      summary: Lock vault
+      tags:
+      - auth
   /auth/me:
     get:
       description: Returns identity, vault setup status, and vault lock state.
