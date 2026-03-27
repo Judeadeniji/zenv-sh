@@ -12,8 +12,9 @@
 
 ### Invitation Flow (Better Auth)
 
-- [ ] Rewrite `invite-member-dialog.tsx` — use `authClient.organization.inviteMember()` + show copyable invite link
-- [ ] Add `sendInvitationEmail` stub to `apps/auth/src/auth.ts` organization plugin
+- [x] Rewrite `invite-member-dialog.tsx` — use `authClient.organization.inviteMember()` + show copyable invite link
+- [x] Add `sendInvitationEmail` stub to `apps/auth/src/auth.ts` organization plugin
+- [ ] Wire email provider (Resend/Postmark) — replace console.log stub in `sendInvitationEmail`
 
 ### Deploy SaaS
 
