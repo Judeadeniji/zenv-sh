@@ -137,8 +137,7 @@ export function useProjectKey(projectId: string) {
 			})
 			if (error || !data) throw new Error("No key grant found")
 
-			const res = data as { wrapped_project_vault_key: string }
-			const wrappedBytes = fromBase64(res.wrapped_project_vault_key)
+			const wrappedBytes = fromBase64(data.wrapped_project_vault_key!)
 			const plaintext = unwrapWithPrivateKey(wrappedBytes, crypto.privateKey)
 			return new TextDecoder().decode(plaintext)
 		},
@@ -170,8 +169,7 @@ export function useProjectDEK(projectId: string) {
 			})
 			if (grantErr || !grantData) throw new Error("No key grant found")
 
-			const grant = grantData as { wrapped_project_vault_key: string }
-			const wrappedBytes = fromBase64(grant.wrapped_project_vault_key)
+			const wrappedBytes = fromBase64(grantData.wrapped_project_vault_key!)
 			const projectVaultKey = new TextDecoder().decode(
 				unwrapWithPrivateKey(wrappedBytes, crypto.privateKey),
 			)
@@ -197,6 +195,51 @@ export function useProjectDEK(projectId: string) {
 		},
 		enabled: !!crypto && !!projectId,
 		staleTime: Number.POSITIVE_INFINITY,
+	})
+}
+
+export interface KeyGrantMember {
+	user_id: string
+	email: string
+	public_key: string // base64
+	has_grant: boolean
+}
+
+/**
+ * All org members for a project with their grant status and public keys.
+ * Members without a vault (no public_key) are excluded by the server.
+ */
+export function listKeyGrantsQueryOptions(projectId: string) {
+	return queryOptions({
+		queryKey: [...queryKeys.projects.detail(projectId), "key-grants"],
+		queryFn: async () => {
+			const { data, error } = await api().GET("/projects/{projectID}/key-grants", {
+				params: { path: { projectID: projectId } },
+			})
+			if (error || !data) throw new Error("Failed to fetch key grants")
+			return (data.members ?? []) as KeyGrantMember[]
+		},
+		staleTime: 30_000,
+	})
+}
+
+/**
+ * Batch-upsert key grants for org members who don't have project access yet.
+ * Each grant is the Project Vault Key wrapped with that member's public key.
+ */
+export function useGrantAccess(projectId: string) {
+	const qc = useQueryClient()
+	return useMutation({
+		mutationFn: async (grants: Array<{ user_id: string; wrapped_project_vault_key: string }>) => {
+			const { error } = await api().POST("/projects/{projectID}/grants", {
+				params: { path: { projectID: projectId } },
+				body: { grants },
+			})
+			if (error) throw new Error((error as { message?: string }).message ?? "Failed to grant access")
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: [...queryKeys.projects.detail(projectId), "key-grants"] })
+		},
 	})
 }
 

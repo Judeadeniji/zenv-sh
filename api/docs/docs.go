@@ -1518,6 +1518,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/projects/{projectID}/grants": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "description": "Upserts key grants for the specified users. Each grant contains the Project Vault Key wrapped with that user's public key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rotation"
+                ],
+                "summary": "Grant project access",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project UUID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Grants to upsert",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.GrantAccessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/projects/{projectID}/key-grant": {
             "get": {
                 "security": [
@@ -1565,7 +1626,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.",
+                "description": "Returns all org members with vault keys and their grant status. Used during DEK rotation and access management.",
                 "produces": [
                     "application/json"
                 ],
@@ -3369,6 +3430,26 @@ const docTemplate = `{
                 }
             }
         },
+        "api_internal_handler.GrantAccessRequest": {
+            "type": "object",
+            "properties": {
+                "grants": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "user_id": {
+                                "type": "string"
+                            },
+                            "wrapped_project_vault_key": {
+                                "description": "base64",
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "api_internal_handler.IncomingRequest": {
             "type": "object",
             "properties": {
@@ -3401,6 +3482,12 @@ const docTemplate = `{
         "api_internal_handler.KeyGrantMember": {
             "type": "object",
             "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "has_grant": {
+                    "type": "boolean"
+                },
                 "public_key": {
                     "description": "base64",
                     "type": "string"

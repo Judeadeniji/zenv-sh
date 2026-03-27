@@ -670,7 +670,7 @@ func (h *ProjectsHandler) CommitRotation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 4. Update key grants.
+	// 4. Upsert key grants — INSERT new members, UPDATE existing ones.
 	for _, grant := range req.NewKeyGrants {
 		grantUserID, err := uuid.Parse(grant.UserID)
 		if err != nil {
@@ -681,12 +681,15 @@ func (h *ProjectsHandler) CommitRotation(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 		_, err = tx.ExecContext(r.Context(),
-			`UPDATE project_key_grants SET wrapped_project_vault_key = $1
-			 WHERE project_id = $2 AND user_id = $3`,
-			wrappedKey, projectID, grantUserID,
+			`INSERT INTO project_key_grants (id, project_id, user_id, wrapped_project_vault_key, granted_at)
+			 VALUES (gen_random_uuid(), $1, $2, $3, now())
+			 ON CONFLICT (project_id, user_id)
+			 DO UPDATE SET wrapped_project_vault_key = EXCLUDED.wrapped_project_vault_key,
+			               granted_at = now()`,
+			projectID, grantUserID, wrappedKey,
 		)
 		if err != nil {
-			slog.Error("commit rotation: update grant", "user_id", grantUserID, "error", err)
+			slog.Error("commit rotation: upsert grant", "user_id", grantUserID, "error", err)
 		}
 	}
 
@@ -962,6 +965,7 @@ func (h *ProjectsHandler) GetKeyGrant(w http.ResponseWriter, r *http.Request) {
 	stmt := SELECT(
 		table.ProjectKeyGrants.WrappedProjectVaultKey,
 	).FROM(table.ProjectKeyGrants).WHERE(
+		// TODO: ProjectKeyGrants should be tied to organization not user ID
 		table.ProjectKeyGrants.ProjectID.EQ(UUID(projectID)).
 			AND(table.ProjectKeyGrants.UserID.EQ(UUID(userID))),
 	)
@@ -981,21 +985,25 @@ func (h *ProjectsHandler) GetKeyGrant(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// --- List Key Grants (for rotation) ---
+// --- List Key Grants (for rotation and access management) ---
 
 type KeyGrantMember struct {
 	UserID    string `json:"user_id"`
+	Email     string `json:"email"`
 	PublicKey string `json:"public_key"` // base64
+	HasGrant  bool   `json:"has_grant"`
 }
 
 type ListKeyGrantsResponse struct {
 	Members []KeyGrantMember `json:"members"`
 }
 
-// ListKeyGrants returns all members with key grants for a project, including public keys.
+// ListKeyGrants returns ALL org members for a project, with a has_grant flag indicating
+// whether they have a key grant. Members without vaults (no public_key) are excluded.
+// Used for DEK rotation (re-wrap for all) and access management (grant new members).
 //
 //	@Summary		List key grants
-//	@Description	Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.
+//	@Description	Returns all org members with vault keys and their grant status. Used during DEK rotation and access management.
 //	@Tags			rotation
 //	@Produce		json
 //	@Param			projectID	path		string	true	"Project UUID"
@@ -1012,10 +1020,15 @@ func (h *ProjectsHandler) ListKeyGrants(w http.ResponseWriter, r *http.Request) 
 	}
 
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT pkg.user_id, u.public_key
-		 FROM project_key_grants pkg
-		 JOIN users u ON u.id = pkg.user_id
-		 WHERE pkg.project_id = $1`,
+		`SELECT om.user_id, u.email, u.public_key,
+		        (pkg.user_id IS NOT NULL) AS has_grant
+		 FROM organization_members om
+		 JOIN projects p ON p.id = $1
+		 JOIN users u ON u.id = om.user_id
+		 LEFT JOIN project_key_grants pkg
+		        ON pkg.project_id = $1 AND pkg.user_id = om.user_id
+		 WHERE om.organization_id = p.organization_id
+		   AND u.public_key IS NOT NULL`,
 		projectID,
 	)
 	if err != nil {
@@ -1028,13 +1041,17 @@ func (h *ProjectsHandler) ListKeyGrants(w http.ResponseWriter, r *http.Request) 
 	var members []KeyGrantMember
 	for rows.Next() {
 		var userID uuid.UUID
+		var email string
 		var publicKey []byte
-		if err := rows.Scan(&userID, &publicKey); err != nil {
+		var hasGrant bool
+		if err := rows.Scan(&userID, &email, &publicKey, &hasGrant); err != nil {
 			continue
 		}
 		members = append(members, KeyGrantMember{
 			UserID:    userID.String(),
+			Email:     email,
 			PublicKey: base64.StdEncoding.EncodeToString(publicKey),
+			HasGrant:  hasGrant,
 		})
 	}
 
@@ -1043,6 +1060,85 @@ func (h *ProjectsHandler) ListKeyGrants(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, http.StatusOK, ListKeyGrantsResponse{Members: members})
+}
+
+// --- Grant Access ---
+
+type GrantAccessRequest struct {
+	Grants []struct {
+		UserID                 string `json:"user_id"`
+		WrappedProjectVaultKey string `json:"wrapped_project_vault_key"` // base64
+	} `json:"grants"`
+}
+
+// GrantAccess batch-upserts project key grants for one or more org members.
+// Used to give new members access without requiring a full DEK rotation.
+//
+//	@Summary		Grant project access
+//	@Description	Upserts key grants for the specified users. Each grant contains the Project Vault Key wrapped with that user's public key.
+//	@Tags			rotation
+//	@Accept			json
+//	@Produce		json
+//	@Param			projectID	path		string				true	"Project UUID"
+//	@Param			body		body		GrantAccessRequest	true	"Grants to upsert"
+//	@Success		200			{object}	map[string]string
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		SessionAuth
+//	@Router			/projects/{projectID}/grants [post]
+func (h *ProjectsHandler) GrantAccess(w http.ResponseWriter, r *http.Request) {
+	projectID, err := uuid.Parse(chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project ID"})
+		return
+	}
+
+	var req GrantAccessRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if len(req.Grants) == 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "grants must not be empty"})
+		return
+	}
+
+	tx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to begin transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	for _, grant := range req.Grants {
+		grantUserID, err := uuid.Parse(grant.UserID)
+		if err != nil {
+			continue
+		}
+		wrappedKey, err := base64.StdEncoding.DecodeString(grant.WrappedProjectVaultKey)
+		if err != nil || len(wrappedKey) == 0 {
+			continue
+		}
+		_, err = tx.ExecContext(r.Context(),
+			`INSERT INTO project_key_grants (id, project_id, user_id, wrapped_project_vault_key, granted_at)
+			 VALUES (gen_random_uuid(), $1, $2, $3, now())
+			 ON CONFLICT (project_id, user_id)
+			 DO UPDATE SET wrapped_project_vault_key = EXCLUDED.wrapped_project_vault_key,
+			               granted_at = now()`,
+			projectID, grantUserID, wrappedKey,
+		)
+		if err != nil {
+			slog.Error("grant_access: upsert", "user_id", grantUserID, "error", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Error("grant_access: commit", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // GetKeyGrantForToken returns the token creator's key grant for a project.
@@ -1063,6 +1159,7 @@ func (h *ProjectsHandler) GetKeyGrantForToken(w http.ResponseWriter, r *http.Req
 	stmt := SELECT(
 		table.ProjectKeyGrants.WrappedProjectVaultKey,
 	).FROM(table.ProjectKeyGrants).WHERE(
+		// TODO: ProjectKeyGrants should be tied to organization not user ID
 		table.ProjectKeyGrants.ProjectID.EQ(UUID(projectID)).
 			AND(table.ProjectKeyGrants.UserID.EQ(UUID(userID))),
 	)

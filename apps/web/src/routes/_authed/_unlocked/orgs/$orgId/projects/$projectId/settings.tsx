@@ -1,16 +1,19 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { wrapWithPublicKey } from "@zenv/amnesia"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Spinner } from "#/components/ui/spinner"
 import { Alert, AlertDescription } from "#/components/ui/alert"
+import { Badge } from "#/components/ui/badge"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
 import { SettingsRow, SettingsDivider } from "#/components/settings/settings-row"
-import { projectQueryOptions, useProjectKey, useDeleteProject } from "#/lib/queries/projects"
+import { projectQueryOptions, useProjectKey, useDeleteProject, listKeyGrantsQueryOptions, useGrantAccess, type KeyGrantMember } from "#/lib/queries/projects"
 import { RotateDEKDialog } from "#/components/rotate-dek-dialog"
-import { AlertCircle, Copy, Check, RefreshCw } from "lucide-react"
+import { fromBase64, toBase64 } from "#/lib/encoding"
+import { AlertCircle, Copy, Check, RefreshCw, ShieldCheck, ShieldOff, UserCheck } from "lucide-react"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings")({
 	component: ProjectSettingsPage,
@@ -34,6 +37,8 @@ function ProjectSettingsPage() {
 			<GeneralSection projectId={projectId} name={name} createdAt={createdAt} />
 			<SettingsDivider />
 			<ProjectKeyRow projectId={projectId} />
+			<SettingsDivider />
+			<AccessManagementSection projectId={projectId} />
 			<SettingsDivider />
 			<KeyRotationRow projectId={projectId} />
 			<SettingsDivider />
@@ -129,6 +134,109 @@ function KeyRotationRow({ projectId }: { projectId: string }) {
 					</Button>
 				}
 			/>
+		</SettingsRow>
+	)
+}
+
+function AccessManagementSection({ projectId }: { projectId: string }) {
+	const { data: projectKey } = useProjectKey(projectId)
+	const { data: members, isLoading } = useQuery(listKeyGrantsQueryOptions(projectId))
+	const grantAccess = useGrantAccess(projectId)
+
+	const ungrantedMembers = members?.filter((m) => !m.has_grant) ?? []
+
+	const handleGrantAll = () => {
+		if (!projectKey) return
+		const projectKeyBytes = new TextEncoder().encode(projectKey)
+		const grants = ungrantedMembers
+			.map((m: KeyGrantMember) => {
+				try {
+					const publicKey = fromBase64(m.public_key)
+					const wrapped = wrapWithPublicKey(projectKeyBytes, publicKey)
+					return { user_id: m.user_id, wrapped_project_vault_key: toBase64(wrapped) }
+				} catch {
+					return null
+				}
+			})
+			.filter(Boolean) as Array<{ user_id: string; wrapped_project_vault_key: string }>
+		if (grants.length > 0) {
+			grantAccess.mutate(grants)
+		}
+	}
+
+	const handleGrantOne = (member: KeyGrantMember) => {
+		if (!projectKey) return
+		try {
+			const publicKey = fromBase64(member.public_key)
+			const wrapped = wrapWithPublicKey(new TextEncoder().encode(projectKey), publicKey)
+			grantAccess.mutate([{ user_id: member.user_id, wrapped_project_vault_key: toBase64(wrapped) }])
+		} catch { /* ignore */ }
+	}
+
+	return (
+		<SettingsRow
+			title="Access"
+			description="Org members who have vault keys set up. Members without a key grant cannot decrypt project secrets."
+		>
+			{isLoading && <Spinner />}
+
+			{!projectKey && !isLoading && (
+				<p className="text-xs text-muted-foreground">
+					Reveal the Project Key above to manage member access.
+				</p>
+			)}
+
+			{members && members.length > 0 && (
+				<div className="space-y-2">
+					{members.map((m: KeyGrantMember) => (
+						<div key={m.user_id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+							<div className="flex items-center gap-2 min-w-0">
+								{m.has_grant
+									? <ShieldCheck className="size-3.5 shrink-0 text-success" />
+									: <ShieldOff className="size-3.5 shrink-0 text-muted-foreground" />
+								}
+								<span className="truncate text-sm">{m.email}</span>
+							</div>
+							<div className="flex items-center gap-2 ml-3">
+								{m.has_grant
+									? <Badge variant="success" className="text-[10px]">Granted</Badge>
+									: (
+										<Button
+											variant="outline"
+											size="xs"
+											disabled={!projectKey || grantAccess.isPending}
+											onClick={() => handleGrantOne(m)}
+										>
+											<UserCheck className="size-3" />
+											Grant
+										</Button>
+									)
+								}
+							</div>
+						</div>
+					))}
+
+					{ungrantedMembers.length > 1 && projectKey && (
+						<Button
+							variant="outline"
+							size="sm"
+							className="mt-2 w-full"
+							onClick={handleGrantAll}
+							isLoading={grantAccess.isPending}
+						>
+							<UserCheck />
+							Grant all {ungrantedMembers.length} members
+						</Button>
+					)}
+				</div>
+			)}
+
+			{grantAccess.error && (
+				<Alert variant="danger" className="mt-2">
+					<AlertCircle />
+					<AlertDescription>{grantAccess.error.message}</AlertDescription>
+				</Alert>
+			)}
 		</SettingsRow>
 	)
 }

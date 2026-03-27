@@ -206,6 +206,19 @@ definitions:
       error:
         type: string
     type: object
+  api_internal_handler.GrantAccessRequest:
+    properties:
+      grants:
+        items:
+          properties:
+            user_id:
+              type: string
+            wrapped_project_vault_key:
+              description: base64
+              type: string
+          type: object
+        type: array
+    type: object
   api_internal_handler.IncomingRequest:
     properties:
       eligible_at:
@@ -227,6 +240,10 @@ definitions:
     type: object
   api_internal_handler.KeyGrantMember:
     properties:
+      email:
+        type: string
+      has_grant:
+        type: boolean
       public_key:
         description: base64
         type: string
@@ -1623,6 +1640,46 @@ paths:
       summary: Get project crypto
       tags:
       - projects
+  /projects/{projectID}/grants:
+    post:
+      consumes:
+      - application/json
+      description: Upserts key grants for the specified users. Each grant contains
+        the Project Vault Key wrapped with that user's public key.
+      parameters:
+      - description: Project UUID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Grants to upsert
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.GrantAccessRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Grant project access
+      tags:
+      - rotation
   /projects/{projectID}/key-grant:
     get:
       description: Returns the current user's wrapped Project Vault Key for a project.
@@ -1650,8 +1707,8 @@ paths:
       - projects
   /projects/{projectID}/key-grants:
     get:
-      description: Returns all project members and their public keys. Used during
-        DEK rotation to re-wrap the Project Vault Key for each member.
+      description: Returns all org members with vault keys and their grant status.
+        Used during DEK rotation and access management.
       parameters:
       - description: Project UUID
         in: path

@@ -31,7 +31,10 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	})
 
 	const onSubmit = (data: CreateSecretInput) => {
-		if (!projectDEK) return
+		if (!projectDEK) {
+			toast.error("No project DEK found")
+			return
+		}
 		create.mutate(
 			{ projectId, environment, projectDEK, ...data },
 			{

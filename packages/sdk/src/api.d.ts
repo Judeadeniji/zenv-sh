@@ -1607,6 +1607,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectID}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant project access
+         * @description Upserts key grants for the specified users. Each grant contains the Project Vault Key wrapped with that user's public key.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project UUID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            /** @description Grants to upsert */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.GrantAccessRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectID}/key-grant": {
         parameters: {
             query?: never;
@@ -1667,7 +1734,7 @@ export interface paths {
         };
         /**
          * List key grants
-         * @description Returns all project members and their public keys. Used during DEK rotation to re-wrap the Project Vault Key for each member.
+         * @description Returns all org members with vault keys and their grant status. Used during DEK rotation and access management.
          */
         get: {
             parameters: {
@@ -3310,6 +3377,13 @@ export interface components {
         "api_internal_handler.ErrorResponse": {
             error?: string;
         };
+        "api_internal_handler.GrantAccessRequest": {
+            grants?: {
+                user_id?: string;
+                /** @description base64 */
+                wrapped_project_vault_key?: string;
+            }[];
+        };
         "api_internal_handler.IncomingRequest": {
             eligible_at?: string;
             request_id?: string;
@@ -3322,6 +3396,8 @@ export interface components {
             recovery_public_key?: string;
         };
         "api_internal_handler.KeyGrantMember": {
+            email?: string;
+            has_grant?: boolean;
             /** @description base64 */
             public_key?: string;
             user_id?: string;

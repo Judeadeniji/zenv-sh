@@ -77,6 +77,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Get("/{projectID}/stats", projects.GetStats)
 			r.Get("/{projectID}/key-grant", projects.GetKeyGrant)
 			r.Get("/{projectID}/key-grants", projects.ListKeyGrants)
+			r.Post("/{projectID}/grants", projects.GrantAccess)
 			r.Get("/{projectID}/crypto", projects.GetCrypto)
 			r.Post("/{projectID}/rotation/start", projects.StartRotation)
 			r.Post("/{projectID}/rotation/{rotationID}/stage", projects.StageRotation)
