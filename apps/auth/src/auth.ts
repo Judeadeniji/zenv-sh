@@ -53,6 +53,19 @@ export const auth = betterAuth({
       allowUserToCreateOrganization: true,
       organizationLimit: 5,
       membershipLimit: 100,
+      sendInvitationEmail: async (data) => {
+        // TODO: wire up email provider (Resend, Postmark, etc.)
+        // data.invitation.id  — the invitation ID used in the join URL
+        // data.invitation.email — the invitee's email address
+        // data.organization.name — the org they're being invited to
+        // data.inviter.user.email — the person who sent the invite
+        // const url = `${env.APP_URL}/join/${data.invitation.id}`
+        const url = new URL(`/join/${data.invitation.id}`, env.APP_URL)
+        console.log(
+          `[invite] ${data.inviter.user.email} → ${data.invitation.email}` +
+          ` (${data.organization.name}) — ${url}`,
+        )
+      },
       hooks: {
         organization: {
           afterCreate: async (ctx: {

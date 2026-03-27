@@ -7,6 +7,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     TRUSTED_ORIGINS: z.string().default(""),
+    APP_URL: z.url().default("http://app.zenv.localhost:1355"),
     COOKIE_DOMAIN: z.string().optional(),
     PORT: z
       .string()
