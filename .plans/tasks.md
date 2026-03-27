@@ -8,6 +8,12 @@
 - [ ] Argon2id in Web Worker — prevent UI freeze during unlock on slow pins
 - [ ] Auth pages protected from authenticated users (redirect /login → /unlock if already authed)
 - [ ] Blob encryption — encrypt arbitrary payloads (files, notes, cards) per the plan doc
+- [ ] Service token key grants: TODO — tie `project_key_grants` to org (not user) so tokens work regardless of which org member created them; requires org keypairs
+
+### Invitation Flow (Better Auth)
+
+- [ ] Rewrite `invite-member-dialog.tsx` — use `authClient.organization.inviteMember()` + show copyable invite link
+- [ ] Add `sendInvitationEmail` stub to `apps/auth/src/auth.ts` organization plugin
 
 ### Deploy SaaS
 
@@ -237,3 +243,11 @@
 - [x] DEK rotation dialog — multi-step UI (confirm → progress → complete/error) using two-phase rotation API
 - [x] Route files reorganized to `*/route.tsx` convention
 - [x] Portless local dev — .localhost domains, cross-subdomain cookies
+
+### Fixes + Polish (done)
+
+- [x] Pre-unlock query gating — `enabled: !!crypto` on all queries in sidebar/header, `beforeLoad` throws redirect, component-level `<Navigate>` guard
+- [x] Redirect loop fix — `useRef(window.location.pathname)` snapshot instead of reactive `useLocation()`
+- [x] Invite member email fix — handler accepts `email` field, resolves UUID via DB lookup (CLI still sends UUID)
+- [x] DEK rotation `as never` type hacks removed — `const rid = startData.rotation_id!` narrows type
+- [x] Key grant access for new org members — `ListKeyGrants` returns ALL org members; `POST /projects/{id}/grants` batch-upserts grants; project settings "Access" section for granting; rotation commit upgraded to upsert
