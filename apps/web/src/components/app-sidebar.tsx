@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { orgsQueryOptions } from "#/lib/queries/orgs"
 import { projectsQueryOptions } from "#/lib/queries/projects"
 import { useUpdatePreferences } from "#/lib/queries/preferences"
@@ -51,6 +51,7 @@ import {
 export function AppSidebar() {
 	const location = useLocation()
 	const navigate = useNavigate()
+	const qc = useQueryClient()
 	const { state } = useSidebar()
 	const crypto = useAuthStore((s) => s.crypto)
 	const { data: me } = useQuery(meQueryOptions)
@@ -109,9 +110,10 @@ export function AppSidebar() {
 		})
 	}
 
-	const handleSignOut = () => {
-		authClient.signOut()
+	const handleSignOut = async () => {
+		await authClient.signOut()
 		useAuthStore.getState().lock()
+		qc.clear()
 		navigate({ to: "/login" })
 	}
 
