@@ -1,10 +1,16 @@
 services:
+  # ---------------------------------------------------------------------------
+  # Infrastructure — only started when running with --profile local.
+  # In production these are provided by a 3rd-party service (Neon, Upstash, …).
+  # ---------------------------------------------------------------------------
+
   postgres:
+    profiles: ["local"]
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-zenv}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-zenv}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -15,9 +21,10 @@ services:
       retries: 5
 
   redis:
+    profiles: ["local"]
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redisdata:/data
     healthcheck:
@@ -26,42 +33,124 @@ services:
       timeout: 3s
       retries: 5
 
+  # ---------------------------------------------------------------------------
+  # Migration init containers — run once and exit.
+  # Downstream services declare condition: service_completed_successfully.
+  # ---------------------------------------------------------------------------
+
+  migrate-api:
+    image: migrate/migrate:4
+    restart: "no"
+    volumes:
+      - ./api/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  migrate-auth:
+    build:
+      context: .
+      dockerfile: apps/auth/Dockerfile
+      target: builder
+    restart: "no"
+    working_dir: /build/apps/auth
+    command: ["npx", "drizzle-kit", "migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  # ---------------------------------------------------------------------------
+  # Application services
+  # ---------------------------------------------------------------------------
+
   api:
     build:
       context: .
       dockerfile: api/Dockerfile
     restart: unless-stopped
-    ports:
-      - "${API_PORT:-8080}:8080"
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379/0}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate-api:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
+        required: false
 
   auth:
     build:
       context: .
       dockerfile: apps/auth/Dockerfile
     restart: unless-stopped
-    ports:
-      - "${AUTH_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL}
+      APP_URL: ${APP_URL:?set APP_URL}
       TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       PORT: 3000
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate-auth:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_AUTH_URL: ${VITE_AUTH_URL:-https://${AUTH_DOMAIN}}
+        VITE_API_URL: ${VITE_API_URL:-https://${API_DOMAIN}/v1}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+
+  # ---------------------------------------------------------------------------
+  # Caddy — reverse proxy + automatic TLS
+  # Prod:  real domains + ACME_EMAIL  → Let's Encrypt certs
+  # Local: *.localhost domains         → Caddy local CA (run: caddy trust)
+  # ---------------------------------------------------------------------------
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      AUTH_DOMAIN: ${AUTH_DOMAIN:?set AUTH_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    depends_on:
+      - api
+      - auth
+      - web
 
 volumes:
   pgdata:
   redisdata:
+  caddy_data:
+  caddy_config:

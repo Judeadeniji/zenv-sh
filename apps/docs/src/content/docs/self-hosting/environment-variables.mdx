@@ -11,7 +11,6 @@ The API server is configured entirely through environment variables. No config f
 |---|---|---|---|
 | `DATABASE_URL` | Yes | — | Postgres connection string. Example: `postgres://user:pass@localhost:5432/zenv?sslmode=disable` |
 | `REDIS_URL` | No | `redis://localhost:6379/0` | Redis connection string for caching |
-| `HMAC_KEY` | No | — | Server-side HMAC key for additional name hashing. If unset, name hashing is client-side only |
 | `PORT` | No | `8080` | HTTP port the API listens on |
 | `CORS_ORIGINS` | No | — | Comma-separated allowed CORS origins. Example: `https://app.zenv.sh,https://dashboard.zenv.sh` |
 | `VERBOSE` | No | `false` | Enable debug logging. Set to `1` or `true`. Also triggered by `LOG_LEVEL=debug` |

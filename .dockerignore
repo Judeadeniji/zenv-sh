@@ -1,0 +1,23 @@
+# Dependencies — never copy host node_modules into the build context.
+# pnpm install inside the container creates its own.
+**/node_modules
+
+# Go build artefacts
+bin/
+**/vendor/
+
+# Build outputs
+**/dist
+apps/web/.output
+apps/web/.nitro
+apps/web/.vite
+
+# Dev / local files
+.env
+.env.local
+.env.*.local
+**/tmp/
+
+# Tooling
+.git
+.gitignore

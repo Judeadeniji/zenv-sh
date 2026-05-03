@@ -7,10 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["@types/node"],
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "sourceMap": true
+    "noEmit": true
   },
   "include": ["src", "../drizzle.config.ts"]
 }

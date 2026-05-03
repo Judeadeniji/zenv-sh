@@ -10,7 +10,6 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	RedisURL    string
-	HMACKey     string // Server-side HMAC key for secret name hashing
 	Verbose     bool   // Enable debug-level logging (request logs, etc.)
 	CORSOrigins string // Comma-separated allowed CORS origins
 }
@@ -24,7 +23,6 @@ func Load() (*Config, error) {
 		Port:        envOr("PORT", "8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    envOr("REDIS_URL", "redis://localhost:6379/0"),
-		HMACKey:     os.Getenv("HMAC_KEY"),
 		Verbose:     verbose,
 		CORSOrigins: os.Getenv("CORS_ORIGINS"),
 	}
