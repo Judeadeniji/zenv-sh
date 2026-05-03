@@ -283,6 +283,7 @@ type ListTokensResponse struct {
 // @Tags			tokens
 // @Produce		json
 // @Param			project_id	query		string	true	"Project ID"
+// @Param			environment	query		string	false	"Filter by environment"
 // @Param			page		query		int		false	"Page number"
 // @Param			per_page	query		int		false	"Items per page"
 // @Param			sort_by		query		string	false	"Sort by field"
@@ -307,8 +308,13 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	params := ParseListParams(r)
 	status := r.URL.Query().Get("status")
+	environment := r.URL.Query().Get("environment")
 
 	condition := table.ServiceTokens.ProjectID.EQ(UUID(projectID))
+
+	if environment != "" {
+		condition = condition.AND(table.ServiceTokens.Environment.EQ(String(environment)))
+	}
 
 	if params.Search != "" {
 		condition = condition.AND(LOWER(table.ServiceTokens.Name).LIKE(String("%" + strings.ToLower(params.Search) + "%")))

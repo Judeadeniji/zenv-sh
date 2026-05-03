@@ -37,3 +37,5 @@ dist/
 
 # Docker
 docker-compose.override.yml
+
+diff*

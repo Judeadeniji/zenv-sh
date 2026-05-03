@@ -55,8 +55,8 @@ services:
   migrate-auth:
     build:
       context: .
-      dockerfile: apps/auth/Dockerfile
-      target: builder
+      dockerfile: Dockerfile.node
+      target: builder-auth
     restart: "no"
     working_dir: /build/apps/auth
     command: ["npx", "drizzle-kit", "migrate"]
@@ -93,7 +93,8 @@ services:
   auth:
     build:
       context: .
-      dockerfile: apps/auth/Dockerfile
+      dockerfile: Dockerfile.node
+      target: auth
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}
@@ -114,7 +115,8 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: Dockerfile.node
+      target: web
       args:
         VITE_AUTH_URL: ${VITE_AUTH_URL:-https://${AUTH_DOMAIN}}
         VITE_API_URL: ${VITE_API_URL:-https://${API_DOMAIN}/v1}

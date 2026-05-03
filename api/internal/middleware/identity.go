@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	IdentitySessionCookie = "better-auth.session_token"
-	vaultUnlockPrefix     = "vault_unlock:" // Redis key prefix for vault unlock state
+	IdentitySessionCookie       = "better-auth.session_token"
+	IdentitySessionCookieSecure = "__Secure-better-auth.session_token"
+	vaultUnlockPrefix           = "vault_unlock:" // Redis key prefix for vault unlock state
 )
 
 // IdentitySession is middleware that reads an identity session cookie,
@@ -43,13 +44,16 @@ type identityRow struct {
 // resolves the zEnv user, and injects a Session into context.
 func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try session cookie first, then fall back to Authorization: Bearer header.
-		// The header fallback allows Postman and cross-origin API calls where
-		// the cookie from the auth server isn't automatically forwarded.
 		var token string
-		if cookie, err := r.Cookie(IdentitySessionCookie); err == nil && cookie.Value != "" {
+
+		// 1. Try Secure cookie first (Production)
+		if cookie, err := r.Cookie(IdentitySessionCookieSecure); err == nil && cookie.Value != "" {
+			token = strings.Split(cookie.Value, ".")[0]
+		} else if cookie, err := r.Cookie(IdentitySessionCookie); err == nil && cookie.Value != "" {
+			// 2. Fall back to standard cookie (Local development)
 			token = strings.Split(cookie.Value, ".")[0]
 		} else if h := r.Header.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
+			// 3. Fall back to Authorization header (Postman / Cross-origin)
 			token = h[7:]
 		}
 

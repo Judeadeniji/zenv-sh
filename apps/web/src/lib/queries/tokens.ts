@@ -18,7 +18,7 @@ export function tokensQueryOptions(
 		queryKey: queryKeys.tokens.list(projectId, opts),
 		queryFn: async () => {
 			const { data, error } = await api().GET("/tokens", {
-				params: { query: { project_id: projectId, ...opts } as any },
+				params: { query: { project_id: projectId, ...opts } },
 			})
 			if (error || !data) throw new Error("Failed to fetch tokens")
 			return data
@@ -51,6 +51,7 @@ export function useCreateToken() {
 			return data
 		},
 		onSuccess: (_, { projectId }) => {
+			qc.cancelQueries({ queryKey: queryKeys.tokens.list(projectId) })
 			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
 			toast.success("Token created successfully")
 		},

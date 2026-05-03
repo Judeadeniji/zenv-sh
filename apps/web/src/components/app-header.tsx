@@ -127,8 +127,7 @@ const ENV_DOT: Record<string, string> = {
 }
 
 function EnvSwitcher() {
-	const active = useNavStore((s) => s.activeEnvironment)
-	const setEnv = useNavStore((s) => s.setActiveEnvironment)
+	const [active, setEnv] = useNavStore((s) => [s.activeEnvironment, s.setActiveEnvironment])
 	const updatePrefs = useUpdatePreferences()
 
 	const handleChange = (env: string) => {

@@ -3,5 +3,11 @@
 	"private": true,
 	"devDependencies": {
 		"swagger2openapi": "^7.0.8"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+      		"lightningcss"
+		]
 	}
 }

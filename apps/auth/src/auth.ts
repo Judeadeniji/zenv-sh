@@ -11,6 +11,7 @@ const trustedOrigins = env.TRUSTED_ORIGINS
   : [];
 
 export const auth = betterAuth({
+  appName: "zEnv",
   database: drizzleAdapter(db, { provider: "pg", schema: schema }),
   emailAndPassword: {
     enabled: true,
@@ -91,5 +92,6 @@ export const auth = betterAuth({
       enabled: !!env.COOKIE_DOMAIN,
       domain: env.COOKIE_DOMAIN,
     },
+
   },
 });
