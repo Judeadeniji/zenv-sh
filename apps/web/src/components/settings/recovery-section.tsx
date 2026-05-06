@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { wrapWithPublicKey } from "@zenv/amnesia"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
@@ -12,11 +13,13 @@ import { Switch } from "#/components/ui/switch"
 import { SettingsRow, SettingsDivider } from "./settings-row"
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
-import { AlertCircle, ShieldAlert } from "lucide-react"
+import { fromBase64, toBase64 } from "#/lib/encoding"
+import { useAuthStore } from "#/lib/stores/auth"
+import { AlertCircle, EyeIcon, ShieldAlert, Users } from "lucide-react"
 import { Link, useNavigate } from "@tanstack/react-router"
 
 const addContactSchema = z.object({
-	email: z.string().email("Enter a valid email address"),
+	email: z.email("Enter a valid email address"),
 })
 type AddContactInput = z.infer<typeof addContactSchema>
 
@@ -28,14 +31,9 @@ export function RecoverySection({ action }: RecoverySectionProps) {
 	const { data: status, isLoading } = useQuery({
 		queryKey: queryKeys.recovery.status,
 		queryFn: async () => {
-			const { data, error } = await api().GET("/auth/recovery/status" as never)
+			const { data, error } = await api().GET("/auth/recovery/status")
 			if (error || !data) throw new Error("Failed to fetch recovery status")
-			return data as {
-				has_kit: boolean
-				has_contact: boolean
-				recovery_disabled: boolean
-				contact_email?: string
-			}
+			return data;
 		},
 	})
 
@@ -58,6 +56,8 @@ export function RecoverySection({ action }: RecoverySectionProps) {
 				contactEmail={status?.contact_email}
 				showAddForm={action === "add-contact"}
 			/>
+			<SettingsDivider />
+			<IncomingRequestsLinkRow />
 			<SettingsDivider />
 			<NoRecoveryRow disabled={status?.recovery_disabled ?? false} />
 		</div>
@@ -107,12 +107,13 @@ function TrustedContactRow({
 }) {
 	const qc = useQueryClient()
 	const navigate = useNavigate()
+	const crypto = useAuthStore((s) => s.crypto)
 	const [adding, setAdding] = useState(showAddForm && !hasContact)
 
 	const remove = useMutation({
 		mutationKey: mutationKeys.recovery.removeContact,
 		mutationFn: async () => {
-			const { error } = await api().DELETE("/auth/recovery/trusted-contact" as never)
+			const { error } = await api().DELETE("/auth/recovery/trusted-contact")
 			if (error) throw new Error("Failed to remove trusted contact")
 		},
 		onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.recovery.status }),
@@ -121,13 +122,24 @@ function TrustedContactRow({
 	const addContact = useMutation({
 		mutationKey: mutationKeys.recovery.setContact,
 		mutationFn: async ({ email }: AddContactInput) => {
+			if (!crypto) throw new Error("Vault must be unlocked to set a trusted contact")
+
+			const { data: pkData, error: pkErr } = await api().GET("/users/public-key", {
+				params: { query: { email } },
+			})
+			if (pkErr || !pkData) throw new Error("Failed to look up contact public key")
+
+			const publicKey = fromBase64((pkData as { public_key: string }).public_key)
+			const wrapped = wrapWithPublicKey(crypto.dek, publicKey)
+
 			const { error } = await api().POST("/auth/recovery/trusted-contact", {
-				body: { contact_email: email },
+				body: { contact_email: email, trusted_wrapped_dek: toBase64(wrapped) },
 			})
 			if (error) throw new Error("Failed to add trusted contact")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.recovery.status })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.recovery.status })
+			await qc.invalidateQueries({ queryKey: queryKeys.recovery.incomingRequests })
 			setAdding(false)
 			navigate({ to: "/settings", search: { tab: "recovery" } })
 		},
@@ -210,6 +222,41 @@ function TrustedContactRow({
 					)}
 				</div>
 			)}
+		</SettingsRow>
+	)
+}
+
+function IncomingRequestsLinkRow() {
+	const { data } = useQuery({
+		queryKey: queryKeys.recovery.incomingRequests,
+		queryFn: async () => {
+			const { data, error } = await api().GET("/auth/recovery/incoming-requests")
+			if (error) return []
+			return (data ?? [])
+		},
+		refetchInterval: 30_000,
+	})
+
+	const pendingCount = (data ?? []).filter((r) => r.status === "pending").length
+	return (
+		<SettingsRow
+			title="Recovery Requests"
+			description="Manage vault reset requests from users who have designated you as their trusted recovery contact."
+		>
+			<div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
+				<div className="flex items-center gap-2">
+					<Users className="size-4 text-muted-foreground" />
+					<span className="text-sm">Incoming requests</span>
+					{pendingCount > 0 && <Badge variant="warning">{pendingCount}</Badge>}
+				</div>
+				<Button
+					variant="outline"
+					size="xs"
+					render={<Link to="/recovery-requests" />}
+				>
+					<EyeIcon />
+				</Button>
+			</div>
 		</SettingsRow>
 	)
 }

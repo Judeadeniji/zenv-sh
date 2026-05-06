@@ -9,6 +9,7 @@ import { api } from "#/lib/api-client"
 import { generateKeypair } from "@zenv/amnesia"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { toBase64 } from "#/lib/encoding"
+import { formatDateTime } from "#/lib/format"
 import { AlertCircle, Clock, Users, XCircle } from "lucide-react"
 
 export const Route = createFileRoute("/recover/trusted-contact")({
@@ -137,7 +138,7 @@ function TrustedContactRecoveryPage() {
 										{request.status === "pending" && (
 											<>
 												<p className="text-xs text-muted-foreground">
-													Eligible at: {new Date(request.eligible_at!).toLocaleString()}
+													Eligible at: {request.eligible_at ? formatDateTime(request.eligible_at) : "—"}
 												</p>
 												<Button
 													variant="outline"

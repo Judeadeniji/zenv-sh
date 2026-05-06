@@ -32,6 +32,7 @@ export const queryKeys = {
 	recovery: {
 		status: ["recovery", "status"] as const,
 		request: ["recovery", "request"] as const,
+		incomingRequests: ["recovery", "incoming-requests"] as const,
 	},
 	preferences: ["preferences"] as const,
 } as const

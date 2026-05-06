@@ -22,6 +22,7 @@ import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
 import { Route as AuthedUnlockedRouteRouteImport } from './routes/_authed/_unlocked/route'
 import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
 import { Route as AuthedUnlockedSettingsRouteImport } from './routes/_authed/_unlocked/settings'
+import { Route as AuthedUnlockedRecoveryRequestsRouteImport } from './routes/_authed/_unlocked/recovery-requests'
 import { Route as AuthedUnlockedOnboardingRouteImport } from './routes/_authed/_unlocked/onboarding'
 import { Route as AuthedUnlockedOrgsOrgIdRouteRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/route'
 import { Route as AuthedUnlockedOrgsOrgIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/index'
@@ -98,6 +99,12 @@ const AuthedUnlockedSettingsRoute = AuthedUnlockedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthedUnlockedRouteRoute,
 } as any)
+const AuthedUnlockedRecoveryRequestsRoute =
+  AuthedUnlockedRecoveryRequestsRouteImport.update({
+    id: '/recovery-requests',
+    path: '/recovery-requests',
+    getParentRoute: () => AuthedUnlockedRouteRoute,
+  } as any)
 const AuthedUnlockedOnboardingRoute =
   AuthedUnlockedOnboardingRouteImport.update({
     id: '/onboarding',
@@ -183,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/recovery-requests': typeof AuthedUnlockedRecoveryRequestsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
   '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
   '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
@@ -208,6 +216,7 @@ export interface FileRoutesByTo {
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover': typeof RecoverIndexRoute
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/recovery-requests': typeof AuthedUnlockedRecoveryRequestsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
   '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
   '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
@@ -233,6 +242,7 @@ export interface FileRoutesById {
   '/recover/trusted-contact': typeof RecoverTrustedContactRoute
   '/recover/': typeof RecoverIndexRoute
   '/_authed/_unlocked/onboarding': typeof AuthedUnlockedOnboardingRoute
+  '/_authed/_unlocked/recovery-requests': typeof AuthedUnlockedRecoveryRequestsRoute
   '/_authed/_unlocked/settings': typeof AuthedUnlockedSettingsRoute
   '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
   '/_authed/_unlocked/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/recover/trusted-contact'
     | '/recover/'
     | '/onboarding'
+    | '/recovery-requests'
     | '/settings'
     | '/orgs/$orgId'
     | '/orgs/$orgId/members'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/recover/trusted-contact'
     | '/recover'
     | '/onboarding'
+    | '/recovery-requests'
     | '/settings'
     | '/orgs/$orgId/members'
     | '/orgs/$orgId/settings'
@@ -310,6 +322,7 @@ export interface FileRouteTypes {
     | '/recover/trusted-contact'
     | '/recover/'
     | '/_authed/_unlocked/onboarding'
+    | '/_authed/_unlocked/recovery-requests'
     | '/_authed/_unlocked/settings'
     | '/_authed/_unlocked/'
     | '/_authed/_unlocked/orgs/$orgId'
@@ -427,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthedUnlockedSettingsRouteImport
+      parentRoute: typeof AuthedUnlockedRouteRoute
+    }
+    '/_authed/_unlocked/recovery-requests': {
+      id: '/_authed/_unlocked/recovery-requests'
+      path: '/recovery-requests'
+      fullPath: '/recovery-requests'
+      preLoaderRoute: typeof AuthedUnlockedRecoveryRequestsRouteImport
       parentRoute: typeof AuthedUnlockedRouteRoute
     }
     '/_authed/_unlocked/onboarding': {
@@ -569,6 +589,7 @@ const AuthedUnlockedOrgsOrgIdRouteRouteWithChildren =
 
 interface AuthedUnlockedRouteRouteChildren {
   AuthedUnlockedOnboardingRoute: typeof AuthedUnlockedOnboardingRoute
+  AuthedUnlockedRecoveryRequestsRoute: typeof AuthedUnlockedRecoveryRequestsRoute
   AuthedUnlockedSettingsRoute: typeof AuthedUnlockedSettingsRoute
   AuthedUnlockedIndexRoute: typeof AuthedUnlockedIndexRoute
   AuthedUnlockedOrgsOrgIdRouteRoute: typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
@@ -576,6 +597,7 @@ interface AuthedUnlockedRouteRouteChildren {
 
 const AuthedUnlockedRouteRouteChildren: AuthedUnlockedRouteRouteChildren = {
   AuthedUnlockedOnboardingRoute: AuthedUnlockedOnboardingRoute,
+  AuthedUnlockedRecoveryRequestsRoute: AuthedUnlockedRecoveryRequestsRoute,
   AuthedUnlockedSettingsRoute: AuthedUnlockedSettingsRoute,
   AuthedUnlockedIndexRoute: AuthedUnlockedIndexRoute,
   AuthedUnlockedOrgsOrgIdRouteRoute:
