@@ -335,7 +335,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Successfully updated */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -344,6 +344,33 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Invalid request body */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to update recovery setting */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -379,6 +406,33 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.IncomingRequest"][];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to fetch requests */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -420,6 +474,15 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryKitResponse"];
                     };
                 };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
                 /** @description Recovery disabled */
                 403: {
                     headers: {
@@ -429,7 +492,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description No recovery kit */
+                /** @description No recovery kit or User not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -458,7 +521,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Successfully regenerated */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -469,8 +532,17 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Invalid request body or base64 */
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -480,6 +552,24 @@ export interface paths {
                 };
                 /** @description Recovery disabled */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to update recovery kit */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -523,7 +613,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Vault successfully recovered */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -534,8 +624,26 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Forbidden */
-                403: {
+                /** @description Invalid request body, key type, or base64 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to update vault */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -577,7 +685,16 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryRequestStatusResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description No active recovery request */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -607,7 +724,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Created */
+                /** @description Recovery request created */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -616,6 +733,42 @@ export interface paths {
                         "application/json": {
                             [key: string]: unknown;
                         };
+                    };
+                };
+                /** @description Invalid request body or base64 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description No trusted contact configured */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Active recovery request already exists */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -630,7 +783,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
+                /** @description Request cancelled */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -639,6 +792,33 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to cancel */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -678,7 +858,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Request approved */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -687,6 +867,51 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Invalid ID, body, base64, or request not pending */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Not trusted contact or 72-hour wait period not elapsed */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Recovery request not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to approve */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -724,7 +949,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Vault successfully recovered */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -733,6 +958,42 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Invalid ID, body, or request not approved */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Recovery request not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to update vault or complete request */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -772,6 +1033,24 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryStatusResponse"];
                     };
                 };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
@@ -809,7 +1088,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Created */
+                /** @description Trusted contact set */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -818,6 +1097,51 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Invalid body, base64, or self-designation */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Recovery disabled */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User or contact not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to set trusted contact */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -832,7 +1156,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
+                /** @description Trusted contact removed */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -841,6 +1165,33 @@ export interface paths {
                         "application/json": {
                             [key: string]: string;
                         };
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Failed to remove trusted contact */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -3595,6 +3946,33 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.PublicKeyResponse"];
+                    };
+                };
+                /** @description Email query param required */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };

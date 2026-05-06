@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -46,6 +47,8 @@ type RecoveryStatusResponse struct {
 //	@Tags			recovery
 //	@Produce		json
 //	@Success		200	{object}	RecoveryStatusResponse
+//	@Failure		401	{object}	ErrorResponse	"Authentication required"
+//	@Failure		404	{object}	ErrorResponse	"User not found"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/status [get]
 func (h *RecoveryHandler) Status(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +110,10 @@ type DisableRecoveryRequest struct {
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		DisableRecoveryRequest	true	"Toggle recovery"
-//	@Success		200		{object}	map[string]string
+//	@Success		200		{object}	map[string]string		"Successfully updated"
+//	@Failure		400		{object}	ErrorResponse			"Invalid request body"
+//	@Failure		401		{object}	ErrorResponse			"Authentication required"
+//	@Failure		500		{object}	ErrorResponse			"Failed to update recovery setting"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/disable [put]
 func (h *RecoveryHandler) DisableRecovery(w http.ResponseWriter, r *http.Request) {
@@ -151,8 +157,9 @@ type RecoveryKitResponse struct {
 //	@Tags			recovery
 //	@Produce		json
 //	@Success		200	{object}	RecoveryKitResponse
+//	@Failure		401	{object}	ErrorResponse	"Authentication required"
 //	@Failure		403	{object}	ErrorResponse	"Recovery disabled"
-//	@Failure		404	{object}	ErrorResponse	"No recovery kit"
+//	@Failure		404	{object}	ErrorResponse	"No recovery kit or User not found"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/kit [get]
 func (h *RecoveryHandler) GetKit(w http.ResponseWriter, r *http.Request) {
@@ -203,9 +210,12 @@ type RegenerateKitRequest struct {
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		RegenerateKitRequest	true	"New recovery wrapped DEK"
-//	@Success		200		{object}	map[string]string
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		403		{object}	ErrorResponse	"Recovery disabled"
+//	@Success		200		{object}	map[string]string		"Successfully regenerated"
+//	@Failure		400		{object}	ErrorResponse			"Invalid request body or base64"
+//	@Failure		401		{object}	ErrorResponse			"Authentication required"
+//	@Failure		403		{object}	ErrorResponse			"Recovery disabled"
+//	@Failure		404		{object}	ErrorResponse			"User not found"
+//	@Failure		500		{object}	ErrorResponse			"Failed to update recovery kit"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/kit [put]
 func (h *RecoveryHandler) RegenerateKit(w http.ResponseWriter, r *http.Request) {
@@ -278,9 +288,11 @@ type RecoverWithKitRequest struct {
 //	@Tags			recovery
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body	RecoverWithKitRequest	true	"New crypto material"
-//	@Success		200		{object}	map[string]string
-//	@Failure		403		{object}	ErrorResponse
+//	@Param			body	body		RecoverWithKitRequest	true	"New crypto material"
+//	@Success		200		{object}	map[string]string		"Vault successfully recovered"
+//	@Failure		400		{object}	ErrorResponse			"Invalid request body, key type, or base64"
+//	@Failure		401		{object}	ErrorResponse			"Authentication required"
+//	@Failure		500		{object}	ErrorResponse			"Failed to update vault"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/kit/recover [post]
 func (h *RecoveryHandler) RecoverWithKit(w http.ResponseWriter, r *http.Request) {
@@ -373,8 +385,13 @@ type SetTrustedContactRequest struct {
 //	@Tags			recovery
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body	SetTrustedContactRequest	true	"Contact email + wrapped DEK"
-//	@Success		201		{object}	map[string]string
+//	@Param			body	body		SetTrustedContactRequest	true	"Contact email + wrapped DEK"
+//	@Success		201		{object}	map[string]string			"Trusted contact set"
+//	@Failure		400		{object}	ErrorResponse				"Invalid body, base64, or self-designation"
+//	@Failure		401		{object}	ErrorResponse				"Authentication required"
+//	@Failure		403		{object}	ErrorResponse				"Recovery disabled"
+//	@Failure		404		{object}	ErrorResponse				"User or contact not found"
+//	@Failure		500		{object}	ErrorResponse				"Failed to set trusted contact"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/trusted-contact [post]
 func (h *RecoveryHandler) SetTrustedContact(w http.ResponseWriter, r *http.Request) {
@@ -454,7 +471,10 @@ func (h *RecoveryHandler) SetTrustedContact(w http.ResponseWriter, r *http.Reque
 //	@Summary		Remove trusted contact
 //	@Tags			recovery
 //	@Produce		json
-//	@Success		200	{object}	map[string]string
+//	@Success		200	{object}	map[string]string	"Trusted contact removed"
+//	@Failure		401	{object}	ErrorResponse		"Authentication required"
+//	@Failure		404	{object}	ErrorResponse		"User not found"
+//	@Failure		500	{object}	ErrorResponse		"Failed to remove trusted contact"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/trusted-contact [delete]
 func (h *RecoveryHandler) RemoveTrustedContact(w http.ResponseWriter, r *http.Request) {
@@ -495,8 +515,12 @@ type InitiateRecoveryRequest struct {
 //	@Tags			recovery
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body	InitiateRecoveryRequest	true	"Ephemeral public key"
-//	@Success		201		{object}	map[string]any
+//	@Param			body	body		InitiateRecoveryRequest	true	"Ephemeral public key"
+//	@Success		201		{object}	map[string]any			"Recovery request created"
+//	@Failure		400		{object}	ErrorResponse			"Invalid request body or base64"
+//	@Failure		401		{object}	ErrorResponse			"Authentication required"
+//	@Failure		404		{object}	ErrorResponse			"No trusted contact configured"
+//	@Failure		409		{object}	ErrorResponse			"Active recovery request already exists"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/request [post]
 func (h *RecoveryHandler) InitiateRecovery(w http.ResponseWriter, r *http.Request) {
@@ -571,7 +595,10 @@ func (h *RecoveryHandler) InitiateRecovery(w http.ResponseWriter, r *http.Reques
 //	@Summary		Cancel recovery request
 //	@Tags			recovery
 //	@Produce		json
-//	@Success		200	{object}	map[string]string
+//	@Success		200	{object}	map[string]string	"Request cancelled"
+//	@Failure		401	{object}	ErrorResponse		"Authentication required"
+//	@Failure		404	{object}	ErrorResponse		"User not found"
+//	@Failure		500	{object}	ErrorResponse		"Failed to cancel"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/request [delete]
 func (h *RecoveryHandler) CancelRecovery(w http.ResponseWriter, r *http.Request) {
@@ -621,13 +648,14 @@ type RecoveryRequestStatusResponse struct {
 
 // GetRecoveryRequest returns the status of the user's active recovery request.
 //
-//		@Summary		Recovery request status
-//		@Tags			recovery
-//		@Produce		json
-//		@Success		200	{object}	RecoveryRequestStatusResponse
-//	 	@Failure 		404 {object}	ErrorResponse
-//		@Security		SessionAuth
-//		@Router			/auth/recovery/request [get]
+//	@Summary		Recovery request status
+//	@Tags			recovery
+//	@Produce		json
+//	@Success		200	{object}	RecoveryRequestStatusResponse
+//	@Failure		401	{object}	ErrorResponse	"Authentication required"
+//	@Failure		404	{object}	ErrorResponse	"No active recovery request"
+//	@Security		SessionAuth
+//	@Router			/auth/recovery/request [get]
 func (h *RecoveryHandler) GetRecoveryRequest(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -680,6 +708,9 @@ type IncomingRequest struct {
 //	@Tags			recovery
 //	@Produce		json
 //	@Success		200	{array}		IncomingRequest
+//	@Failure		401	{object}	ErrorResponse	"Authentication required"
+//	@Failure		404	{object}	ErrorResponse	"User not found"
+//	@Failure		500	{object}	ErrorResponse	"Failed to fetch requests"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/incoming-requests [get]
 func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Request) {
@@ -759,7 +790,12 @@ type ApproveRecoveryRequest struct {
 //	@Produce		json
 //	@Param			id		path	string					true	"Recovery request ID"
 //	@Param			body	body	ApproveRecoveryRequest	true	"Recovery payload"
-//	@Success		200		{object}	map[string]string
+//	@Success		200		{object}	map[string]string	"Request approved"
+//	@Failure		400		{object}	ErrorResponse		"Invalid ID, body, base64, or request not pending"
+//	@Failure		401		{object}	ErrorResponse		"Authentication required"
+//	@Failure		403		{object}	ErrorResponse		"Not trusted contact or 72-hour wait period not elapsed"
+//	@Failure		404		{object}	ErrorResponse		"Recovery request not found"
+//	@Failure		500		{object}	ErrorResponse		"Failed to approve"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/request/{id}/approve [post]
 func (h *RecoveryHandler) ApproveRecovery(w http.ResponseWriter, r *http.Request) {
@@ -814,7 +850,8 @@ func (h *RecoveryHandler) ApproveRecovery(w http.ResponseWriter, r *http.Request
 	}
 
 	if time.Now().Before(rr.EligibleAt) {
-		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "72-hour waiting period has not elapsed"})
+		days := int(time.Until(rr.EligibleAt).Hours() / 24)
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: fmt.Sprintf("72-hour waiting period has not elapsed, %d days left", days)})
 		return
 	}
 
@@ -856,9 +893,13 @@ type CompleteRecoveryRequest struct {
 //	@Tags			recovery
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path	string						true	"Recovery request ID"
-//	@Param			body	body	CompleteRecoveryRequest		true	"New crypto material"
-//	@Success		200		{object}	map[string]string
+//	@Param			id		path	string					true	"Recovery request ID"
+//	@Param			body	body	CompleteRecoveryRequest	true	"New crypto material"
+//	@Success		200		{object}	map[string]string	"Vault successfully recovered"
+//	@Failure		400		{object}	ErrorResponse		"Invalid ID, body, or request not approved"
+//	@Failure		401		{object}	ErrorResponse		"Authentication required"
+//	@Failure		404		{object}	ErrorResponse		"Recovery request not found"
+//	@Failure		500		{object}	ErrorResponse		"Failed to update vault or complete request"
 //	@Security		SessionAuth
 //	@Router			/auth/recovery/request/{id}/complete [post]
 func (h *RecoveryHandler) CompleteRecovery(w http.ResponseWriter, r *http.Request) {
@@ -970,6 +1011,9 @@ type PublicKeyResponse struct {
 //	@Produce		json
 //	@Param			email	query	string	true	"User email"
 //	@Success		200		{object}	PublicKeyResponse
+//	@Failure		400		{object}	ErrorResponse	"Email query param required"
+//	@Failure		401		{object}	ErrorResponse	"Authentication required"
+//	@Failure		404		{object}	ErrorResponse	"User not found"
 //	@Security		SessionAuth
 //	@Router			/users/public-key [get]
 func (h *RecoveryHandler) GetPublicKey(w http.ResponseWriter, r *http.Request) {

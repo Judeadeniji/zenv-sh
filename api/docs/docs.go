@@ -321,12 +321,30 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully updated",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update recovery setting",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -355,6 +373,24 @@ const docTemplate = `{
                                 "$ref": "#/definitions/api_internal_handler.IncomingRequest"
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch requests",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -381,6 +417,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.RecoveryKitResponse"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "403": {
                         "description": "Recovery disabled",
                         "schema": {
@@ -388,7 +430,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "No recovery kit",
+                        "description": "No recovery kit or User not found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -425,7 +467,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully regenerated",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -434,13 +476,31 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Recovery disabled",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update recovery kit",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -479,7 +539,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Vault successfully recovered",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -487,8 +547,20 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "400": {
+                        "description": "Invalid request body, key type, or base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update vault",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -517,8 +589,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.RecoveryRequestStatusResponse"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "No active recovery request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -555,10 +633,34 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Recovery request created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No trusted contact configured",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Active recovery request already exists",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -578,12 +680,30 @@ const docTemplate = `{
                 "summary": "Cancel recovery request",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Request cancelled",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to cancel",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -627,12 +747,42 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Request approved",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID, body, base64, or request not pending",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not trusted contact or 72-hour wait period not elapsed",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Recovery request not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to approve",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -675,12 +825,36 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Vault successfully recovered",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID, body, or request not approved",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Recovery request not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update vault or complete request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -706,6 +880,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.RecoveryStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -742,12 +928,42 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Trusted contact set",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid body, base64, or self-designation",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Recovery disabled",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User or contact not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to set trusted contact",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -767,12 +983,30 @@ const docTemplate = `{
                 "summary": "Remove trusted contact",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Trusted contact removed",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to remove trusted contact",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -3400,6 +3634,24 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.PublicKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Email query param required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
