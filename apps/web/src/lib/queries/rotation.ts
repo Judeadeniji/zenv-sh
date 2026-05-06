@@ -86,9 +86,9 @@ export function useCommitRotation() {
 			if (error || !data) throw new Error(error.error || "Failed to commit rotation")
 			return data
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) })
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) })
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 		},
 	})
 }

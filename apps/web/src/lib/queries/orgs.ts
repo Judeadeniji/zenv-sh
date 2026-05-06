@@ -71,8 +71,8 @@ export function useCreateOrg() {
 			if (error || !data) throw new Error("Failed to create organization")
 			return data
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
 		},
 	})
 }
@@ -89,8 +89,8 @@ export function useAddMember() {
 			if (error || !data) throw new Error("Failed to add member")
 			return data
 		},
-		onSuccess: (_, { orgId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) })
+		onSuccess: async (_, { orgId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) })
 		},
 	})
 }
@@ -105,8 +105,9 @@ export function useRemoveMember() {
 			})
 			if (error) throw new Error("Failed to remove member")
 		},
-		onSuccess: (_, { orgId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) })
+		onSuccess: async (_, { orgId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) })
 		},
 	})
 }

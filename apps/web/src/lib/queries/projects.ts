@@ -96,8 +96,8 @@ export function useCreateProject() {
 
 			return { ...data, projectVaultKey }
 		},
-		onSuccess: (_, { orgId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.projects.list(orgId) })
+		onSuccess: async (_, { orgId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.projects.list(orgId) })
 		},
 	})
 }
@@ -107,13 +107,13 @@ export function useDeleteProject() {
 	return useMutation({
 		mutationKey: mutationKeys.projects.delete,
 		mutationFn: async ({ projectId }: { projectId: string }) => {
-			const { error } = await api().DELETE("/projects/{projectID}" as never, {
+			const { error } = await api().DELETE("/projects/{projectID}", {
 				params: { path: { projectID: projectId } },
-			} as any)
+			})
 			if (error) throw new Error("Failed to delete project")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["projects"] })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: ["projects"] })
 		},
 	})
 }
@@ -237,8 +237,8 @@ export function useGrantAccess(projectId: string) {
 			})
 			if (error) throw new Error((error as { message?: string }).message ?? "Failed to grant access")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: [...queryKeys.projects.detail(projectId), "key-grants"] })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: [...queryKeys.projects.detail(projectId), "key-grants"] })
 		},
 	})
 }

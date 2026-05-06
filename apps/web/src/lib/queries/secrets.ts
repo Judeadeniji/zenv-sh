@@ -62,8 +62,8 @@ export function useCreateSecret() {
 			if (error || !data) throw new Error("Failed to create secret")
 			return data
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 		},
 	})
 }
@@ -90,8 +90,8 @@ export function useDeleteSecret() {
 			})
 			if (error) throw new Error(error.error || "Failed to delete secret")
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 		},
 	})
 }
@@ -188,8 +188,8 @@ export function useUpdateSecret() {
 			if (error || !data) throw new Error("Failed to update secret")
 			return data
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 		},
 	})
 }
@@ -243,9 +243,10 @@ export function useRollbackSecret() {
 			if (error || !data) throw new Error("Failed to rollback secret")
 			return data
 		},
-		onSuccess: (_, { projectId, nameHash }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.versions(projectId, nameHash) })
+		onSuccess: async (_, { projectId, nameHash }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+			// Invalidate versions query to refresh current version due to rollback
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.versions(projectId, nameHash) })
 		},
 	})
 }

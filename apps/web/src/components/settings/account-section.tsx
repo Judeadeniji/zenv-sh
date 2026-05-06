@@ -67,8 +67,8 @@ function ProfileRow({ name, email }: { name: string; email: string }) {
 			const result = await authClient.updateUser({ name: data.name })
 			if (result.error) throw new Error(result.error.message ?? "Update failed")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.auth.me })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.auth.me })
 		},
 	})
 

@@ -50,14 +50,12 @@ export function useCreateToken() {
 			if (error || !data) throw new Error("Failed to create token")
 			return data
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.cancelQueries({ queryKey: queryKeys.tokens.list(projectId) })
-			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.cancelQueries({ queryKey: queryKeys.tokens.list(projectId) })
+			await qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
 			toast.success("Token created successfully")
 		},
-		onError: (error) => {
-			toast.error(error.message)
-		},
+		onError: (error) => toast.error(error.message),
 	})
 }
 
@@ -78,12 +76,11 @@ export function useRevokeToken() {
 			})
 			if (error) throw new Error("Failed to revoke token")
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+			toast.success("Token revoked successfully")
 		},
-		onError: (error) => {
-			toast.error(error.message)
-		},
+		onError: (error) => toast.error(error.message),
 	})
 }
 
@@ -104,8 +101,10 @@ export function useDestroyToken() {
 			})
 			if (error) throw new Error("Failed to delete token")
 		},
-		onSuccess: (_, { projectId }) => {
-			qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+		onSuccess: async (_, { projectId }) => {
+			await qc.invalidateQueries({ queryKey: queryKeys.tokens.list(projectId) })
+			toast.success("Token deleted successfully")
 		},
+		onError: (error) => toast.error(error.message),
 	})
 }

@@ -86,7 +86,7 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 						name_hash: toBase64(nameHashBytes),
 						ciphertext: toBase64(ciphertext),
 						nonce: toBase64(nonce),
-					} as never,
+					},
 				})
 
 				if (apiErr) failed++
@@ -98,7 +98,7 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 
 		setResult({ success, failed })
 		setImporting(false)
-		qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+		await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 	}
 
 	const handleClose = (v: boolean) => {

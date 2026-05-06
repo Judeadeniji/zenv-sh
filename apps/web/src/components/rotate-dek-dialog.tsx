@@ -73,8 +73,8 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 				onProgress: handleProgress,
 			})
 			// Invalidate all caches after successful rotation
-			qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) })
-			qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+			await qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) })
+			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
 		} catch {
 			// Error already handled via onProgress
 		}
