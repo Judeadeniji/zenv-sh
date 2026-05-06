@@ -19,11 +19,11 @@ import {
 	DialogClose,
 } from "#/components/ui/dialog"
 import { SettingsRow, SettingsDivider } from "./settings-row"
-import { api } from "#/lib/api-client"
 import { useNavigate } from "@tanstack/react-router"
 import { orgQueryOptions, orgMembersQueryOptions } from "#/lib/queries/orgs"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { AlertCircle, CheckCircle, Trash2, Crown } from "lucide-react"
+import { authClient } from "#/lib/auth-client"
 
 // ── Schemas ──
 
@@ -67,15 +67,17 @@ function RenameRow({ orgId }: { orgId: string }) {
 	const rename = useMutation({
 		mutationKey: mutationKeys.orgs.rename,
 		mutationFn: async (data: RenameInput) => {
-			const { error } = await api().PUT("/orgs/{orgID}", {
-				params: { path: { orgID: orgId } },
-				body: { name: data.name },
+			const { error } = await authClient.organization.update({
+				data: {
+					name: data.name,
+				},
+				organizationId: orgId,
 			})
-			if (error) throw new Error("Failed to rename organization")
+			if (error) throw new Error(error.message || "Failed to rename organization")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.detail(orgId) })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.detail(orgId) })
 		},
 	})
 
@@ -161,13 +163,13 @@ function DangerRow({ orgId }: { orgId: string }) {
 	const deleteOrg = useMutation({
 		mutationKey: mutationKeys.orgs.delete,
 		mutationFn: async () => {
-			const { error } = await api().DELETE("/orgs/{orgID}", {
-				params: { path: { orgID: orgId } },
+			const { error } = await authClient.organization.delete({
+				organizationId: orgId,
 			})
-			if (error) throw new Error("Failed to delete organization")
+			if (error) throw new Error(error.message || "Failed to delete organization")
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
 			navigate({ to: "/" })
 		},
 	})
