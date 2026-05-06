@@ -621,12 +621,13 @@ type RecoveryRequestStatusResponse struct {
 
 // GetRecoveryRequest returns the status of the user's active recovery request.
 //
-//	@Summary		Recovery request status
-//	@Tags			recovery
-//	@Produce		json
-//	@Success		200	{object}	RecoveryRequestStatusResponse
-//	@Security		SessionAuth
-//	@Router			/auth/recovery/request [get]
+//		@Summary		Recovery request status
+//		@Tags			recovery
+//		@Produce		json
+//		@Success		200	{object}	RecoveryRequestStatusResponse
+//	 	@Failure 		404 {object}	ErrorResponse
+//		@Security		SessionAuth
+//		@Router			/auth/recovery/request [get]
 func (h *RecoveryHandler) GetRecoveryRequest(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
@@ -665,11 +666,12 @@ func (h *RecoveryHandler) GetRecoveryRequest(w http.ResponseWriter, r *http.Requ
 // --- Incoming Requests (for trusted contacts) ---
 
 type IncomingRequest struct {
-	RequestID   string `json:"request_id"`
-	UserEmail   string `json:"user_email"`
-	Status      string `json:"status"`
-	EligibleAt  string `json:"eligible_at"`
-	RequestedAt string `json:"requested_at"`
+	RequestID      string `json:"request_id"`
+	RequesterName  string `json:"requester_name"`
+	RequesterEmail string `json:"requester_email"`
+	Status         string `json:"status"`
+	EligibleAt     string `json:"eligible_at"`
+	RequestedAt    string `json:"requested_at"`
 }
 
 // GetIncomingRequests lists recovery requests where the authenticated user is the trusted contact.
@@ -700,7 +702,8 @@ func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Req
 
 	type result struct {
 		model.RecoveryRequests
-		RequestingUser model.Users `alias:"requesting_user"`
+		RequestingUser     model.Users `alias:"requesting_user"`
+		RequestingUserName string      `alias:"requesting_user_name"`
 	}
 
 	var results []result
@@ -709,9 +712,12 @@ func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Req
 		table.RecoveryRequests.Status,
 		table.RecoveryRequests.EligibleAt,
 		table.RecoveryRequests.RequestedAt,
+		table.User.Name.AS("requesting_user_name"),
 		requestingUser.Email,
 	).FROM(
-		table.RecoveryRequests.INNER_JOIN(requestingUser, table.RecoveryRequests.UserID.EQ(requestingUser.ID)),
+		table.RecoveryRequests.
+			INNER_JOIN(requestingUser, table.RecoveryRequests.UserID.EQ(requestingUser.ID)).
+			INNER_JOIN(table.User, table.User.ID.EQ(requestingUser.IdentityID)),
 	).WHERE(
 		table.RecoveryRequests.ContactUserID.EQ(UUID(contactUser.ID)).
 			AND(table.RecoveryRequests.Status.IN(String("pending"), String("approved"))),
@@ -726,11 +732,12 @@ func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Req
 	requests := make([]IncomingRequest, 0, len(results))
 	for _, res := range results {
 		requests = append(requests, IncomingRequest{
-			RequestID:   res.ID.String(),
-			UserEmail:   res.RequestingUser.Email,
-			Status:      res.Status,
-			EligibleAt:  res.EligibleAt.Format(time.RFC3339),
-			RequestedAt: res.RequestedAt.Format(time.RFC3339),
+			RequestID:      res.ID.String(),
+			RequesterName:  res.RequestingUserName,
+			RequesterEmail: res.RequestingUser.Email,
+			Status:         res.Status,
+			EligibleAt:     res.EligibleAt.Format(time.RFC3339),
+			RequestedAt:    res.RequestedAt.Format(time.RFC3339),
 		})
 	}
 

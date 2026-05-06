@@ -516,6 +516,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.RecoveryRequestStatusResponse"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -3487,10 +3493,13 @@ const docTemplate = `{
                 "requested_at": {
                     "type": "string"
                 },
-                "status": {
+                "requester_email": {
                     "type": "string"
                 },
-                "user_email": {
+                "requester_name": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

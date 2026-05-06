@@ -577,6 +577,15 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryRequestStatusResponse"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
@@ -3427,8 +3436,9 @@ export interface components {
             eligible_at?: string;
             request_id?: string;
             requested_at?: string;
+            requester_email?: string;
+            requester_name?: string;
             status?: string;
-            user_email?: string;
         };
         "api_internal_handler.InitiateRecoveryRequest": {
             /** @description base64 */

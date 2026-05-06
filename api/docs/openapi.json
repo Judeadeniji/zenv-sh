@@ -567,6 +567,16 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -3950,10 +3960,13 @@
                     "requested_at": {
                         "type": "string"
                     },
-                    "status": {
+                    "requester_email": {
                         "type": "string"
                     },
-                    "user_email": {
+                    "requester_name": {
+                        "type": "string"
+                    },
+                    "status": {
                         "type": "string"
                     }
                 }
