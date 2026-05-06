@@ -9,16 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComponentsRouteImport } from './routes/components'
 import { Route as AuthedRouteRouteImport } from './routes/_authed/route'
+import { Route as AuthRouteRouteImport } from './routes/_auth/route'
 import { Route as RecoverIndexRouteImport } from './routes/recover/index'
 import { Route as RecoverTrustedContactRouteImport } from './routes/recover/trusted-contact'
 import { Route as RecoverKitRouteImport } from './routes/recover/kit'
 import { Route as JoinTokenRouteImport } from './routes/join.$token'
 import { Route as AuthedVaultSetupRouteImport } from './routes/_authed/vault-setup'
 import { Route as AuthedUnlockRouteImport } from './routes/_authed/unlock'
+import { Route as AuthSignupRouteImport } from './routes/_auth/signup'
+import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthedUnlockedRouteRouteImport } from './routes/_authed/_unlocked/route'
 import { Route as AuthedUnlockedIndexRouteImport } from './routes/_authed/_unlocked/index'
 import { Route as AuthedUnlockedSettingsRouteImport } from './routes/_authed/_unlocked/settings'
@@ -36,16 +37,6 @@ import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdSettingsRouteImport } 
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ComponentsRoute = ComponentsRouteImport.update({
   id: '/components',
   path: '/components',
@@ -53,6 +44,10 @@ const ComponentsRoute = ComponentsRouteImport.update({
 } as any)
 const AuthedRouteRoute = AuthedRouteRouteImport.update({
   id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRouteRoute = AuthRouteRouteImport.update({
+  id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecoverIndexRoute = RecoverIndexRouteImport.update({
@@ -84,6 +79,16 @@ const AuthedUnlockRoute = AuthedUnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
   getParentRoute: () => AuthedRouteRoute,
+} as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthedUnlockedRouteRoute = AuthedUnlockedRouteRouteImport.update({
   id: '/_unlocked',
@@ -181,8 +186,8 @@ const AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
+  '/login': typeof AuthLoginRoute
+  '/signup': typeof AuthSignupRoute
   '/unlock': typeof AuthedUnlockRoute
   '/vault-setup': typeof AuthedVaultSetupRoute
   '/join/$token': typeof JoinTokenRoute
@@ -207,8 +212,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AuthedUnlockedIndexRoute
   '/components': typeof ComponentsRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
+  '/login': typeof AuthLoginRoute
+  '/signup': typeof AuthSignupRoute
   '/unlock': typeof AuthedUnlockRoute
   '/vault-setup': typeof AuthedVaultSetupRoute
   '/join/$token': typeof JoinTokenRoute
@@ -230,11 +235,12 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_auth': typeof AuthRouteRouteWithChildren
   '/_authed': typeof AuthedRouteRouteWithChildren
   '/components': typeof ComponentsRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
   '/_authed/_unlocked': typeof AuthedUnlockedRouteRouteWithChildren
+  '/_auth/login': typeof AuthLoginRoute
+  '/_auth/signup': typeof AuthSignupRoute
   '/_authed/unlock': typeof AuthedUnlockRoute
   '/_authed/vault-setup': typeof AuthedVaultSetupRoute
   '/join/$token': typeof JoinTokenRoute
@@ -310,11 +316,12 @@ export interface FileRouteTypes {
     | '/orgs/$orgId/projects/$projectId'
   id:
     | '__root__'
+    | '/_auth'
     | '/_authed'
     | '/components'
-    | '/login'
-    | '/signup'
     | '/_authed/_unlocked'
+    | '/_auth/login'
+    | '/_auth/signup'
     | '/_authed/unlock'
     | '/_authed/vault-setup'
     | '/join/$token'
@@ -339,10 +346,9 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AuthRouteRoute: typeof AuthRouteRouteWithChildren
   AuthedRouteRoute: typeof AuthedRouteRouteWithChildren
   ComponentsRoute: typeof ComponentsRoute
-  LoginRoute: typeof LoginRoute
-  SignupRoute: typeof SignupRoute
   JoinTokenRoute: typeof JoinTokenRoute
   RecoverKitRoute: typeof RecoverKitRoute
   RecoverTrustedContactRoute: typeof RecoverTrustedContactRoute
@@ -351,20 +357,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/components': {
       id: '/components'
       path: '/components'
@@ -377,6 +369,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recover/': {
@@ -420,6 +419,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/unlock'
       preLoaderRoute: typeof AuthedUnlockRouteImport
       parentRoute: typeof AuthedRouteRoute
+    }
+    '/_auth/signup': {
+      id: '/_auth/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/_auth/login': {
+      id: '/_auth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/_authed/_unlocked': {
       id: '/_authed/_unlocked'
@@ -536,6 +549,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthRouteRouteChildren {
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteRouteChildren: AuthRouteRouteChildren = {
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
+  AuthRouteRouteChildren,
+)
+
 interface AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteChildren {
   AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdAuditRoute
   AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute: typeof AuthedUnlockedOrgsOrgIdProjectsProjectIdSecretsRoute
@@ -624,10 +651,9 @@ const AuthedRouteRouteWithChildren = AuthedRouteRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  AuthRouteRoute: AuthRouteRouteWithChildren,
   AuthedRouteRoute: AuthedRouteRouteWithChildren,
   ComponentsRoute: ComponentsRoute,
-  LoginRoute: LoginRoute,
-  SignupRoute: SignupRoute,
   JoinTokenRoute: JoinTokenRoute,
   RecoverKitRoute: RecoverKitRoute,
   RecoverTrustedContactRoute: RecoverTrustedContactRoute,

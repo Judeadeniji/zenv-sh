@@ -16,7 +16,7 @@ import { mutationKeys, queryKeys } from "#/lib/keys"
 import { loginSchema, type LoginInput } from "#/lib/schemas/auth"
 import { AlertCircle, ArrowRight } from "lucide-react"
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/_auth/login")({
 	beforeLoad: async ({ context }) => {
 		try {
 			await context.queryClient.ensureQueryData(meQueryOptions)

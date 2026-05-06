@@ -21,7 +21,7 @@ const searchSchema = z.object({
 	invite: z.string().optional(),
 })
 
-export const Route = createFileRoute("/signup")({
+export const Route = createFileRoute("/_auth/signup")({
 	validateSearch: searchSchema,
 	beforeLoad: async ({ context }) => {
 		try {
