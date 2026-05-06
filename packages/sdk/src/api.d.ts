@@ -1121,20 +1121,20 @@ export interface paths {
         };
         /**
          * List organization members
-         * @description List all members of an organization with their roles.
+         * @description List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.
          */
         get: {
             parameters: {
                 query?: {
-                    /** @description Page number */
+                    /** @description Page number (default: 1) */
                     page?: number;
-                    /** @description Items per page */
+                    /** @description Items per page (default: 20, max: 100) */
                     per_page?: number;
-                    /** @description Sort by field */
+                    /** @description Sort field: email | role | joined_at (default: joined_at) */
                     sort_by?: string;
-                    /** @description Sort direction (asc/desc) */
+                    /** @description Sort direction: asc | desc (default: desc) */
                     sort_dir?: string;
-                    /** @description Search by email */
+                    /** @description Search by email (case-insensitive) */
                     search?: string;
                     /** @description Filter by role */
                     role?: string;
@@ -1157,8 +1157,17 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ListMembersResponse"];
                     };
                 };
-                /** @description Bad Request */
+                /** @description Invalid organization ID */
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2252,15 +2261,25 @@ export interface paths {
         };
         /**
          * List secrets
-         * @description List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+         * @description List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
          */
         get: {
             parameters: {
                 query: {
                     /** @description Project ID */
                     project_id: string;
-                    /** @description Environment */
-                    environment: string;
+                    /** @description Filter by environment (development | staging | production) */
+                    environment?: string;
+                    /** @description Filter by exact version number */
+                    version?: number;
+                    /** @description Page number (default: 1) */
+                    page?: number;
+                    /** @description Items per page (default: 20, max: 100) */
+                    per_page?: number;
+                    /** @description Sort field: updated_at | created_at | version | environment (default: updated_at) */
+                    sort_by?: string;
+                    /** @description Sort direction: asc | desc (default: desc) */
+                    sort_dir?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2277,12 +2296,30 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ListSecretsResponse"];
                     };
                 };
+                /** @description Missing project_id */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
         /**
          * Create secret
-         * @description Store an encrypted vault item. Server stores opaque ciphertext only.
+         * @description Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
          */
         post: {
             parameters: {
@@ -2302,7 +2339,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Bad Request */
+                /** @description Missing or invalid fields, or invalid base64 encoding */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -2311,8 +2348,17 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Conflict */
+                /** @description Secret with this name hash already exists in the given project+environment — use PUT to update */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2339,7 +2385,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk fetch secrets
-         * @description Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
          */
         post: {
             parameters: {
@@ -2356,7 +2402,25 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"][];
+                        "application/json": components["schemas"]["api_internal_handler.BulkFetchResponse"];
+                    };
+                };
+                /** @description Invalid project_id or malformed base64 in name_hashes */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -2376,19 +2440,19 @@ export interface paths {
         };
         /**
          * Get secret
-         * @description Retrieve a single encrypted secret by name hash.
+         * @description Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
          */
         get: {
             parameters: {
                 query: {
                     /** @description Project ID */
                     project_id: string;
-                    /** @description Environment (development/staging/production) */
+                    /** @description Environment (development | staging | production) */
                     environment: string;
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash (base64) */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2404,8 +2468,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing query params or invalid name hash encoding */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2417,7 +2499,7 @@ export interface paths {
         };
         /**
          * Update secret
-         * @description Update ciphertext and nonce. Version auto-incremented.
+         * @description Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
          */
         put: {
             parameters: {
@@ -2429,7 +2511,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2445,8 +2527,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid base64 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2459,7 +2559,7 @@ export interface paths {
         post?: never;
         /**
          * Delete secret
-         * @description Remove a secret from the vault.
+         * @description Permanently remove a secret and all its archived versions from the vault. This action is irreversible.
          */
         delete: {
             parameters: {
@@ -2471,22 +2571,44 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
+                /** @description status: deleted */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "*/*": {
+                            [key: string]: string;
+                        };
+                    };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid name hash */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2512,7 +2634,7 @@ export interface paths {
         put?: never;
         /**
          * Rollback secret
-         * @description Revert a secret to a previous version. The current version is archived first.
+         * @description Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.
          */
         post: {
             parameters: {
@@ -2524,7 +2646,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2540,8 +2662,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params, invalid name hash, or missing version in body */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found, or target version not found in archive */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2566,7 +2706,7 @@ export interface paths {
         };
         /**
          * List secret versions
-         * @description Show version history for a secret. Returns version numbers and timestamps.
+         * @description Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.
          */
         get: {
             parameters: {
@@ -2578,7 +2718,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2594,8 +2734,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.VersionsResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid name hash */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2709,15 +2867,25 @@ export interface paths {
         };
         /**
          * List secrets
-         * @description List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+         * @description List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
          */
         get: {
             parameters: {
                 query: {
                     /** @description Project ID */
                     project_id: string;
-                    /** @description Environment */
-                    environment: string;
+                    /** @description Filter by environment (development | staging | production) */
+                    environment?: string;
+                    /** @description Filter by exact version number */
+                    version?: number;
+                    /** @description Page number (default: 1) */
+                    page?: number;
+                    /** @description Items per page (default: 20, max: 100) */
+                    per_page?: number;
+                    /** @description Sort field: updated_at | created_at | version | environment (default: updated_at) */
+                    sort_by?: string;
+                    /** @description Sort direction: asc | desc (default: desc) */
+                    sort_dir?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2734,12 +2902,30 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ListSecretsResponse"];
                     };
                 };
+                /** @description Missing project_id */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
         /**
          * Create secret
-         * @description Store an encrypted vault item. Server stores opaque ciphertext only.
+         * @description Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
          */
         post: {
             parameters: {
@@ -2759,7 +2945,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Bad Request */
+                /** @description Missing or invalid fields, or invalid base64 encoding */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -2768,8 +2954,17 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Conflict */
+                /** @description Secret with this name hash already exists in the given project+environment — use PUT to update */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2796,7 +2991,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk fetch secrets
-         * @description Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
          */
         post: {
             parameters: {
@@ -2813,7 +3008,25 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"][];
+                        "application/json": components["schemas"]["api_internal_handler.BulkFetchResponse"];
+                    };
+                };
+                /** @description Invalid project_id or malformed base64 in name_hashes */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -2833,19 +3046,19 @@ export interface paths {
         };
         /**
          * Get secret
-         * @description Retrieve a single encrypted secret by name hash.
+         * @description Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
          */
         get: {
             parameters: {
                 query: {
                     /** @description Project ID */
                     project_id: string;
-                    /** @description Environment (development/staging/production) */
+                    /** @description Environment (development | staging | production) */
                     environment: string;
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash (base64) */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2861,8 +3074,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing query params or invalid name hash encoding */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2874,7 +3105,7 @@ export interface paths {
         };
         /**
          * Update secret
-         * @description Update ciphertext and nonce. Version auto-incremented.
+         * @description Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
          */
         put: {
             parameters: {
@@ -2886,7 +3117,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2902,8 +3133,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid base64 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2916,7 +3165,7 @@ export interface paths {
         post?: never;
         /**
          * Delete secret
-         * @description Remove a secret from the vault.
+         * @description Permanently remove a secret and all its archived versions from the vault. This action is irreversible.
          */
         delete: {
             parameters: {
@@ -2928,22 +3177,44 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
+                /** @description status: deleted */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "*/*": {
+                            [key: string]: string;
+                        };
+                    };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid name hash */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2969,7 +3240,7 @@ export interface paths {
         put?: never;
         /**
          * Rollback secret
-         * @description Revert a secret to a previous version. The current version is archived first.
+         * @description Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.
          */
         post: {
             parameters: {
@@ -2981,7 +3252,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -2997,8 +3268,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params, invalid name hash, or missing version in body */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found, or target version not found in archive */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3023,7 +3312,7 @@ export interface paths {
         };
         /**
          * List secret versions
-         * @description Show version history for a secret. Returns version numbers and timestamps.
+         * @description Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.
          */
         get: {
             parameters: {
@@ -3035,7 +3324,7 @@ export interface paths {
                 };
                 header?: never;
                 path: {
-                    /** @description HMAC-SHA256 name hash */
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
                     nameHash: string;
                 };
                 cookie?: never;
@@ -3051,8 +3340,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.VersionsResponse"];
                     };
                 };
-                /** @description Not Found */
+                /** @description Missing params or invalid name hash */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3341,6 +3648,9 @@ export interface components {
             name_hashes?: string[];
             project_id?: string;
         };
+        "api_internal_handler.BulkFetchResponse": {
+            secrets?: components["schemas"]["api_internal_handler.SecretResponse"][];
+        };
         "api_internal_handler.ChangeVaultKeyRequest": {
             /** @description base64 */
             current_auth_key_hash?: string;
@@ -3471,6 +3781,7 @@ export interface components {
             projects?: components["schemas"]["api_internal_handler.ProjectResponse"][];
         };
         "api_internal_handler.ListSecretsResponse": {
+            meta?: components["schemas"]["api_internal_handler.Meta"];
             secrets?: components["schemas"]["api_internal_handler.SecretListItem"][];
         };
         "api_internal_handler.ListTokensResponse": {
@@ -3490,6 +3801,7 @@ export interface components {
             email?: string;
             id?: string;
             joined_at?: string;
+            name?: string;
             role?: string;
             user_id?: string;
         };
@@ -3565,6 +3877,7 @@ export interface components {
             version?: number;
         };
         "api_internal_handler.SecretListItem": {
+            created_at?: string;
             environment?: string;
             id?: string;
             name_hash?: string;
@@ -3694,25 +4007,25 @@ export interface components {
     responses: never;
     parameters: never;
     requestBodies: {
-        /** @description Target version */
-        "api_internal_handler.RollbackRequest": {
-            content: {
-                "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
-            };
-        };
-        /** @description Encrypted secret */
+        /** @description Encrypted secret payload */
         "api_internal_handler.CreateSecretRequest": {
             content: {
                 "application/json": components["schemas"]["api_internal_handler.CreateSecretRequest"];
             };
         };
-        /** @description Name hashes to fetch */
+        /** @description Target version number */
+        "api_internal_handler.RollbackRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
+            };
+        };
+        /** @description Project, environment, and list of name hashes to fetch */
         "api_internal_handler.BulkFetchRequest": {
             content: {
                 "application/json": components["schemas"]["api_internal_handler.BulkFetchRequest"];
             };
         };
-        /** @description New ciphertext */
+        /** @description New ciphertext and nonce */
         "api_internal_handler.UpdateSecretRequest": {
             content: {
                 "application/json": components["schemas"]["api_internal_handler.UpdateSecretRequest"];
