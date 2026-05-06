@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authed")({
 		// because meQueryOptions uses the isomorphic API client
 		let me
 		try {
-			me = await context.queryClient.ensureQueryData(meQueryOptions)
+			me = await context.queryClient.fetchQuery(meQueryOptions)
 		} catch {
 			throw redirect({ to: "/login" })
 		}
