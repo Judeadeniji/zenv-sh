@@ -53,53 +53,53 @@ type SecretResponse struct {
 }
 
 // @Summary		Create secret
-// @Description	Store an encrypted vault item. Server stores opaque ciphertext only.
+// @Description	Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
-// @Param			body	body		CreateSecretRequest	true	"Encrypted secret"
+// @Param			body	body		CreateSecretRequest	true	"Encrypted secret payload"
 // @Success		201		{object}	SecretResponse
-// @Failure		400		{object}	ErrorResponse
-// @Failure		409		{object}	ErrorResponse
+// @Failure		400		{object}	ErrorResponse	"Missing or invalid fields, or invalid base64 encoding"
+// @Failure		409		{object}	ErrorResponse	"Secret with this name hash already exists in the given project+environment — use PUT to update"
+// @Failure		500		{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets [post]
 // @Router			/secrets [post]
 func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// Auth is enforced by middleware (session or token) before this handler runs.
 	var req CreateSecretRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
 	if req.ProjectID == "" || req.Environment == "" || req.NameHash == "" || req.Ciphertext == "" || req.Nonce == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "all fields are required"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "project_id, environment, name_hash, ciphertext, and nonce are all required"})
 		return
 	}
 
 	projectID, err := uuid.Parse(req.ProjectID)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid project_id"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project_id"})
 		return
 	}
 
 	nameHash, err := base64.StdEncoding.DecodeString(req.NameHash)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in name_hash"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in name_hash"})
 		return
 	}
 	ciphertext, err := base64.StdEncoding.DecodeString(req.Ciphertext)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in ciphertext"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in ciphertext"})
 		return
 	}
 	nonce, err := base64.StdEncoding.DecodeString(req.Nonce)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in nonce"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in nonce"})
 		return
 	}
 
-	// Check if secret with same name_hash already exists in this project+environment.
+	// Check for duplicate name_hash in this project+environment.
 	var existing model.VaultItems
 	existsStmt := SELECT(table.VaultItems.ID).
 		FROM(table.VaultItems).
@@ -108,9 +108,8 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 				AND(table.VaultItems.Environment.EQ(String(req.Environment))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
-
 	if err := existsStmt.Query(h.db, &existing); err == nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "secret already exists — use PUT to update"})
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "secret already exists — use PUT to update"})
 		return
 	}
 
@@ -133,7 +132,7 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := insertStmt.Exec(h.db); err != nil {
 		slog.Error("secrets.create: insert", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store secret"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to store secret"})
 		return
 	}
 
@@ -153,28 +152,30 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 // --- Get single secret by name_hash ---
 
 // @Summary		Get secret
-// @Description	Retrieve a single encrypted secret by name hash.
+// @Description	Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
 // @Tags			secrets
 // @Produce		json
-// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64)"
+// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query		string	true	"Project ID"
-// @Param			environment	query		string	true	"Environment (development/staging/production)"
+// @Param			environment	query		string	true	"Environment (development | staging | production)"
 // @Success		200			{object}	SecretResponse
-// @Failure		404			{object}	ErrorResponse
+// @Failure		400			{object}	ErrorResponse	"Missing query params or invalid name hash encoding"
+// @Failure		404			{object}	ErrorResponse	"Secret not found"
+// @Failure		500			{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/{nameHash} [get]
 // @Router			/secrets/{nameHash} [get]
 func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
 	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
 		return
 	}
 
@@ -189,11 +190,11 @@ func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	if err := stmt.Query(h.db, &item); err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
 			return
 		}
 		slog.Error("secrets.get: query", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch secret"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
 		return
 	}
 
@@ -213,25 +214,27 @@ type BulkFetchResponse struct {
 }
 
 // @Summary		Bulk fetch secrets
-// @Description	Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.
+// @Description	Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
-// @Param			body	body		BulkFetchRequest	true	"Name hashes to fetch"
-// @Success		200		{array}		SecretResponse
+// @Param			body	body		BulkFetchRequest	true	"Project, environment, and list of name hashes to fetch"
+// @Success		200		{object}	BulkFetchResponse
+// @Failure		400		{object}	ErrorResponse	"Invalid project_id or malformed base64 in name_hashes"
+// @Failure		500		{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/bulk [post]
 // @Router			/secrets/bulk [post]
 func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 	var req BulkFetchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
 	projectID, err := uuid.Parse(req.ProjectID)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid project_id"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project_id"})
 		return
 	}
 
@@ -240,12 +243,11 @@ func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode all name hashes and build IN clause.
 	hashExpressions := make([]Expression, 0, len(req.NameHashes))
 	for _, h64 := range req.NameHashes {
 		decoded, err := base64.StdEncoding.DecodeString(h64)
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in name_hashes"})
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in name_hashes"})
 			return
 		}
 		hashExpressions = append(hashExpressions, Bytea(decoded))
@@ -262,7 +264,7 @@ func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 
 	if err := stmt.Query(h.db, &items); err != nil {
 		slog.Error("secrets.bulk_fetch: query", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch secrets"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secrets"})
 		return
 	}
 
@@ -282,53 +284,59 @@ type UpdateSecretRequest struct {
 }
 
 // @Summary		Update secret
-// @Description	Update ciphertext and nonce. Version auto-incremented.
+// @Description	Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
-// @Param			nameHash	path		string				true	"HMAC-SHA256 name hash"
+// @Param			nameHash	path		string				true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query		string				true	"Project ID"
 // @Param			environment	query		string				true	"Environment"
-// @Param			body		body		UpdateSecretRequest	true	"New ciphertext"
+// @Param			body		body		UpdateSecretRequest	true	"New ciphertext and nonce"
 // @Success		200			{object}	SecretResponse
-// @Failure		404			{object}	ErrorResponse
+// @Failure		400			{object}	ErrorResponse	"Missing params or invalid base64"
+// @Failure		404			{object}	ErrorResponse	"Secret not found"
+// @Failure		500			{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/{nameHash} [put]
 // @Router			/secrets/{nameHash} [put]
 func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
 	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
 		return
 	}
 
 	var req UpdateSecretRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.Ciphertext == "" || req.Nonce == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ciphertext and nonce are required"})
 		return
 	}
 
 	ciphertext, err := base64.StdEncoding.DecodeString(req.Ciphertext)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in ciphertext"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in ciphertext"})
 		return
 	}
 	nonce, err := base64.StdEncoding.DecodeString(req.Nonce)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in nonce"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in nonce"})
 		return
 	}
 
 	now := time.Now().UTC()
 
-	// Fetch current version to archive before overwriting.
 	var current model.VaultItems
 	fetchCurrent := SELECT(table.VaultItems.AllColumns).
 		FROM(table.VaultItems).
@@ -337,9 +345,13 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				AND(table.VaultItems.Environment.EQ(String(env))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
-	err = fetchCurrent.Query(h.db, &current)
-	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+	if err := fetchCurrent.Query(h.db, &current); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
+			return
+		}
+		slog.Error("secrets.update: fetch current", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
 		return
 	}
 
@@ -353,8 +365,8 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	).VALUES(current.ID, current.Version, current.Ciphertext, current.Nonce, now)
 
 	if _, err := archiveStmt.Exec(h.db); err != nil {
-		slog.Error("secrets.update: archive version", "error", err)
-		// Non-fatal — continue with update even if archiving fails.
+		// Non-fatal — log and continue.
+		slog.Warn("secrets.update: archive version failed", "error", err)
 	}
 
 	updateStmt := table.VaultItems.UPDATE(
@@ -373,18 +385,18 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := updateStmt.Exec(h.db); err != nil {
 		slog.Error("secrets.update: exec", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update secret"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update secret"})
 		return
 	}
 
-	// Fetch updated row to return.
 	var item model.VaultItems
 	fetchStmt := SELECT(table.VaultItems.AllColumns).
 		FROM(table.VaultItems).
 		WHERE(table.VaultItems.ID.EQ(UUID(current.ID)))
 
 	if err := fetchStmt.Query(h.db, &item); err != nil {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+		slog.Error("secrets.update: fetch updated", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch updated secret"})
 		return
 	}
 
@@ -394,20 +406,22 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 // --- Delete ---
 
 // @Summary		Delete secret
-// @Description	Remove a secret from the vault.
+// @Description	Permanently remove a secret and all its archived versions from the vault. This action is irreversible.
 // @Tags			secrets
-// @Param			nameHash	path	string	true	"HMAC-SHA256 name hash"
+// @Param			nameHash	path	string	true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query	string	true	"Project ID"
 // @Param			environment	query	string	true	"Environment"
-// @Success			200
-// @Failure			404	{object}	ErrorResponse
+// @Success		200		{object}	map[string]string	"status: deleted"
+// @Failure		400		{object}	ErrorResponse		"Missing params or invalid name hash"
+// @Failure		404		{object}	ErrorResponse		"Secret not found"
+// @Failure		500		{object}	ErrorResponse		"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/{nameHash} [delete]
 // @Router			/secrets/{nameHash} [delete]
 func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -415,7 +429,7 @@ func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	slog.Info("secrets.delete: raw path param", "nameHash", nameHashB64)
 	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
 		return
 	}
 
@@ -428,24 +442,20 @@ func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result, err := deleteStmt.Exec(h.db)
 	if err != nil {
 		slog.Error("secrets.delete: exec", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete secret"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to delete secret"})
 		return
 	}
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-// --- List (names only — never values) ---
-
-type ListSecretsResponse struct {
-	Secrets []SecretListItem `json:"secrets"`
-}
+// --- List ---
 
 type SecretListItem struct {
 	ID          string `json:"id"`
@@ -453,23 +463,97 @@ type SecretListItem struct {
 	Environment string `json:"environment"`
 	Version     int    `json:"version"`
 	UpdatedAt   string `json:"updated_at"`
+	CreatedAt   string `json:"created_at"`
+}
+
+type ListSecretsResponse struct {
+	Secrets []SecretListItem `json:"secrets"`
+	Meta    Meta             `json:"meta"`
 }
 
 // @Summary		List secrets
-// @Description	List secret metadata (name hash, version, updated_at). Never returns ciphertext.
+// @Description	List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
 // @Tags			secrets
 // @Produce		json
-// @Param			project_id	query		string	true	"Project ID"
-// @Param			environment	query		string	true	"Environment"
-// @Success		200			{object}	ListSecretsResponse
+// @Param			project_id		query		string	true	"Project ID"
+// @Param			environment		query		string	false	"Filter by environment (development | staging | production)"
+// @Param			version			query		int		false	"Filter by exact version number"
+// @Param			page			query		int		false	"Page number (default: 1)"
+// @Param			per_page		query		int		false	"Items per page (default: 20, max: 100)"
+// @Param			sort_by			query		string	false	"Sort field: updated_at | created_at | version | environment (default: updated_at)"
+// @Param			sort_dir		query		string	false	"Sort direction: asc | desc (default: desc)"
+// @Success		200				{object}	ListSecretsResponse
+// @Failure		400				{object}	ErrorResponse	"Missing project_id"
+// @Failure		500				{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets [get]
 // @Router			/secrets [get]
 func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
-	projectID, env, err := parseProjectEnv(r)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+	projectIDStr := r.URL.Query().Get("project_id")
+	if projectIDStr == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "project_id query param is required"})
 		return
+	}
+
+	projectID, err := uuid.Parse(projectIDStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid project_id"})
+		return
+	}
+
+	params := ParseListParams(r)
+	environment := r.URL.Query().Get("environment")
+	versionStr := r.URL.Query().Get("version")
+
+	condition := table.VaultItems.ProjectID.EQ(UUID(projectID))
+
+	if environment != "" {
+		condition = condition.AND(table.VaultItems.Environment.EQ(String(environment)))
+	}
+
+	if versionStr != "" {
+		var v int64
+		if _, err := fmt.Sscanf(versionStr, "%d", &v); err == nil {
+			condition = condition.AND(table.VaultItems.Version.EQ(Int(v)))
+		}
+	}
+
+	// Count total matching rows.
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	countStmt := SELECT(COUNT(table.VaultItems.ID).AS("count")).
+		FROM(table.VaultItems).
+		WHERE(condition)
+	_ = countStmt.Query(h.db, &countResult)
+
+	// Sort mapping.
+	var orderBy OrderByClause
+	switch params.SortBy {
+	case "created_at":
+		if params.SortDir == "asc" {
+			orderBy = table.VaultItems.CreatedAt.ASC()
+		} else {
+			orderBy = table.VaultItems.CreatedAt.DESC()
+		}
+	case "version":
+		if params.SortDir == "asc" {
+			orderBy = table.VaultItems.Version.ASC()
+		} else {
+			orderBy = table.VaultItems.Version.DESC()
+		}
+	case "environment":
+		if params.SortDir == "asc" {
+			orderBy = table.VaultItems.Environment.ASC()
+		} else {
+			orderBy = table.VaultItems.Environment.DESC()
+		}
+	default: // updated_at
+		if params.SortDir == "asc" {
+			orderBy = table.VaultItems.UpdatedAt.ASC()
+		} else {
+			orderBy = table.VaultItems.UpdatedAt.DESC()
+		}
 	}
 
 	var items []model.VaultItems
@@ -478,15 +562,17 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.NameHash,
 		table.VaultItems.Environment,
 		table.VaultItems.Version,
+		table.VaultItems.CreatedAt,
 		table.VaultItems.UpdatedAt,
-	).FROM(table.VaultItems).WHERE(
-		table.VaultItems.ProjectID.EQ(UUID(projectID)).
-			AND(table.VaultItems.Environment.EQ(String(env))),
-	).ORDER_BY(table.VaultItems.UpdatedAt.DESC())
+	).FROM(table.VaultItems).
+		WHERE(condition).
+		ORDER_BY(orderBy).
+		LIMIT(params.Limit()).
+		OFFSET(params.Offset())
 
 	if err := stmt.Query(h.db, &items); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("secrets.list: query", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list secrets"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list secrets"})
 		return
 	}
 
@@ -497,11 +583,15 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 			NameHash:    base64.StdEncoding.EncodeToString(item.NameHash),
 			Environment: item.Environment,
 			Version:     int(item.Version),
+			CreatedAt:   item.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   item.UpdatedAt.Format(time.RFC3339),
 		})
 	}
 
-	writeJSON(w, http.StatusOK, ListSecretsResponse{Secrets: result})
+	writeJSON(w, http.StatusOK, ListSecretsResponse{
+		Secrets: result,
+		Meta:    NewMeta(int(countResult.Count), params.Page, params.PerPage),
+	})
 }
 
 // --- Versions ---
@@ -512,37 +602,38 @@ type VersionItem struct {
 }
 
 type VersionsResponse struct {
-	Current  int           `json:"current_version"`
-	Versions []VersionItem `json:"versions"`
+	CurrentVersion int           `json:"current_version"`
+	Versions       []VersionItem `json:"versions"`
 }
 
 // @Summary		List secret versions
-// @Description	Show version history for a secret. Returns version numbers and timestamps.
+// @Description	Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.
 // @Tags			secrets
 // @Produce		json
-// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash"
+// @Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query		string	true	"Project ID"
 // @Param			environment	query		string	true	"Environment"
 // @Success		200			{object}	VersionsResponse
-// @Failure		404			{object}	ErrorResponse
+// @Failure		400			{object}	ErrorResponse	"Missing params or invalid name hash"
+// @Failure		404			{object}	ErrorResponse	"Secret not found"
+// @Failure		500			{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/{nameHash}/versions [get]
 // @Router			/secrets/{nameHash}/versions [get]
 func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
 	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
 		return
 	}
 
-	// Get current item.
 	var current model.VaultItems
 	currentStmt := SELECT(table.VaultItems.ID, table.VaultItems.Version).
 		FROM(table.VaultItems).
@@ -553,11 +644,15 @@ func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 		)
 
 	if err := currentStmt.Query(h.db, &current); err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
+			return
+		}
+		slog.Error("secrets.versions: fetch current", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
 		return
 	}
 
-	// Get archived versions.
 	var archived []model.VaultItemVersions
 	archiveStmt := SELECT(
 		table.VaultItemVersions.Version,
@@ -577,8 +672,8 @@ func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, VersionsResponse{
-		Current:  int(current.Version),
-		Versions: versions,
+		CurrentVersion: int(current.Version),
+		Versions:       versions,
 	})
 }
 
@@ -589,40 +684,46 @@ type RollbackRequest struct {
 }
 
 // @Summary		Rollback secret
-// @Description	Revert a secret to a previous version. The current version is archived first.
+// @Description	Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
-// @Param			nameHash	path		string			true	"HMAC-SHA256 name hash"
+// @Param			nameHash	path		string			true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query		string			true	"Project ID"
 // @Param			environment	query		string			true	"Environment"
-// @Param			body		body		RollbackRequest	true	"Target version"
+// @Param			body		body		RollbackRequest	true	"Target version number"
 // @Success		200			{object}	SecretResponse
-// @Failure		404			{object}	ErrorResponse
+// @Failure		400			{object}	ErrorResponse	"Missing params, invalid name hash, or missing version in body"
+// @Failure		404			{object}	ErrorResponse	"Secret not found, or target version not found in archive"
+// @Failure		500			{object}	ErrorResponse	"Internal server error"
 // @Security		BearerAuth
 // @Router			/sdk/secrets/{nameHash}/rollback [post]
 // @Router			/secrets/{nameHash}/rollback [post]
 func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	projectID, env, err := parseProjectEnv(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 
 	nameHashB64 := chi.URLParam(r, "nameHash")
 	nameHash, err := decodeNameHash(nameHashB64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid name_hash in URL"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
 		return
 	}
 
 	var req RollbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
-	// Get current item.
+	if req.Version <= 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "version must be a positive integer"})
+		return
+	}
+
 	var current model.VaultItems
 	currentStmt := SELECT(table.VaultItems.AllColumns).
 		FROM(table.VaultItems).
@@ -633,11 +734,15 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 		)
 
 	if err := currentStmt.Query(h.db, &current); err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
+			return
+		}
+		slog.Error("secrets.rollback: fetch current", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
 		return
 	}
 
-	// Find the target version in archive.
 	var target model.VaultItemVersions
 	targetStmt := SELECT(table.VaultItemVersions.AllColumns).
 		FROM(table.VaultItemVersions).
@@ -648,7 +753,7 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 
 	if err := targetStmt.Query(h.db, &target); err != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{
-			Error: fmt.Sprintf("version %d not found", req.Version),
+			Error: fmt.Sprintf("version %d not found in archive", req.Version),
 		})
 		return
 	}
@@ -665,10 +770,9 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	).VALUES(current.ID, current.Version, current.Ciphertext, current.Nonce, now)
 
 	if _, err := archiveStmt.Exec(h.db); err != nil {
-		slog.Error("secrets.rollback: archive current", "error", err)
+		slog.Warn("secrets.rollback: archive current failed", "error", err)
 	}
 
-	// Overwrite with target version's ciphertext, bump version number.
 	updateStmt := table.VaultItems.UPDATE(
 		table.VaultItems.Ciphertext,
 		table.VaultItems.Nonce,
@@ -683,18 +787,18 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := updateStmt.Exec(h.db); err != nil {
 		slog.Error("secrets.rollback: update", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rollback failed"})
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "rollback failed"})
 		return
 	}
 
-	// Return updated item.
 	var item model.VaultItems
 	fetchStmt := SELECT(table.VaultItems.AllColumns).
 		FROM(table.VaultItems).
 		WHERE(table.VaultItems.ID.EQ(UUID(current.ID)))
 
 	if err := fetchStmt.Query(h.db, &item); err != nil {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "rolled back"})
+		slog.Error("secrets.rollback: fetch updated", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "rollback succeeded but failed to fetch updated secret"})
 		return
 	}
 
@@ -723,24 +827,19 @@ func parseProjectEnv(r *http.Request) (uuid.UUID, string, error) {
 // It also URL-unescapes the input first, since HTTP clients may percent-encode
 // characters like = (%3D) in path parameters.
 func decodeNameHash(s string) ([]byte, error) {
-	// URL-unescape first (handles %3D, %2B, %2F etc.)
 	if decoded, err := url.PathUnescape(s); err == nil {
 		s = decoded
 	}
 
-	// Try URL-safe base64 with padding
 	if b, err := base64.URLEncoding.DecodeString(s); err == nil {
 		return b, nil
 	}
-	// Try standard base64 with padding
 	if b, err := base64.StdEncoding.DecodeString(s); err == nil {
 		return b, nil
 	}
-	// Try URL-safe base64 without padding
 	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
 		return b, nil
 	}
-	// Try standard base64 without padding
 	return base64.RawStdEncoding.DecodeString(s)
 }
 

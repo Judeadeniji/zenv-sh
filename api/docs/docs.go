@@ -1027,7 +1027,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "List all members of an organization with their roles.",
+                "description": "List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.",
                 "produces": [
                     "application/json"
                 ],
@@ -1045,31 +1045,31 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Page number",
+                        "description": "Page number (default: 1)",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page",
+                        "description": "Items per page (default: 20, max: 100)",
                         "name": "per_page",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Sort by field",
+                        "description": "Sort field: email | role | joined_at (default: joined_at)",
                         "name": "sort_by",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Sort direction (asc/desc)",
+                        "description": "Sort direction: asc | desc (default: desc)",
                         "name": "sort_dir",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Search by email",
+                        "description": "Search by email (case-insensitive)",
                         "name": "search",
                         "in": "query"
                     },
@@ -1088,7 +1088,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid organization ID",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2054,7 +2060,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata (name hash, version, updated_at). Never returns ciphertext.",
+                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
                 "produces": [
                     "application/json"
                 ],
@@ -2072,10 +2078,39 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Environment",
+                        "description": "Filter by environment (development | staging | production)",
                         "name": "environment",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by exact version number",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field: updated_at | created_at | version | environment (default: updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction: asc | desc (default: desc)",
+                        "name": "sort_dir",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2083,6 +2118,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ListSecretsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing project_id",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -2093,7 +2140,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only.",
+                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2106,7 +2153,7 @@ const docTemplate = `{
                 "summary": "Create secret",
                 "parameters": [
                     {
-                        "description": "Encrypted secret",
+                        "description": "Encrypted secret payload",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2123,13 +2170,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing or invalid fields, or invalid base64 encoding",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Secret with this name hash already exists in the given project+environment — use PUT to update",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2144,7 +2197,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2157,7 +2210,7 @@ const docTemplate = `{
                 "summary": "Bulk fetch secrets",
                 "parameters": [
                     {
-                        "description": "Name hashes to fetch",
+                        "description": "Project, environment, and list of name hashes to fetch",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2170,10 +2223,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/api_internal_handler.SecretResponse"
-                            }
+                            "$ref": "#/definitions/api_internal_handler.BulkFetchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project_id or malformed base64 in name_hashes",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -2186,7 +2248,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by name hash.",
+                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
                 "produces": [
                     "application/json"
                 ],
@@ -2197,7 +2259,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash (base64)",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2211,7 +2273,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Environment (development/staging/production)",
+                        "description": "Environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
                         "required": true
@@ -2224,8 +2286,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing query params or invalid name hash encoding",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2238,7 +2312,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update ciphertext and nonce. Version auto-incremented.",
+                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2252,7 +2326,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2272,7 +2346,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "New ciphertext",
+                        "description": "New ciphertext and nonce",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2288,8 +2362,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2302,7 +2388,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a secret from the vault.",
+                "description": "Permanently remove a secret and all its archived versions from the vault. This action is irreversible.",
                 "tags": [
                     "secrets"
                 ],
@@ -2310,7 +2396,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2332,10 +2418,28 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "status: deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2350,7 +2454,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "description": "Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2364,7 +2468,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2384,7 +2488,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Target version",
+                        "description": "Target version number",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2400,8 +2504,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params, invalid name hash, or missing version in body",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found, or target version not found in archive",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2416,7 +2532,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "description": "Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -2427,7 +2543,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2454,8 +2570,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.VersionsResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2526,7 +2654,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata (name hash, version, updated_at). Never returns ciphertext.",
+                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
                 "produces": [
                     "application/json"
                 ],
@@ -2544,10 +2672,39 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Environment",
+                        "description": "Filter by environment (development | staging | production)",
                         "name": "environment",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by exact version number",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field: updated_at | created_at | version | environment (default: updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction: asc | desc (default: desc)",
+                        "name": "sort_dir",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2555,6 +2712,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ListSecretsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing project_id",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -2565,7 +2734,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only.",
+                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2578,7 +2747,7 @@ const docTemplate = `{
                 "summary": "Create secret",
                 "parameters": [
                     {
-                        "description": "Encrypted secret",
+                        "description": "Encrypted secret payload",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2595,13 +2764,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing or invalid fields, or invalid base64 encoding",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Secret with this name hash already exists in the given project+environment — use PUT to update",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2616,7 +2791,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2629,7 +2804,7 @@ const docTemplate = `{
                 "summary": "Bulk fetch secrets",
                 "parameters": [
                     {
-                        "description": "Name hashes to fetch",
+                        "description": "Project, environment, and list of name hashes to fetch",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2642,10 +2817,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/api_internal_handler.SecretResponse"
-                            }
+                            "$ref": "#/definitions/api_internal_handler.BulkFetchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project_id or malformed base64 in name_hashes",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
@@ -2658,7 +2842,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by name hash.",
+                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
                 "produces": [
                     "application/json"
                 ],
@@ -2669,7 +2853,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash (base64)",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2683,7 +2867,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Environment (development/staging/production)",
+                        "description": "Environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
                         "required": true
@@ -2696,8 +2880,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing query params or invalid name hash encoding",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2710,7 +2906,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update ciphertext and nonce. Version auto-incremented.",
+                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2724,7 +2920,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2744,7 +2940,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "New ciphertext",
+                        "description": "New ciphertext and nonce",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2760,8 +2956,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2774,7 +2982,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a secret from the vault.",
+                "description": "Permanently remove a secret and all its archived versions from the vault. This action is irreversible.",
                 "tags": [
                     "secrets"
                 ],
@@ -2782,7 +2990,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2804,10 +3012,28 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "status: deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2822,7 +3048,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "description": "Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2836,7 +3062,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2856,7 +3082,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Target version",
+                        "description": "Target version number",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2872,8 +3098,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.SecretResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params, invalid name hash, or missing version in body",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found, or target version not found in archive",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2888,7 +3126,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "description": "Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.",
                 "produces": [
                     "application/json"
                 ],
@@ -2899,7 +3137,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true
@@ -2926,8 +3164,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_internal_handler.VersionsResponse"
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -3252,6 +3502,17 @@ const docTemplate = `{
                 },
                 "project_id": {
                     "type": "string"
+                }
+            }
+        },
+        "api_internal_handler.BulkFetchResponse": {
+            "type": "object",
+            "properties": {
+                "secrets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_internal_handler.SecretResponse"
+                    }
                 }
             }
         },
@@ -3596,6 +3857,9 @@ const docTemplate = `{
         "api_internal_handler.ListSecretsResponse": {
             "type": "object",
             "properties": {
+                "meta": {
+                    "$ref": "#/definitions/api_internal_handler.Meta"
+                },
                 "secrets": {
                     "type": "array",
                     "items": {
@@ -3652,6 +3916,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "joined_at": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "role": {
@@ -3851,6 +4118,9 @@ const docTemplate = `{
         "api_internal_handler.SecretListItem": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "environment": {
                     "type": "string"
                 },

@@ -282,6 +282,7 @@ func (h *OrgsHandler) Get(w http.ResponseWriter, r *http.Request) {
 type MemberResponse struct {
 	ID       string `json:"id"`
 	UserID   string `json:"user_id"`
+	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Role     string `json:"role"`
 	JoinedAt string `json:"joined_at"`
@@ -292,28 +293,30 @@ type ListMembersResponse struct {
 	Meta    Meta             `json:"meta"`
 }
 
-// memberRow is used to scan the JOIN result.
+// memberRow is used to scan the JOIN result across OrganizationMembers, Users (vault), and User (auth).
 type memberRow struct {
-	ID       uuid.UUID `sql:"primary_key" alias:"organization_members.id"`
-	UserID   uuid.UUID `alias:"organization_members.user_id"`
-	Role     string    `alias:"organization_members.role"`
-	JoinedAt time.Time `alias:"organization_members.joined_at"`
-	Email    string    `alias:"users.email"`
+	ID         uuid.UUID `sql:"primary_key" alias:"organization_members.id"`
+	UserID     uuid.UUID `alias:"organization_members.user_id"`
+	Role       string    `alias:"organization_members.role"`
+	JoinedAt   time.Time `alias:"organization_members.joined_at"`
+	Email      string    `alias:"users.email"`
+	MemberName string    `alias:"member_name"`
 }
 
 // @Summary		List organization members
-// @Description	List all members of an organization with their roles.
+// @Description	List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.
 // @Tags			organizations
 // @Produce		json
-// @Param			orgID			path	string	true	"Organization UUID"
-// @Param			page			query	int		false	"Page number"
-// @Param			per_page		query	int		false	"Items per page"
-// @Param			sort_by			query	string	false	"Sort by field"
-// @Param			sort_dir		query	string	false	"Sort direction (asc/desc)"
-// @Param			search			query	string	false	"Search by email"
-// @Param			role			query	string	false	"Filter by role"
-// @Success		200		{object}	ListMembersResponse
-// @Failure		400		{object}	ErrorResponse
+// @Param			orgID		path	string	true	"Organization UUID"
+// @Param			page		query	int		false	"Page number (default: 1)"
+// @Param			per_page	query	int		false	"Items per page (default: 20, max: 100)"
+// @Param			sort_by		query	string	false	"Sort field: email | role | joined_at (default: joined_at)"
+// @Param			sort_dir	query	string	false	"Sort direction: asc | desc (default: desc)"
+// @Param			search		query	string	false	"Search by email (case-insensitive)"
+// @Param			role		query	string	false	"Filter by role"
+// @Success		200	{object}	ListMembersResponse
+// @Failure		400	{object}	ErrorResponse	"Invalid organization ID"
+// @Failure		500	{object}	ErrorResponse	"Internal server error"
 // @Security		SessionAuth
 // @Router			/orgs/{orgID}/members [get]
 func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
@@ -327,20 +330,25 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	role := r.URL.Query().Get("role")
 
 	condition := table.OrganizationMembers.OrganizationID.EQ(UUID(orgID))
+
 	if role != "" && role != "all" {
 		condition = condition.AND(table.OrganizationMembers.Role.EQ(String(role)))
 	}
+
 	if params.Search != "" {
 		condition = condition.AND(LOWER(table.Users.Email).LIKE(String("%" + strings.ToLower(params.Search) + "%")))
 	}
 
+	// Count requires the same joins as the data query since search filters on Users.Email.
 	var countResult struct {
 		Count int64 `alias:"count"`
 	}
 	countStmt := SELECT(COUNT(table.OrganizationMembers.ID).AS("count")).
-		FROM(table.OrganizationMembers.INNER_JOIN(
-			table.Users, table.Users.ID.EQ(table.OrganizationMembers.UserID),
-		)).WHERE(condition)
+		FROM(
+			table.OrganizationMembers.
+				INNER_JOIN(table.Users, table.Users.ID.EQ(table.OrganizationMembers.UserID)).
+				INNER_JOIN(table.User, table.User.ID.EQ(table.Users.IdentityID)),
+		).WHERE(condition)
 	_ = countStmt.Query(h.db, &countResult)
 
 	var orderBy OrderByClause
@@ -357,7 +365,7 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		} else {
 			orderBy = table.OrganizationMembers.Role.DESC()
 		}
-	default: // "joined_at"
+	default: // joined_at
 		if params.SortDir == "asc" {
 			orderBy = table.OrganizationMembers.JoinedAt.ASC()
 		} else {
@@ -372,11 +380,11 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		table.OrganizationMembers.Role,
 		table.OrganizationMembers.JoinedAt,
 		table.Users.Email,
+		table.User.Name.AS("member_name"),
 	).FROM(
-		table.OrganizationMembers.INNER_JOIN(
-			table.Users,
-			table.Users.ID.EQ(table.OrganizationMembers.UserID),
-		),
+		table.OrganizationMembers.
+			INNER_JOIN(table.Users, table.Users.ID.EQ(table.OrganizationMembers.UserID)).
+			INNER_JOIN(table.User, table.User.ID.EQ(table.Users.IdentityID)),
 	).WHERE(condition).
 		ORDER_BY(orderBy).
 		LIMIT(params.Limit()).
@@ -396,6 +404,7 @@ func (h *OrgsHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		resp.Members = append(resp.Members, MemberResponse{
 			ID:       m.ID.String(),
 			UserID:   m.UserID.String(),
+			Name:     m.MemberName,
 			Email:    m.Email,
 			Role:     m.Role,
 			JoinedAt: m.JoinedAt.Format(time.RFC3339),

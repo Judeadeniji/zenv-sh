@@ -66,6 +66,13 @@ definitions:
       project_id:
         type: string
     type: object
+  api_internal_handler.BulkFetchResponse:
+    properties:
+      secrets:
+        items:
+          $ref: '#/definitions/api_internal_handler.SecretResponse'
+        type: array
+    type: object
   api_internal_handler.ChangeVaultKeyRequest:
     properties:
       current_auth_key_hash:
@@ -294,6 +301,8 @@ definitions:
     type: object
   api_internal_handler.ListSecretsResponse:
     properties:
+      meta:
+        $ref: '#/definitions/api_internal_handler.Meta'
       secrets:
         items:
           $ref: '#/definitions/api_internal_handler.SecretListItem'
@@ -331,6 +340,8 @@ definitions:
       id:
         type: string
       joined_at:
+        type: string
+      name:
         type: string
       role:
         type: string
@@ -461,6 +472,8 @@ definitions:
     type: object
   api_internal_handler.SecretListItem:
     properties:
+      created_at:
+        type: string
       environment:
         type: string
       id:
@@ -1322,30 +1335,32 @@ paths:
       - organizations
   /orgs/{orgID}/members:
     get:
-      description: List all members of an organization with their roles.
+      description: List all members of an organization with their roles, emails, and
+        display names. Name is resolved from the auth table (table.User) via the vault
+        user's IdentityID.
       parameters:
       - description: Organization UUID
         in: path
         name: orgID
         required: true
         type: string
-      - description: Page number
+      - description: 'Page number (default: 1)'
         in: query
         name: page
         type: integer
-      - description: Items per page
+      - description: 'Items per page (default: 20, max: 100)'
         in: query
         name: per_page
         type: integer
-      - description: Sort by field
+      - description: 'Sort field: email | role | joined_at (default: joined_at)'
         in: query
         name: sort_by
         type: string
-      - description: Sort direction (asc/desc)
+      - description: 'Sort direction: asc | desc (default: desc)'
         in: query
         name: sort_dir
         type: string
-      - description: Search by email
+      - description: Search by email (case-insensitive)
         in: query
         name: search
         type: string
@@ -1361,7 +1376,11 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.ListMembersResponse'
         "400":
-          description: Bad Request
+          description: Invalid organization ID
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1989,18 +2008,39 @@ paths:
       - projects
   /sdk/secrets:
     get:
-      description: List secret metadata (name hash, version, updated_at). Never returns
-        ciphertext.
+      description: List secret metadata for a project. Never returns ciphertext or
+        nonces — only name hash, version, and timestamps. Supports pagination, sorting,
+        and filtering by environment and version.
       parameters:
       - description: Project ID
         in: query
         name: project_id
         required: true
         type: string
-      - description: Environment
+      - description: Filter by environment (development | staging | production)
         in: query
         name: environment
-        required: true
+        type: string
+      - description: Filter by exact version number
+        in: query
+        name: version
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: per_page
+        type: integer
+      - description: 'Sort field: updated_at | created_at | version | environment
+          (default: updated_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Sort direction: asc | desc (default: desc)'
+        in: query
+        name: sort_dir
         type: string
       produces:
       - application/json
@@ -2009,6 +2049,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.ListSecretsResponse'
+        "400":
+          description: Missing project_id
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List secrets
@@ -2018,9 +2066,10 @@ paths:
       consumes:
       - application/json
       description: Store an encrypted vault item. Server stores opaque ciphertext
-        only.
+        only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext
+        key name.
       parameters:
-      - description: Encrypted secret
+      - description: Encrypted secret payload
         in: body
         name: body
         required: true
@@ -2034,11 +2083,16 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
         "400":
-          description: Bad Request
+          description: Missing or invalid fields, or invalid base64 encoding
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "409":
-          description: Conflict
+          description: Secret with this name hash already exists in the given project+environment
+            — use PUT to update
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2048,9 +2102,10 @@ paths:
       - secrets
   /sdk/secrets/{nameHash}:
     delete:
-      description: Remove a secret from the vault.
+      description: Permanently remove a secret and all its archived versions from
+        the vault. This action is irreversible.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2067,9 +2122,21 @@ paths:
         type: string
       responses:
         "200":
-          description: OK
+          description: 'status: deleted'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Missing params or invalid name hash
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2078,9 +2145,10 @@ paths:
       tags:
       - secrets
     get:
-      description: Retrieve a single encrypted secret by name hash.
+      description: Retrieve a single encrypted secret by its HMAC-SHA256 name hash.
+        The hash must match exactly — partial or plaintext lookups are not supported.
       parameters:
-      - description: HMAC-SHA256 name hash (base64)
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2090,7 +2158,7 @@ paths:
         name: project_id
         required: true
         type: string
-      - description: Environment (development/staging/production)
+      - description: Environment (development | staging | production)
         in: query
         name: environment
         required: true
@@ -2102,8 +2170,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing query params or invalid name hash encoding
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2114,9 +2190,11 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update ciphertext and nonce. Version auto-incremented.
+      description: Replace the ciphertext and nonce for an existing secret. The current
+        version is automatically archived before overwriting, and the version counter
+        is incremented. Use GET /{nameHash}/versions to inspect history.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2131,7 +2209,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: New ciphertext
+      - description: New ciphertext and nonce
         in: body
         name: body
         required: true
@@ -2144,8 +2222,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing params or invalid base64
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2157,10 +2243,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Revert a secret to a previous version. The current version is archived
-        first.
+      description: Revert a secret to a previously archived version. The current ciphertext
+        is archived first, then the target version's ciphertext is restored. The version
+        counter continues incrementing — it is never reset. Returns the updated secret
+        after rollback.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2175,7 +2263,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: Target version
+      - description: Target version number
         in: body
         name: body
         required: true
@@ -2188,8 +2276,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing params, invalid name hash, or missing version in body
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found, or target version not found in archive
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2199,10 +2295,11 @@ paths:
       - secrets
   /sdk/secrets/{nameHash}/versions:
     get:
-      description: Show version history for a secret. Returns version numbers and
-        timestamps.
+      description: Return the full version history for a secret. The current version
+        is shown separately from the archived versions. Versions are ordered newest
+        first.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2224,8 +2321,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.VersionsResponse'
+        "400":
+          description: Missing params or invalid name hash
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2237,10 +2342,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Fetch multiple secrets by name hashes. Used by SDK for schema manifest
-        loading.
+      description: Fetch multiple encrypted secrets in one request by providing a
+        list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading.
+        Only secrets matching the given hashes, project, and environment are returned
+        — missing hashes are silently ignored.
       parameters:
-      - description: Name hashes to fetch
+      - description: Project, environment, and list of name hashes to fetch
         in: body
         name: body
         required: true
@@ -2252,9 +2359,15 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/api_internal_handler.SecretResponse'
-            type: array
+            $ref: '#/definitions/api_internal_handler.BulkFetchResponse'
+        "400":
+          description: Invalid project_id or malformed base64 in name_hashes
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Bulk fetch secrets
@@ -2297,18 +2410,39 @@ paths:
       - sdk
   /secrets:
     get:
-      description: List secret metadata (name hash, version, updated_at). Never returns
-        ciphertext.
+      description: List secret metadata for a project. Never returns ciphertext or
+        nonces — only name hash, version, and timestamps. Supports pagination, sorting,
+        and filtering by environment and version.
       parameters:
       - description: Project ID
         in: query
         name: project_id
         required: true
         type: string
-      - description: Environment
+      - description: Filter by environment (development | staging | production)
         in: query
         name: environment
-        required: true
+        type: string
+      - description: Filter by exact version number
+        in: query
+        name: version
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: per_page
+        type: integer
+      - description: 'Sort field: updated_at | created_at | version | environment
+          (default: updated_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Sort direction: asc | desc (default: desc)'
+        in: query
+        name: sort_dir
         type: string
       produces:
       - application/json
@@ -2317,6 +2451,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.ListSecretsResponse'
+        "400":
+          description: Missing project_id
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List secrets
@@ -2326,9 +2468,10 @@ paths:
       consumes:
       - application/json
       description: Store an encrypted vault item. Server stores opaque ciphertext
-        only.
+        only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext
+        key name.
       parameters:
-      - description: Encrypted secret
+      - description: Encrypted secret payload
         in: body
         name: body
         required: true
@@ -2342,11 +2485,16 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
         "400":
-          description: Bad Request
+          description: Missing or invalid fields, or invalid base64 encoding
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "409":
-          description: Conflict
+          description: Secret with this name hash already exists in the given project+environment
+            — use PUT to update
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2356,9 +2504,10 @@ paths:
       - secrets
   /secrets/{nameHash}:
     delete:
-      description: Remove a secret from the vault.
+      description: Permanently remove a secret and all its archived versions from
+        the vault. This action is irreversible.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2375,9 +2524,21 @@ paths:
         type: string
       responses:
         "200":
-          description: OK
+          description: 'status: deleted'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Missing params or invalid name hash
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2386,9 +2547,10 @@ paths:
       tags:
       - secrets
     get:
-      description: Retrieve a single encrypted secret by name hash.
+      description: Retrieve a single encrypted secret by its HMAC-SHA256 name hash.
+        The hash must match exactly — partial or plaintext lookups are not supported.
       parameters:
-      - description: HMAC-SHA256 name hash (base64)
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2398,7 +2560,7 @@ paths:
         name: project_id
         required: true
         type: string
-      - description: Environment (development/staging/production)
+      - description: Environment (development | staging | production)
         in: query
         name: environment
         required: true
@@ -2410,8 +2572,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing query params or invalid name hash encoding
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2422,9 +2592,11 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update ciphertext and nonce. Version auto-incremented.
+      description: Replace the ciphertext and nonce for an existing secret. The current
+        version is automatically archived before overwriting, and the version counter
+        is incremented. Use GET /{nameHash}/versions to inspect history.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2439,7 +2611,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: New ciphertext
+      - description: New ciphertext and nonce
         in: body
         name: body
         required: true
@@ -2452,8 +2624,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing params or invalid base64
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2465,10 +2645,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Revert a secret to a previous version. The current version is archived
-        first.
+      description: Revert a secret to a previously archived version. The current ciphertext
+        is archived first, then the target version's ciphertext is restored. The version
+        counter continues incrementing — it is never reset. Returns the updated secret
+        after rollback.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2483,7 +2665,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: Target version
+      - description: Target version number
         in: body
         name: body
         required: true
@@ -2496,8 +2678,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Missing params, invalid name hash, or missing version in body
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found, or target version not found in archive
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2507,10 +2697,11 @@ paths:
       - secrets
   /secrets/{nameHash}/versions:
     get:
-      description: Show version history for a secret. Returns version numbers and
-        timestamps.
+      description: Return the full version history for a secret. The current version
+        is shown separately from the archived versions. Versions are ordered newest
+        first.
       parameters:
-      - description: HMAC-SHA256 name hash
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
         name: nameHash
         required: true
@@ -2532,8 +2723,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.VersionsResponse'
+        "400":
+          description: Missing params or invalid name hash
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Not Found
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -2545,10 +2744,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Fetch multiple secrets by name hashes. Used by SDK for schema manifest
-        loading.
+      description: Fetch multiple encrypted secrets in one request by providing a
+        list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading.
+        Only secrets matching the given hashes, project, and environment are returned
+        — missing hashes are silently ignored.
       parameters:
-      - description: Name hashes to fetch
+      - description: Project, environment, and list of name hashes to fetch
         in: body
         name: body
         required: true
@@ -2560,9 +2761,15 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/api_internal_handler.SecretResponse'
-            type: array
+            $ref: '#/definitions/api_internal_handler.BulkFetchResponse'
+        "400":
+          description: Invalid project_id or malformed base64 in name_hashes
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Bulk fetch secrets

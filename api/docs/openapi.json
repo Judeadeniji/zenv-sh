@@ -1117,7 +1117,7 @@
                         "SessionAuth": []
                     }
                 ],
-                "description": "List all members of an organization with their roles.",
+                "description": "List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.",
                 "tags": [
                     "organizations"
                 ],
@@ -1133,7 +1133,7 @@
                         }
                     },
                     {
-                        "description": "Page number",
+                        "description": "Page number (default: 1)",
                         "name": "page",
                         "in": "query",
                         "schema": {
@@ -1141,7 +1141,7 @@
                         }
                     },
                     {
-                        "description": "Items per page",
+                        "description": "Items per page (default: 20, max: 100)",
                         "name": "per_page",
                         "in": "query",
                         "schema": {
@@ -1149,7 +1149,7 @@
                         }
                     },
                     {
-                        "description": "Sort by field",
+                        "description": "Sort field: email | role | joined_at (default: joined_at)",
                         "name": "sort_by",
                         "in": "query",
                         "schema": {
@@ -1157,7 +1157,7 @@
                         }
                     },
                     {
-                        "description": "Sort direction (asc/desc)",
+                        "description": "Sort direction: asc | desc (default: desc)",
                         "name": "sort_dir",
                         "in": "query",
                         "schema": {
@@ -1165,7 +1165,7 @@
                         }
                     },
                     {
-                        "description": "Search by email",
+                        "description": "Search by email (case-insensitive)",
                         "name": "search",
                         "in": "query",
                         "schema": {
@@ -1193,7 +1193,17 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid organization ID",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2358,7 +2368,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata (name hash, version, updated_at). Never returns ciphertext.",
+                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
                 "tags": [
                     "secrets"
                 ],
@@ -2374,10 +2384,49 @@
                         }
                     },
                     {
-                        "description": "Environment",
+                        "description": "Filter by environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
-                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by exact version number",
+                        "name": "version",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort field: updated_at | created_at | version | environment (default: updated_at)",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction: asc | desc (default: desc)",
+                        "name": "sort_dir",
+                        "in": "query",
                         "schema": {
                             "type": "string"
                         }
@@ -2393,6 +2442,26 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Missing project_id",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -2402,7 +2471,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only.",
+                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
                 "tags": [
                     "secrets"
                 ],
@@ -2422,7 +2491,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing or invalid fields, or invalid base64 encoding",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2432,7 +2501,17 @@
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Secret with this name hash already exists in the given project+environment — use PUT to update",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2451,7 +2530,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
                 "tags": [
                     "secrets"
                 ],
@@ -2465,10 +2544,27 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
-                                    }
+                                    "$ref": "#/components/schemas/api_internal_handler.BulkFetchResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project_id or malformed base64 in name_hashes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -2483,14 +2579,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by name hash.",
+                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Get secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash (base64)",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -2508,7 +2604,7 @@
                         }
                     },
                     {
-                        "description": "Environment (development/staging/production)",
+                        "description": "Environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
                         "required": true,
@@ -2528,8 +2624,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing query params or invalid name hash encoding",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2546,14 +2662,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update ciphertext and nonce. Version auto-incremented.",
+                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Update secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -2594,8 +2710,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid base64",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2612,14 +2748,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a secret from the vault.",
+                "description": "Permanently remove a secret and all its archived versions from the vault. This action is irreversible.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Delete secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -2648,10 +2784,40 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "status: deleted",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "*/*": {
                                 "schema": {
@@ -2670,14 +2836,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "description": "Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Rollback secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -2718,8 +2884,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params, invalid name hash, or missing version in body",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found, or target version not found in archive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2738,14 +2924,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "description": "Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "List secret versions",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -2783,8 +2969,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2865,7 +3071,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata (name hash, version, updated_at). Never returns ciphertext.",
+                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
                 "tags": [
                     "secrets"
                 ],
@@ -2881,10 +3087,49 @@
                         }
                     },
                     {
-                        "description": "Environment",
+                        "description": "Filter by environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
-                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Filter by exact version number",
+                        "name": "version",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Sort field: updated_at | created_at | version | environment (default: updated_at)",
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Sort direction: asc | desc (default: desc)",
+                        "name": "sort_dir",
+                        "in": "query",
                         "schema": {
                             "type": "string"
                         }
@@ -2900,6 +3145,26 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Missing project_id",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -2909,7 +3174,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only.",
+                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
                 "tags": [
                     "secrets"
                 ],
@@ -2929,7 +3194,7 @@
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing or invalid fields, or invalid base64 encoding",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2939,7 +3204,17 @@
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Secret with this name hash already exists in the given project+environment — use PUT to update",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2958,7 +3233,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple secrets by name hashes. Used by SDK for schema manifest loading.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
                 "tags": [
                     "secrets"
                 ],
@@ -2972,10 +3247,27 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
-                                    }
+                                    "$ref": "#/components/schemas/api_internal_handler.BulkFetchResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project_id or malformed base64 in name_hashes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }
@@ -2990,14 +3282,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by name hash.",
+                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Get secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash (base64)",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -3015,7 +3307,7 @@
                         }
                     },
                     {
-                        "description": "Environment (development/staging/production)",
+                        "description": "Environment (development | staging | production)",
                         "name": "environment",
                         "in": "query",
                         "required": true,
@@ -3035,8 +3327,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing query params or invalid name hash encoding",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3053,14 +3365,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update ciphertext and nonce. Version auto-incremented.",
+                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Update secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -3101,8 +3413,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid base64",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3119,14 +3451,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a secret from the vault.",
+                "description": "Permanently remove a secret and all its archived versions from the vault. This action is irreversible.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Delete secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -3155,10 +3487,40 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "status: deleted",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "*/*": {
                                 "schema": {
@@ -3177,14 +3539,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Revert a secret to a previous version. The current version is archived first.",
+                "description": "Revert a secret to a previously archived version. The current ciphertext is archived first, then the target version's ciphertext is restored. The version counter continues incrementing — it is never reset. Returns the updated secret after rollback.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "Rollback secret",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -3225,8 +3587,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params, invalid name hash, or missing version in body",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found, or target version not found in archive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3245,14 +3627,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Show version history for a secret. Returns version numbers and timestamps.",
+                "description": "Return the full version history for a secret. The current version is shown separately from the archived versions. Versions are ordered newest first.",
                 "tags": [
                     "secrets"
                 ],
                 "summary": "List secret versions",
                 "parameters": [
                     {
-                        "description": "HMAC-SHA256 name hash",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
                         "name": "nameHash",
                         "in": "path",
                         "required": true,
@@ -3290,8 +3672,28 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Missing params or invalid name hash",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Secret not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3565,17 +3967,6 @@
     ],
     "components": {
         "requestBodies": {
-            "api_internal_handler.RollbackRequest": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/api_internal_handler.RollbackRequest"
-                        }
-                    }
-                },
-                "description": "Target version",
-                "required": true
-            },
             "api_internal_handler.CreateSecretRequest": {
                 "content": {
                     "application/json": {
@@ -3584,7 +3975,18 @@
                         }
                     }
                 },
-                "description": "Encrypted secret",
+                "description": "Encrypted secret payload",
+                "required": true
+            },
+            "api_internal_handler.RollbackRequest": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/api_internal_handler.RollbackRequest"
+                        }
+                    }
+                },
+                "description": "Target version number",
                 "required": true
             },
             "api_internal_handler.BulkFetchRequest": {
@@ -3595,7 +3997,7 @@
                         }
                     }
                 },
-                "description": "Name hashes to fetch",
+                "description": "Project, environment, and list of name hashes to fetch",
                 "required": true
             },
             "api_internal_handler.UpdateSecretRequest": {
@@ -3606,7 +4008,7 @@
                         }
                     }
                 },
-                "description": "New ciphertext",
+                "description": "New ciphertext and nonce",
                 "required": true
             }
         },
@@ -3719,6 +4121,17 @@
                     },
                     "project_id": {
                         "type": "string"
+                    }
+                }
+            },
+            "api_internal_handler.BulkFetchResponse": {
+                "type": "object",
+                "properties": {
+                    "secrets": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/api_internal_handler.SecretResponse"
+                        }
                     }
                 }
             },
@@ -4063,6 +4476,9 @@
             "api_internal_handler.ListSecretsResponse": {
                 "type": "object",
                 "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/api_internal_handler.Meta"
+                    },
                     "secrets": {
                         "type": "array",
                         "items": {
@@ -4119,6 +4535,9 @@
                         "type": "string"
                     },
                     "joined_at": {
+                        "type": "string"
+                    },
+                    "name": {
                         "type": "string"
                     },
                     "role": {
@@ -4318,6 +4737,9 @@
             "api_internal_handler.SecretListItem": {
                 "type": "object",
                 "properties": {
+                    "created_at": {
+                        "type": "string"
+                    },
                     "environment": {
                         "type": "string"
                     },
