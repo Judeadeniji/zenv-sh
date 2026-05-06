@@ -127,18 +127,19 @@ const ENV_DOT: Record<string, string> = {
 }
 
 function EnvSwitcher() {
-	const [active, setEnv] = useNavStore((s) => [s.activeEnvironment, s.setActiveEnvironment])
+	const activeEnv = useNavStore((s) => s.activeEnvironment)
+	const setActiveEnv = useNavStore((s) => s.setActiveEnvironment)
 	const updatePrefs = useUpdatePreferences()
 
 	const handleChange = (env: string) => {
-		setEnv(env)
+		setActiveEnv(env)
 		updatePrefs.mutate({ active_environment: env })
 	}
 
 	return (
 		<div className="flex items-center rounded-md bg-muted p-0.5">
 			{ENVIRONMENTS.map((env) => {
-				const isActive = env === active
+				const isActive = env === activeEnv
 				return (
 					<button
 						key={env}

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { mutationKeys } from "#/lib/keys"
+import { mutationKeys, queryKeys } from "#/lib/keys"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Alert, AlertDescription } from "#/components/ui/alert"
@@ -117,7 +117,7 @@ function ChangeKeyRow() {
 					salt: toBase64(newSalt),
 					auth_key_hash: toBase64(newAuthKeyHash),
 					wrapped_dek: toBase64(wrappedDek),
-				} as never,
+				},
 			})
 			if (error) throw new Error("Failed to change Vault Key")
 
@@ -125,8 +125,8 @@ function ChangeKeyRow() {
 				useAuthStore.getState().setCrypto({ ...crypto, kek: newKek })
 			}
 		},
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["auth", "me"] })
+		onSuccess: async () => {
+			await qc.invalidateQueries({ queryKey: queryKeys.auth.me })
 			setStep("idle")
 			setWords(Array(MNEMONIC_WORD_COUNT).fill(""))
 			setVerifiedDek(null)

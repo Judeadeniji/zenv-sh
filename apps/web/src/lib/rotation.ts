@@ -82,7 +82,7 @@ export async function rotateProjectDEK({
 					project_id: projectId,
 					environment: env,
 					name_hashes: secrets.map((s) => s.name_hash),
-				} as never,
+				},
 			})
 
 			const items = (bulkData as { secrets?: { id: string; name_hash: string; ciphertext: string; nonce: string }[] })?.secrets ?? []

@@ -70,7 +70,7 @@ export function useSetupVault() {
 				body.recovery_wrapped_dek = toBase64(recoveryBlob)
 			}
 
-			const { error } = await api().POST("/auth/setup-vault", { body: body as never })
+			const { error } = await api().POST("/auth/setup-vault", { body })
 			if (error) throw new Error("Vault setup failed")
 
 			return { kek, dek, publicKey, privateKey }
@@ -98,7 +98,7 @@ export function useUnlockVault() {
 			const authKeyHash = await hashAuthKey(authKey)
 
 			const { data, error } = await api().POST("/auth/unlock", {
-				body: { auth_key_hash: toBase64(authKeyHash) } as never,
+				body: { auth_key_hash: toBase64(authKeyHash) },
 			})
 			if (error || !data) throw new Error("Wrong Vault Key")
 

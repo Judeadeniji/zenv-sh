@@ -27,7 +27,7 @@ export function usePreferencesSync() {
 		(patch: Record<string, unknown>) => {
 			if (debounceRef.current) clearTimeout(debounceRef.current)
 			debounceRef.current = setTimeout(() => {
-				update.mutate(patch as never)
+				update.mutate(patch)
 			}, 1000)
 		},
 		[update],

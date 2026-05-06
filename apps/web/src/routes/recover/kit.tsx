@@ -68,12 +68,12 @@ function RegenerateFlow() {
 
 			// Verify against server
 			const { data, error } = await api().POST("/auth/unlock", {
-				body: { auth_key_hash: toBase64(authKeyHash) } as never,
-			})
+				body: { auth_key_hash: toBase64(authKeyHash) },
+			})	
 			if (error || !data) throw new Error("Wrong Vault Key")
 
-			const res = data as { wrapped_dek: string }
-			const wd = fromBase64(res.wrapped_dek)
+			const res = data
+			const wd = fromBase64(res.wrapped_dek!)
 			const wdNonce = wd.slice(0, 12)
 			const wdCt = wd.slice(12)
 

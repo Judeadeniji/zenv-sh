@@ -11,7 +11,7 @@ export interface UserPreferences {
 export const preferencesQueryOptions = queryOptions({
 	queryKey: queryKeys.preferences,
 	queryFn: async () => {
-		const { data, error } = await api().GET("/preferences" as never)
+		const { data, error } = await api().GET("/preferences")
 		if (error) throw new Error("Failed to fetch preferences")
 		return (data ?? {}) as UserPreferences
 	},
