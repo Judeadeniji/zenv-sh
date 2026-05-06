@@ -51,7 +51,7 @@ export function orgMembersQueryOptions(
 		queryKey: queryKeys.orgs.members(orgId, opts),
 		queryFn: async () => {
 			const { data, error } = await api().GET("/orgs/{orgID}/members", {
-				params: { path: { orgID: orgId }, query: { ...opts } as any },
+				params: { path: { orgID: orgId }, query: { ...opts } },
 			})
 			if (error || !data) throw new Error("Failed to fetch members")
 			return data
