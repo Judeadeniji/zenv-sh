@@ -3316,6 +3316,14 @@
                         }
                     },
                     {
+                        "description": "Filter by environment",
+                        "name": "environment",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "description": "Page number",
                         "name": "page",
                         "in": "query",

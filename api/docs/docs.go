@@ -2953,6 +2953,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Filter by environment",
+                        "name": "environment",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page number",
                         "name": "page",

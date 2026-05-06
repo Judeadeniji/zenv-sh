@@ -11,6 +11,8 @@ import { authClient } from "#/lib/auth-client"
 import { api } from "#/lib/api-client"
 import { getProjectItems, getOrgItems, getSettingsItems } from "#/lib/nav-items"
 import { CreateProjectDialog } from "#/components/create-project-dialog"
+import { queryKeys } from "#/lib/keys"
+import { Badge } from "#/components/ui/badge"
 import {
 	Sidebar,
 	SidebarContent,
@@ -47,6 +49,8 @@ import {
 	ChevronsUpDown,
 	Pin,
 	PinOff,
+	Users,
+	UserStarIcon,
 } from "lucide-react"
 
 export function AppSidebar() {
@@ -101,6 +105,18 @@ export function AppSidebar() {
 	const projectItems = activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []
 	const orgItems = activeOrg ? getOrgItems(activeOrg.id, projectId) : []
 	const settingsItems = activeOrg ? getSettingsItems(activeOrg.id, projectId) : []
+
+	const { data: incomingRequests } = useQuery({
+		queryKey: queryKeys.recovery.incomingRequests,
+		queryFn: async () => {
+			const { data, error } = await api().GET("/auth/recovery/incoming-requests")
+			if (error) return []
+			return (data ?? [])
+		},
+		enabled: !!crypto,
+		refetchInterval: 30_000,
+	})
+	const pendingIncomingCount = (incomingRequests ?? []).filter((r) => r.status === "pending").length
 
 	const handleLock = async () => {
 		await api().POST("/auth/lock", {})
@@ -284,6 +300,20 @@ export function AppSidebar() {
 										</SidebarMenuButton>
 									</SidebarMenuItem>
 								))}
+								<SidebarMenuItem>
+								<SidebarMenuButton
+									tooltip="Recovery Requests"
+									render={(props) => <Link {...props} to="/recovery-requests" />}
+								>
+									<UserStarIcon />
+									<span className="flex-1">Recovery Requests</span>
+									{pendingIncomingCount > 0 && state !== "collapsed" && (
+										<Badge variant="warning" className="ml-auto">
+											{pendingIncomingCount}
+										</Badge>
+									)}
+								</SidebarMenuButton>
+							</SidebarMenuItem>
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>

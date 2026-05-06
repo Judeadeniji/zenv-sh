@@ -3077,6 +3077,8 @@ export interface paths {
                 query: {
                     /** @description Project ID */
                     project_id: string;
+                    /** @description Filter by environment */
+                    environment?: string;
                     /** @description Page number */
                     page?: number;
                     /** @description Items per page */

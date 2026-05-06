@@ -2571,6 +2571,10 @@ paths:
         name: project_id
         required: true
         type: string
+      - description: Filter by environment
+        in: query
+        name: environment
+        type: string
       - description: Page number
         in: query
         name: page
