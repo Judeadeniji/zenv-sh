@@ -312,11 +312,21 @@
                 "summary": "Get auth state",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully retrieved user state",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/api_internal_handler.MeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api_internal_handler.ErrorResponse"
                                 }
                             }
                         }

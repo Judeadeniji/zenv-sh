@@ -311,13 +311,14 @@ type MeResponse struct {
 
 // Me returns the current user's auth state.
 //
-// @Summary		Get auth state
-// @Description	Returns identity, vault setup status, and vault lock state.
-// @Tags			auth
-// @Produce		json
-// @Success		200	{object}	MeResponse
-// @Security		SessionAuth
-// @Router			/auth/me [get]
+//	@Summary		Get auth state
+//	@Description	Returns identity, vault setup status, and vault lock state.
+//	@Tags			auth
+//	@Produce		json
+//	@Success		200	{object}	MeResponse		"Successfully retrieved user state"
+//	@Failure		401	{object}	ErrorResponse	"Authentication required"
+//	@Security		SessionAuth
+//	@Router			/auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil || sess.IdentityID == "" {

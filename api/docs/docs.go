@@ -282,9 +282,15 @@ const docTemplate = `{
                 "summary": "Get auth state",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully retrieved user state",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.MeResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     }
                 }
