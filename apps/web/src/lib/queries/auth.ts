@@ -23,7 +23,7 @@ export const meQueryOptions = queryOptions({
 	queryKey: queryKeys.auth.me,
 	queryFn: async () => {
 		const { data, error } = await api().GET("/auth/me")
-		if (error || !data) throw new Error("Failed to fetch auth state")
+		if (error || !data) throw new Error(error.error || "Failed to fetch auth state")
 		return data;
 	},
 	staleTime: 30_000,
@@ -45,7 +45,7 @@ export function useSetupVault() {
 		}) => {
 			const salt = generateSalt()
 			const dek = generateKey()
-			const { publicKey, privateKey } = await generateKeypair()
+			const { publicKey, privateKey } = generateKeypair()
 			const { kek, authKey } = await deriveKeysAsync(vaultKey, salt, keyType)
 			const authKeyHash = await hashAuthKey(authKey)
 
@@ -100,21 +100,15 @@ export function useUnlockVault() {
 			const { data, error } = await api().POST("/auth/unlock", {
 				body: { auth_key_hash: toBase64(authKeyHash) },
 			})
-			if (error || !data) throw new Error("Wrong Vault Key")
+			if (error || !data) throw new Error(error.error || "Wrong Vault Key")
 
-			const res = data as {
-				wrapped_dek: string
-				wrapped_private_key: string
-				public_key: string
-			}
-
-			const wd = unpack(fromBase64(res.wrapped_dek))
+			const wd = unpack(fromBase64(data.wrapped_dek!))
 			const dek = await unwrapKey(wd.ciphertext, wd.nonce, kek)
 
-			const wp = unpack(fromBase64(res.wrapped_private_key))
+			const wp = unpack(fromBase64(data.wrapped_private_key!))
 			const privateKey = await decrypt(wp.ciphertext, wp.nonce, dek)
 
-			const publicKey = fromBase64(res.public_key)
+			const publicKey = fromBase64(data.public_key!)
 
 			return { kek, dek, publicKey, privateKey }
 		},
