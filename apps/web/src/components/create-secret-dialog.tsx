@@ -1,7 +1,10 @@
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog, DialogTrigger, DialogContent, DialogHeader,
+	DialogTitle, DialogDescription, DialogFooter, DialogClose,
+} from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
@@ -12,44 +15,106 @@ import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
 import { createSecretSchema, type CreateSecretInput } from "#/lib/schemas/secrets"
 import { toast } from "sonner"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, File, Upload, X } from "lucide-react"
+import { cn } from "#/lib/utils"
+
+type InputMode = "text" | "file"
 
 interface CreateSecretDialogProps {
 	projectId: string
 	trigger: React.ReactElement
 }
 
+function formatBytes(bytes: number) {
+	if (bytes < 1024) return `${bytes} B`
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogProps) {
 	const [open, setOpen] = useState(false)
+	const [inputMode, setInputMode] = useState<InputMode>("text")
+	const [file, setFile] = useState<File | null>(null)
+	const [isDragging, setIsDragging] = useState(false)
+	const [fileError, setFileError] = useState<string | null>(null)
+	const fileInputRef = useRef<HTMLInputElement>(null)
+
 	const environment = useNavStore((s) => s.activeEnvironment)
 	const { data: projectDEK } = useProjectDEK(projectId)
 	const create = useCreateSecret()
 
 	const form = useForm<CreateSecretInput>({
 		resolver: zodResolver(createSecretSchema),
-		defaultValues: { name: "", value: "" },
+		defaultValues: { inputMode: "text", name: "", value: "" },
 	})
 
-	const onSubmit = (data: CreateSecretInput) => {
-		if (!projectDEK) {
-			toast.error("No project DEK found")
+
+	const resetDialog = useCallback(() => {
+		form.reset()
+		setInputMode("text")
+		setFile(null)
+		setFileError(null)
+		setIsDragging(false)
+	}, [form])
+	
+	const handleModeSwitch = (mode: InputMode) => {
+		setInputMode(mode)
+		setFile(null)
+		setFileError(null)
+		form.setValue("inputMode", mode) // keep RHF in sync
+		form.clearErrors()
+	}
+	
+	const acceptFile = (incoming: File) => {
+		if (incoming.size > 1_048_576) {
+			setFileError("File exceeds the 1 MB limit")
 			return
 		}
-		create.mutate(
-			{ projectId, environment, projectDEK, ...data },
-			{
-				onSuccess: () => {
-					setOpen(false)
-					form.reset()
-					toast.success(`Created ${data.name}`)
+		setFile(incoming)
+		setFileError(null)
+	}
+	
+	const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const f = e.target.files?.[0]
+		if (f) acceptFile(f)
+		// reset so the same file can be re-selected after clearing
+		e.target.value = ""
+	}
+
+	const handleDrop = (e: React.DragEvent) => {
+		e.preventDefault()
+		setIsDragging(false)
+		const f = e.dataTransfer.files[0]
+		if (f) acceptFile(f)
+	}
+
+	const onSubmit = async (data: CreateSecretInput) => {
+		if (!projectDEK) { toast.error("No project DEK found"); return }
+	
+		if (data.inputMode === "file") {
+			if (!file) { setFileError("Select a file to encrypt"); return }
+			const valueBytes = new Uint8Array(await file.arrayBuffer())
+			create.mutate(
+				{ projectId, environment, projectDEK, name: data.name, value: valueBytes },
+				{
+					onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
+					onError: (err) => toast.error(err.message || "Failed to create secret"),
 				},
+			)
+			return
+		}
+	
+		create.mutate(
+			{ projectId, environment, projectDEK, name: data.name, value: data.value },
+			{
+				onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
 				onError: (err) => toast.error(err.message || "Failed to create secret"),
 			},
 		)
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
+		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetDialog() }}>
 			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
@@ -82,17 +147,100 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="secret-value" className="text-xs">Value</Label>
-						<Textarea
-							id="secret-value"
-							placeholder="The value to encrypt"
-							className="font-mono text-xs"
-							rows={3}
-							{...form.register("value")}
-							feedback={form.formState.errors.value ? "error" : undefined}
-						/>
-						{form.formState.errors.value && (
-							<p className="text-xs text-destructive">{form.formState.errors.value.message}</p>
+						<div className="flex items-center justify-between">
+							<Label className="text-xs">Value</Label>
+							<div className="flex rounded-md border text-xs overflow-hidden">
+								{(["text", "file"] as InputMode[]).map((mode) => (
+									<button
+										key={mode}
+										type="button"
+										onClick={() => handleModeSwitch(mode)}
+										className={cn(
+											"px-2.5 py-1 capitalize transition-colors",
+											inputMode === mode
+												? "bg-foreground text-background"
+												: "text-muted-foreground hover:text-foreground",
+										)}
+									>
+										{mode}
+									</button>
+								))}
+							</div>
+						</div>
+
+						{inputMode === "text" ? (
+							<>
+								<Textarea
+									id="secret-value"
+									placeholder="The value to encrypt"
+									className="font-mono text-xs"
+									rows={3}
+									{...form.register("value")}
+									feedback={form.formState.errors.value ? "error" : undefined}
+								/>
+								{form.formState.errors.value && (
+									<p className="text-xs text-destructive">{form.formState.errors.value.message}</p>
+								)}
+							</>
+						) : (
+							<>
+								{file ? (
+									<div className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2.5">
+										<File className="size-4 shrink-0 text-muted-foreground" />
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-xs font-medium">{file.name}</p>
+											<p className="text-xs text-muted-foreground">
+												{formatBytes(file.size)}{file.type ? ` · ${file.type}` : ""}
+											</p>
+										</div>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="size-6 shrink-0"
+											onClick={() => { setFile(null); setFileError(null) }}
+											aria-label="Remove file"
+										>
+											<X className="size-3.5" />
+										</Button>
+									</div>
+								) : (
+									<button
+										type="button"
+										className={cn(
+											"flex w-full flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-5 text-center transition-colors",
+											isDragging
+												? "border-foreground/40 bg-muted/60"
+												: "border-border hover:border-foreground/30 hover:bg-muted/30",
+											fileError && "border-destructive/60",
+										)}
+										onClick={() => fileInputRef.current?.click()}
+										onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+										onDragLeave={() => setIsDragging(false)}
+										onDrop={handleDrop}
+									>
+										<Upload className="size-4 text-muted-foreground" />
+										<span className="text-xs text-muted-foreground">
+											Drop a file or{" "}
+											<span className="text-foreground underline underline-offset-2">browse</span>
+										</span>
+										<span className="text-xs text-muted-foreground/60">
+											Any file convertible to bytes
+										</span>
+									</button>
+								)}
+
+								{fileError && (
+									<p className="text-xs text-destructive">{fileError}</p>
+								)}
+
+								<input
+									ref={fileInputRef}
+									type="file"
+									className="hidden"
+									onChange={handleFileInput}
+								/>
+							</>
 						)}
 					</div>
 

@@ -34,20 +34,31 @@ export function useCreateSecret() {
             projectId,
             environment,
             name,
-            value,
+            value,      // string | Uint8Array
             projectDEK,
         }: {
             projectId: string
             environment: string
             name: string
-            value: string
+            value: string | Uint8Array
             projectDEK: Uint8Array
         }) => {
+            const MAX_BYTES = 1_048_576 // 1 MB
+        
+            let jsonPayload: object
+            if (typeof value === "string") {
+                const encoded = new TextEncoder().encode(value)
+                if (encoded.byteLength > MAX_BYTES) throw new Error("Secret exceeds 1 MB limit")
+                jsonPayload = { name, value }
+            } else {
+                if (value.byteLength > MAX_BYTES) throw new Error("File exceeds 1 MB limit")
+                jsonPayload = { name, value: toBase64(value), type: "base64" }
+            }
+        
             const nameHashBytes = await hashName(name, projectDEK)
             const nameHash = toBase64(nameHashBytes)
-
-            // Match CLI format: encrypt {name, value} JSON as single payload
-            const payload = new TextEncoder().encode(JSON.stringify({ name, value }))
+        
+            const payload = new TextEncoder().encode(JSON.stringify(jsonPayload))
             const { ciphertext, nonce } = await encrypt(payload, projectDEK)
 
             const { data, error } = await api().POST("/secrets", {

@@ -1,12 +1,17 @@
 import { z } from "zod"
 
-export const createSecretSchema = z.object({
-	name: z
-		.string()
-		.min(1, "Name is required")
-		.max(256, "Name too long"),
-	value: z.string().min(1, "Value is required"),
-})
+export const createSecretSchema = z.discriminatedUnion("inputMode", [
+    z.object({
+        inputMode: z.literal("text"),
+        name: z.string().min(1, "Name is required"),
+        value: z.string().min(1, "Value is required"),
+    }),
+    z.object({
+        inputMode: z.literal("file"),
+        name: z.string().min(1, "Name is required"),
+        value: z.string(),
+    }),
+])
 
 export type CreateSecretInput = z.infer<typeof createSecretSchema>
 
