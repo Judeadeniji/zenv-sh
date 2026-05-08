@@ -5,9 +5,10 @@ import { queryKeys, mutationKeys } from "#/lib/keys"
 export function useKeyGrantMembers(projectId: string) {
 	return useQuery({
 		queryKey: [...queryKeys.projects.detail(projectId), "key-grants"],
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}/key-grants", {
 				params: { path: { projectID: projectId } },
+				signal,
 			})
 			if (error || !data) throw new Error(error.error || "Failed to fetch key grants")
 			return data.members
@@ -50,7 +51,7 @@ export function useStageRotation() {
 				},
 			)
 			if (error || !data) throw new Error(error.error || "Failed to stage rotation items")
-			return data as { staged: number; total_staged: number; total: number }
+			return data
 		},
 	})
 }
@@ -87,8 +88,10 @@ export function useCommitRotation() {
 			return data
 		},
 		onSuccess: async (_, { projectId }) => {
-			await qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) })
-			await qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+			await Promise.all([
+				qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) }),
+				qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+			])
 		},
 	})
 }

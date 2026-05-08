@@ -18,9 +18,10 @@ export function projectsQueryOptions(
 ) {
 	return queryOptions({
 		queryKey: queryKeys.projects.list(orgId, opts),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects", {
-				params: { query: { organization_id: orgId, ...opts } as any },
+				params: { query: { organization_id: orgId, ...opts } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch projects")
 			return data
@@ -33,9 +34,10 @@ export function projectsQueryOptions(
 export function projectQueryOptions(projectId: string) {
 	return queryOptions({
 		queryKey: queryKeys.projects.detail(projectId),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}", {
 				params: { path: { projectID: projectId } },
+				signal
 			})
 			if (error || !data) throw new Error("Failed to fetch project")
 			return data
@@ -129,11 +131,12 @@ export function useProjectKey(projectId: string) {
 
 	return useQuery({
 		queryKey: [...queryKeys.projects.detail(projectId), "key-grant"],
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			if (!crypto) throw new Error("Vault must be unlocked")
 
 			const { data, error } = await api().GET("/projects/{projectID}/key-grant", {
 				params: { path: { projectID: projectId } },
+				signal,
 			})
 			if (error || !data) throw new Error("No key grant found")
 
@@ -160,7 +163,7 @@ export function useProjectDEK(projectId: string) {
 
 	return useQuery({
 		queryKey: [...queryKeys.projects.detail(projectId), "dek"],
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			if (!crypto) throw new Error("Vault must be unlocked")
 
 			// 1. Get project vault key from key grant
@@ -177,6 +180,7 @@ export function useProjectDEK(projectId: string) {
 			// 2. Get project crypto material (salt + wrapped DEK)
 			const { data: cryptoData, error: cryptoErr } = await api().GET("/projects/{projectID}/crypto", {
 				params: { path: { projectID: projectId } },
+				signal,
 			})
 			if (cryptoErr || !cryptoData) throw new Error("Project crypto not found")
 
@@ -212,9 +216,10 @@ export interface KeyGrantMember {
 export function listKeyGrantsQueryOptions(projectId: string) {
 	return queryOptions({
 		queryKey: [...queryKeys.projects.detail(projectId), "key-grants"],
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}/key-grants", {
 				params: { path: { projectID: projectId } },
+				signal
 			})
 			if (error || !data) throw new Error("Failed to fetch key grants")
 			return (data.members ?? []) as KeyGrantMember[]
@@ -246,9 +251,10 @@ export function useGrantAccess(projectId: string) {
 export function projectStatsQueryOptions(projectId: string) {
 	return queryOptions({
 		queryKey: queryKeys.projects.stats(projectId),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}/stats", {
 				params: { path: { projectID: projectId } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch project stats")
 			return data

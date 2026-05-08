@@ -9,6 +9,7 @@ export const queryKeys = {
 		list: (params?: Record<string, unknown>) => [...queryKeys.orgs.all, "list", params] as const,
 		detail: (orgId: string) => ["orgs", orgId] as const,
 		members: (orgId: string, params?: Record<string, unknown>) => ["orgs", orgId, "members", params] as const,
+		invitations: (orgId: string, params?: Record<string, unknown>) => ["orgs", orgId, "invitations", params] as const
 	},
 	projects: {
 		list: (orgId: string, params?: Record<string, unknown>) => ["projects", orgId, params] as const,

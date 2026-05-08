@@ -8,9 +8,10 @@ import { useProjectDEK } from "#/lib/queries/projects"
 export function secretsQueryOptions(projectId: string, environment: string) {
     return queryOptions({
         queryKey: [...queryKeys.secrets.list(projectId), environment],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             const { data, error } = await api().GET("/secrets", {
                 params: { query: { project_id: projectId, environment } },
+                signal,
             })
             if (error || !data) throw new Error("Failed to fetch secrets")
             return data
@@ -44,7 +45,7 @@ export function useCreateSecret() {
             projectDEK: Uint8Array
         }) => {
             const MAX_BYTES = 1_048_576 // 1 MB
-        
+
             let jsonPayload: object
             if (typeof value === "string") {
                 const encoded = new TextEncoder().encode(value)
@@ -54,10 +55,10 @@ export function useCreateSecret() {
                 if (value.byteLength > MAX_BYTES) throw new Error("File exceeds 1 MB limit")
                 jsonPayload = { name, value: toBase64(value), type: "base64" }
             }
-        
+
             const nameHashBytes = await hashName(name, projectDEK)
             const nameHash = toBase64(nameHashBytes)
-        
+
             const payload = new TextEncoder().encode(JSON.stringify(jsonPayload))
             const { ciphertext, nonce } = await encrypt(payload, projectDEK)
 
@@ -124,7 +125,7 @@ export function useDecryptedSecrets(projectId: string, environment: string) {
 
     return useQuery({
         queryKey: [...queryKeys.secrets.list(projectId), environment, "decrypted", fingerprint],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             if (!projectDEK || secrets.length === 0) return []
 
             const nameHashes = secrets.map((s) => s.name_hash!)
@@ -135,6 +136,7 @@ export function useDecryptedSecrets(projectId: string, environment: string) {
                     environment,
                     name_hashes: nameHashes,
                 },
+                signal,
             })
             if (error || !data) throw new Error("Failed to fetch secrets")
 
@@ -215,12 +217,13 @@ export function useUpdateSecret() {
 export function useSecretVersions(projectId: string, environment: string, nameHash: string) {
     return useQuery({
         queryKey: queryKeys.secrets.versions(projectId, nameHash),
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             const { data, error } = await api().GET("/secrets/{nameHash}/versions", {
                 params: {
                     path: { nameHash: toUrlSafeBase64(nameHash) },
                     query: { project_id: projectId, environment },
                 },
+                signal,
             })
             if (error || !data) throw new Error("Failed to fetch versions")
             return data as { current_version?: number; versions?: { version?: number; created_at?: string }[] }

@@ -16,9 +16,10 @@ export function auditQueryOptions(
 ) {
 	return queryOptions({
 		queryKey: queryKeys.audit.list(projectId, opts),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/audit-logs", {
-				params: { query: { project_id: projectId, ...opts } as any },
+				params: { query: { project_id: projectId, ...opts } },
+				signal
 			})
 			if (error || !data) throw new Error("Failed to fetch audit logs")
 			return data

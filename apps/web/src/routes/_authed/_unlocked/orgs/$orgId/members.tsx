@@ -2,7 +2,7 @@ import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Avatar } from "#/components/ui/avatar"
@@ -15,6 +15,7 @@ import { InviteMemberDialog } from "#/components/invite-member-dialog"
 import { orgMembersQueryOptions, useRemoveMember } from "#/lib/queries/orgs"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { Users, UserPlus, Trash2 } from "lucide-react"
+import { getInitials } from "#/lib/utils"
 
 const searchSchema = z.object({
 	page: z.number().default(1),
@@ -37,15 +38,6 @@ interface MemberRow {
 	name?: string
 	role?: string
 	created_at?: string
-}
-
-function getInitials(name?: string, email?: string): string {
-	const source = name || email || "?"
-	return source
-		.split(/[\s@]/)
-		.slice(0, 2)
-		.map((s) => s[0]?.toUpperCase() ?? "")
-		.join("")
 }
 
 function MembersPage() {
@@ -205,7 +197,7 @@ function MembersPage() {
 					{selectedMember && (
 						<div className="space-y-4 px-6 py-4">
 							<div>
-								<label className="text-xs font-medium text-muted-foreground">Role</label>
+								<span className="text-xs font-medium text-muted-foreground">Role</span>
 								<p className="mt-1">
 									<Badge variant={selectedMember.role === "admin" ? "primary" : "neutral"}>
 										{selectedMember.role}
@@ -213,7 +205,7 @@ function MembersPage() {
 								</p>
 							</div>
 							<div>
-								<label className="text-xs font-medium text-muted-foreground">Joined</label>
+								<span className="text-xs font-medium text-muted-foreground">Joined</span>
 								<p className="mt-1 text-sm">
 									{selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : "—"}
 								</p>

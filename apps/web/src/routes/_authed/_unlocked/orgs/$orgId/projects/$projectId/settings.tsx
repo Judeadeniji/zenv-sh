@@ -14,6 +14,7 @@ import { projectQueryOptions, useProjectKey, useDeleteProject, listKeyGrantsQuer
 import { RotateDEKDialog } from "#/components/rotate-dek-dialog"
 import { fromBase64, toBase64 } from "#/lib/encoding"
 import { AlertCircle, Copy, Check, RefreshCw, ShieldCheck, ShieldOff, UserCheck } from "lucide-react"
+import { formatDateTime } from "#/lib/format"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings")({
 	component: ProjectSettingsPage,
@@ -76,7 +77,7 @@ function GeneralSection({ projectId, name, createdAt }: { projectId: string; nam
 				{createdAt && (
 					<div>
 						<label className="text-xs font-medium text-muted-foreground">Created</label>
-						<p className="mt-1 text-sm">{new Date(createdAt).toLocaleDateString()}</p>
+						<p className="mt-1 text-sm">{formatDateTime(createdAt)}</p>
 					</div>
 				)}
 			</div>

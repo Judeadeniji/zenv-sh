@@ -16,9 +16,10 @@ export function tokensQueryOptions(
 ) {
 	return queryOptions({
 		queryKey: queryKeys.tokens.list(projectId, opts),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/tokens", {
 				params: { query: { project_id: projectId, ...opts } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch tokens")
 			return data

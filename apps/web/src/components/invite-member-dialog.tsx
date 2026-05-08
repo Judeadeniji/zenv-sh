@@ -29,7 +29,7 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 	const [isPending, setIsPending] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
-	const form = useForm<InviteInput>({
+	const form = useForm({
 		resolver: zodResolver(inviteSchema),
 		defaultValues: { email: "", role: "member" },
 	})

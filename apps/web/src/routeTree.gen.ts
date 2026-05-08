@@ -29,6 +29,7 @@ import { Route as AuthedUnlockedOrgsOrgIdRouteRouteImport } from './routes/_auth
 import { Route as AuthedUnlockedOrgsOrgIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/index'
 import { Route as AuthedUnlockedOrgsOrgIdSettingsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/settings'
 import { Route as AuthedUnlockedOrgsOrgIdMembersRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/members'
+import { Route as AuthedUnlockedOrgsOrgIdInvitationsRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/invitations'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/index'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/route'
 import { Route as AuthedUnlockedOrgsOrgIdProjectsProjectIdIndexRouteImport } from './routes/_authed/_unlocked/orgs/$orgId/projects/$projectId/index'
@@ -140,6 +141,12 @@ const AuthedUnlockedOrgsOrgIdMembersRoute =
     path: '/members',
     getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
   } as any)
+const AuthedUnlockedOrgsOrgIdInvitationsRoute =
+  AuthedUnlockedOrgsOrgIdInvitationsRouteImport.update({
+    id: '/invitations',
+    path: '/invitations',
+    getParentRoute: () => AuthedUnlockedOrgsOrgIdRouteRoute,
+  } as any)
 const AuthedUnlockedOrgsOrgIdProjectsIndexRoute =
   AuthedUnlockedOrgsOrgIdProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -198,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/recovery-requests': typeof AuthedUnlockedRecoveryRequestsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
   '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
+  '/orgs/$orgId/invitations': typeof AuthedUnlockedOrgsOrgIdInvitationsRoute
   '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
   '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
@@ -223,6 +231,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthedUnlockedOnboardingRoute
   '/recovery-requests': typeof AuthedUnlockedRecoveryRequestsRoute
   '/settings': typeof AuthedUnlockedSettingsRoute
+  '/orgs/$orgId/invitations': typeof AuthedUnlockedOrgsOrgIdInvitationsRoute
   '/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
   '/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdIndexRoute
@@ -252,6 +261,7 @@ export interface FileRoutesById {
   '/_authed/_unlocked/settings': typeof AuthedUnlockedSettingsRoute
   '/_authed/_unlocked/': typeof AuthedUnlockedIndexRoute
   '/_authed/_unlocked/orgs/$orgId': typeof AuthedUnlockedOrgsOrgIdRouteRouteWithChildren
+  '/_authed/_unlocked/orgs/$orgId/invitations': typeof AuthedUnlockedOrgsOrgIdInvitationsRoute
   '/_authed/_unlocked/orgs/$orgId/members': typeof AuthedUnlockedOrgsOrgIdMembersRoute
   '/_authed/_unlocked/orgs/$orgId/settings': typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   '/_authed/_unlocked/orgs/$orgId/': typeof AuthedUnlockedOrgsOrgIdIndexRoute
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/recovery-requests'
     | '/settings'
     | '/orgs/$orgId'
+    | '/orgs/$orgId/invitations'
     | '/orgs/$orgId/members'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId/'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recovery-requests'
     | '/settings'
+    | '/orgs/$orgId/invitations'
     | '/orgs/$orgId/members'
     | '/orgs/$orgId/settings'
     | '/orgs/$orgId'
@@ -333,6 +345,7 @@ export interface FileRouteTypes {
     | '/_authed/_unlocked/settings'
     | '/_authed/_unlocked/'
     | '/_authed/_unlocked/orgs/$orgId'
+    | '/_authed/_unlocked/orgs/$orgId/invitations'
     | '/_authed/_unlocked/orgs/$orgId/members'
     | '/_authed/_unlocked/orgs/$orgId/settings'
     | '/_authed/_unlocked/orgs/$orgId/'
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdMembersRouteImport
       parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
     }
+    '/_authed/_unlocked/orgs/$orgId/invitations': {
+      id: '/_authed/_unlocked/orgs/$orgId/invitations'
+      path: '/invitations'
+      fullPath: '/orgs/$orgId/invitations'
+      preLoaderRoute: typeof AuthedUnlockedOrgsOrgIdInvitationsRouteImport
+      parentRoute: typeof AuthedUnlockedOrgsOrgIdRouteRoute
+    }
     '/_authed/_unlocked/orgs/$orgId/projects/': {
       id: '/_authed/_unlocked/orgs/$orgId/projects/'
       path: '/projects'
@@ -591,6 +611,7 @@ const AuthedUnlockedOrgsOrgIdProjectsProjectIdRouteRouteWithChildren =
   )
 
 interface AuthedUnlockedOrgsOrgIdRouteRouteChildren {
+  AuthedUnlockedOrgsOrgIdInvitationsRoute: typeof AuthedUnlockedOrgsOrgIdInvitationsRoute
   AuthedUnlockedOrgsOrgIdMembersRoute: typeof AuthedUnlockedOrgsOrgIdMembersRoute
   AuthedUnlockedOrgsOrgIdSettingsRoute: typeof AuthedUnlockedOrgsOrgIdSettingsRoute
   AuthedUnlockedOrgsOrgIdIndexRoute: typeof AuthedUnlockedOrgsOrgIdIndexRoute
@@ -600,6 +621,8 @@ interface AuthedUnlockedOrgsOrgIdRouteRouteChildren {
 
 const AuthedUnlockedOrgsOrgIdRouteRouteChildren: AuthedUnlockedOrgsOrgIdRouteRouteChildren =
   {
+    AuthedUnlockedOrgsOrgIdInvitationsRoute:
+      AuthedUnlockedOrgsOrgIdInvitationsRoute,
     AuthedUnlockedOrgsOrgIdMembersRoute: AuthedUnlockedOrgsOrgIdMembersRoute,
     AuthedUnlockedOrgsOrgIdSettingsRoute: AuthedUnlockedOrgsOrgIdSettingsRoute,
     AuthedUnlockedOrgsOrgIdIndexRoute: AuthedUnlockedOrgsOrgIdIndexRoute,

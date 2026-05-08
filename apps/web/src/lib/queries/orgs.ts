@@ -1,6 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
+import { authClient } from "../auth-client"
 
 export function orgsQueryOptions(opts?: {
 	page?: number
@@ -11,9 +12,10 @@ export function orgsQueryOptions(opts?: {
 }) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.list(opts),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/orgs", {
-				params: { query: { ...opts } as any },
+				params: { query: { ...opts } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch organizations")
 			return data
@@ -25,9 +27,10 @@ export function orgsQueryOptions(opts?: {
 export function orgQueryOptions(orgId: string) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.detail(orgId),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/orgs/{orgID}", {
 				params: { path: { orgID: orgId } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch organization")
 			return data
@@ -49,14 +52,31 @@ export function orgMembersQueryOptions(
 ) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.members(orgId, opts),
-		queryFn: async () => {
+		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/orgs/{orgID}/members", {
 				params: { path: { orgID: orgId }, query: { ...opts } },
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch members")
 			return data
 		},
 		staleTime: 30_000,
+	})
+}
+
+export function orgInvitationqQueries({ orgId }: {
+	orgId: string
+}) {
+	return queryOptions({
+		queryKey: queryKeys.orgs.invitations(orgId),
+		queryFn: async ({ signal }) => {
+			const data = await authClient.organization.listInvitations({
+				query: { organizationId: orgId },
+				fetchOptions: { signal, throw: true }
+			});
+
+			return data;
+		}
 	})
 }
 
@@ -106,6 +126,7 @@ export function useRemoveMember() {
 			if (error) throw new Error("Failed to remove member")
 		},
 		onSuccess: async (_, { orgId }) => {
+			// Prefix matching queryKeys.orgs.all covers the list and details
 			await qc.invalidateQueries({ queryKey: queryKeys.orgs.all })
 			await qc.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) })
 		},
