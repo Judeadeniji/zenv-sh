@@ -7,8 +7,12 @@ export const Route = createFileRoute("/_auth")({
     // Session + vault state check — works on both server and client
     // because meQueryOptions uses the isomorphic API client
     let me;
-
-    me = await context.queryClient.fetchQuery(meQueryOptions);
+    try {
+      me = await context.queryClient.fetchQuery(meQueryOptions);
+    } catch {
+      console.log("errrrrrrrr")
+      return;
+    }
     // Vault not set up → redirect to setup (skip if already there)
     if (!me.vault_setup_complete && location.pathname !== "/vault-setup") {
       throw redirect({ to: "/vault-setup" });
