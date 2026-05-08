@@ -2,7 +2,6 @@ import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "#/components/ui/button"
-import { Badge } from "#/components/ui/badge"
 import { Spinner } from "#/components/ui/spinner"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
@@ -22,7 +21,10 @@ import {
 	Copy,
 	Check,
 	Plus,
-	ArrowRight,
+	ChevronRight,
+	ArrowUpRight,
+	Eye,
+	EyeOff,
 } from "lucide-react"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/")({
@@ -32,21 +34,59 @@ export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$p
 function ProjectDashboard() {
 	const { orgId, projectId } = Route.useParams()
 	const { data: project } = useQuery(projectQueryOptions(projectId))
+	const { data: stats } = useQuery(projectStatsQueryOptions(projectId))
 
 	const name = (project as { name?: string })?.name ?? projectId
+	const totalSecrets = stats?.total_secrets ?? 0
+	const totalTokens = stats?.total_service_tokens ?? 0
+	const totalAuditLogs = stats?.total_audit_logs ?? 0
 
 	return (
-		<div>
-			<DashboardHeader projectId={projectId} name={name} />
-			<EnvironmentBreakdown orgId={orgId} projectId={projectId} />
-			<StatsGrid orgId={orgId} projectId={projectId} />
+		<div className="w-full">
 
-			<div className="grid gap-4 lg:grid-cols-2">
-				<div className="space-y-4">
+			{/* ── Header ── */}
+			<ProjectHeader projectId={projectId} name={name} />
+
+			{/* ── Inline stat strip ── */}
+			<div className="mb-8 flex items-center gap-6 border-b border-border pb-6">
+				<StatPill
+					label="Secrets"
+					value={totalSecrets}
+					to="/orgs/$orgId/projects/$projectId/secrets"
+					orgId={orgId}
+					projectId={projectId}
+					icon={<KeyRound className="size-3" />}
+				/>
+				<div className="h-3 w-px bg-border" />
+				<StatPill
+					label="Tokens"
+					value={totalTokens}
+					to="/orgs/$orgId/projects/$projectId/tokens"
+					orgId={orgId}
+					projectId={projectId}
+					icon={<FileKey className="size-3" />}
+				/>
+				<div className="h-3 w-px bg-border" />
+				<StatPill
+					label="Audit logs"
+					value={totalAuditLogs}
+					to="/orgs/$orgId/projects/$projectId/audit"
+					orgId={orgId}
+					projectId={projectId}
+					icon={<Shield className="size-3" />}
+				/>
+			</div>
+
+			{/* ── Environment tabs ── */}
+			<EnvironmentTabs orgId={orgId} projectId={projectId} stats={stats} />
+
+			{/* ── Main content ── */}
+			<div className="grid grid-cols-2 gap-8">
+				<div className="space-y-8">
 					<ProjectKeySection projectId={projectId} />
 					<QuickStartSection projectId={projectId} />
 				</div>
-				<div className="space-y-4">
+				<div className="space-y-8">
 					<RecentActivity orgId={orgId} projectId={projectId} />
 					<TokenOverview orgId={orgId} projectId={projectId} />
 				</div>
@@ -57,7 +97,7 @@ function ProjectDashboard() {
 
 /* ── Header ── */
 
-function DashboardHeader({ projectId, name }: { projectId: string; name: string }) {
+function ProjectHeader({ projectId, name }: { projectId: string; name: string }) {
 	const [copied, setCopied] = useState(false)
 
 	const handleCopyId = () => {
@@ -70,131 +110,124 @@ function DashboardHeader({ projectId, name }: { projectId: string; name: string 
 	return (
 		<div className="mb-6 flex items-start justify-between">
 			<div>
-				<h1 className="text-lg font-semibold">{name}</h1>
+				<h1 className="text-xl font-semibold tracking-tight">{name}</h1>
 				<button
 					type="button"
 					onClick={handleCopyId}
-					className="mt-0.5 flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+					className="group mt-1 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
 				>
-					{projectId}
-					{copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+					<span>{projectId}</span>
+					{copied
+						? <Check className="size-3 text-primary" />
+						: <Copy className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
+					}
 				</button>
 			</div>
-			<div className="flex gap-2">
+
+			<div className="flex items-center gap-2">
 				<CreateSecretDialog
 					projectId={projectId}
-					trigger={<Button type="button" variant="outline" size="sm"><Plus /> Secret</Button>}
+					trigger={
+						<Button variant="outline" size="sm" className="h-8 gap-1.5 border-border text-xs font-normal">
+							<Plus className="size-3.5" />
+							Secret
+						</Button>
+					}
 				/>
 				<CreateTokenDialog
 					projectId={projectId}
-					trigger={<Button type="button" size="sm"><Plus /> Token</Button>}
+					trigger={
+						<Button size="sm" className="h-8 gap-1.5 text-xs font-normal">
+							<Plus className="size-3.5" />
+							Token
+						</Button>
+					}
 				/>
 			</div>
 		</div>
 	)
 }
 
-/* ── Environment Breakdown ── */
+/* ── Stat pill ── */
 
-function EnvironmentBreakdown({ orgId, projectId }: { orgId: string; projectId: string }) {
-	const activeEnv = useNavStore((s) => s.activeEnvironment)
-	const setEnv = useNavStore((s) => s.setActiveEnvironment)
-
-	const { data: stats, isLoading } = useQuery(projectStatsQueryOptions(projectId))
-
-	const envColors: Record<string, string> = {
-		development: "bg-blue-500",
-		staging: "bg-amber-500",
-		production: "bg-emerald-500",
-	}
-
+function StatPill({
+	label, value, to, orgId, projectId, icon,
+}: {
+	label: string
+	value: number
+	to: string
+	orgId: string
+	projectId: string
+	icon: React.ReactNode
+}) {
 	return (
-		<div className="mb-4 grid gap-3 sm:grid-cols-3">
-			{ENVIRONMENTS.map((env) => {
-				const count = stats?.secrets_by_env?.[env] ?? 0
-				const isActive = env === activeEnv
-				return (
-					<Link
-						key={env}
-						to="/orgs/$orgId/projects/$projectId/secrets"
-						params={{ orgId, projectId }}
-						onClick={() => setEnv(env)}
-						className={`group rounded-lg border p-3 transition-colors hover:bg-muted/50 ${isActive ? "border-primary/40 bg-primary/5" : "border-border"}`}
-					>
-						<div className="flex items-center gap-2">
-							<div className={`size-2 rounded-full ${envColors[env] ?? "bg-muted-foreground"}`} />
-							<span className="text-xs font-medium capitalize">{env}</span>
-							{isActive && <Badge variant="primary" className="ml-auto text-[10px]">active</Badge>}
-						</div>
-						<p className="mt-2 text-xl font-semibold tabular-nums">
-							{isLoading ? <Spinner className="size-4" /> : count}
-						</p>
-						<p className="text-[11px] text-muted-foreground">secrets</p>
-					</Link>
-				)
-			})}
-		</div>
+		<Link
+			to={to}
+			params={{ orgId, projectId }}
+			className="group flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+		>
+			<span className="opacity-60 group-hover:opacity-100">{icon}</span>
+			<span className="font-mono tabular-nums text-foreground">{value}</span>
+			<span>{label}</span>
+		</Link>
 	)
 }
 
-/* ── Stat Cards ── */
+/* ── Environment tabs ── */
 
-function StatsGrid({ orgId, projectId }: { orgId: string; projectId: string }) {
-	const { data: stats } = useQuery(projectStatsQueryOptions(projectId))
+const ENV_COLORS: Record<string, string> = {
+	development: "bg-blue-500",
+	staging: "bg-amber-500",
+	production: "bg-emerald-500",
+}
 
-	const totalTokens = stats?.total_service_tokens ?? 0
-	const totalSecrets = stats?.total_secrets ?? 0
-	const totalAuditLogs = stats?.total_audit_logs ?? 0
+function EnvironmentTabs({
+	orgId,
+	projectId,
+	stats,
+}: {
+	orgId: string
+	projectId: string
+	stats: any
+}) {
+	const activeEnv = useNavStore((s) => s.activeEnvironment)
+	const setEnv = useNavStore((s) => s.setActiveEnvironment)
 
 	return (
-		<div className="mb-6 grid gap-4 sm:grid-cols-3">
-			<Link
-				to="/orgs/$orgId/projects/$projectId/secrets"
-				params={{ orgId, projectId }}
-				className="group rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-			>
-				<div className="flex items-center gap-3">
-					<div className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
-						<KeyRound className="size-4" />
-					</div>
-					<div>
-						<p className="text-2xl font-semibold tabular-nums">{totalSecrets}</p>
-						<p className="text-xs text-muted-foreground">Total secrets</p>
-					</div>
-				</div>
-			</Link>
-
-			<Link
-				to="/orgs/$orgId/projects/$projectId/tokens"
-				params={{ orgId, projectId }}
-				className="group rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-			>
-				<div className="flex items-center gap-3">
-					<div className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
-						<FileKey className="size-4" />
-					</div>
-					<div>
-						<p className="text-2xl font-semibold tabular-nums">{totalTokens}</p>
-						<p className="text-xs text-muted-foreground">Service tokens</p>
-					</div>
-				</div>
-			</Link>
-
-			<Link
-				to="/orgs/$orgId/projects/$projectId/audit"
-				params={{ orgId, projectId }}
-				className="group rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-			>
-				<div className="flex items-center gap-3">
-					<div className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">
-						<Shield className="size-4" />
-					</div>
-					<div>
-						<p className="text-2xl font-semibold tabular-nums">{totalAuditLogs}</p>
-						<p className="text-xs text-muted-foreground">Audit logs</p>
-					</div>
-				</div>
-			</Link>
+		<div className="mb-8">
+			<div className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+				Environments
+			</div>
+			<div className="flex gap-px overflow-hidden rounded-lg border border-border">
+				{ENVIRONMENTS.map((env) => {
+					const count = stats?.secrets_by_env?.[env] ?? 0
+					const isActive = env === activeEnv
+					return (
+						<Link
+							key={env}
+							to="/orgs/$orgId/projects/$projectId/secrets"
+							params={{ orgId, projectId }}
+							onClick={() => setEnv(env)}
+							className={`group flex flex-1 items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-muted/50 ${
+								isActive ? "bg-muted/60" : "bg-background"
+							}`}
+						>
+							<div className="flex items-center gap-2.5">
+								<div className={`size-1.5 rounded-full ${ENV_COLORS[env] ?? "bg-muted-foreground"}`} />
+								<span className={`text-sm capitalize ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+									{env}
+								</span>
+							</div>
+							<div className="flex items-center gap-2">
+								<span className={`font-mono text-sm tabular-nums ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+									{count}
+								</span>
+								<ChevronRight className={`size-3 opacity-0 transition-opacity group-hover:opacity-60 ${isActive ? "opacity-60" : ""}`} />
+							</div>
+						</Link>
+					)
+				})}
+			</div>
 		</div>
 	)
 }
@@ -214,50 +247,60 @@ function ProjectKeySection({ projectId }: { projectId: string }) {
 		})
 	}
 
-	if (!revealed) {
-		return (
-			<section className="rounded-lg border border-border p-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h2 className="text-sm font-medium">Project Key</h2>
-						<p className="mt-0.5 text-xs text-muted-foreground">
-							Set as <code className="rounded bg-muted px-1 py-0.5 text-[11px]">ZENV_PROJECT_KEY</code> for CLI/SDK access.
-						</p>
-					</div>
-					<Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
-						Reveal
-					</Button>
-				</div>
-			</section>
-		)
-	}
-
 	return (
-		<section className="rounded-lg border border-border p-4">
-			<div className="mb-3 flex items-center justify-between">
-				<h2 className="text-sm font-medium">Project Key</h2>
-				{projectKey && (
-					<Button variant="ghost" size="sm" className="text-xs" onClick={handleCopyEnvLine}>
-						{envCopied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-						Copy
-					</Button>
-				)}
+		<section>
+			<SectionHeader label="Project key" />
+			<div className="overflow-hidden rounded-lg border border-border">
+				<div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
+					<span className="font-mono text-[11px] text-muted-foreground">ZENV_PROJECT_KEY</span>
+					<div className="flex items-center gap-1">
+						{revealed && projectKey && (
+							<button
+								type="button"
+								onClick={handleCopyEnvLine}
+								className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+							>
+								{envCopied ? <Check className="size-3 text-primary" /> : <Copy className="size-3" />}
+								Copy env line
+							</button>
+						)}
+						<button
+							type="button"
+							onClick={() => setRevealed((v) => !v)}
+							className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						>
+							{revealed ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+							{revealed ? "Hide" : "Reveal"}
+						</button>
+					</div>
+				</div>
+
+				<div className="px-4 py-3">
+					{!revealed ? (
+						<div className="flex items-center gap-2">
+							<div className="flex gap-0.5">
+								{Array.from({ length: 32 }).map((_, i) => (
+									<div key={i} className="size-1.5 rounded-full bg-muted-foreground/20" />
+								))}
+							</div>
+						</div>
+					) : isLoading ? (
+						<Spinner />
+					) : error ? (
+						<Alert variant="danger">
+							<AlertCircle />
+							<AlertDescription>{error.message}</AlertDescription>
+						</Alert>
+					) : projectKey ? (
+						<>
+							<OneTimeDisplay value={projectKey} label="ZENV_PROJECT_KEY" masked={false} />
+							<p className="mt-2 text-[11px] text-muted-foreground">
+								Unwrapped client-side using your private key. The server never sees this value.
+							</p>
+						</>
+					) : null}
+				</div>
 			</div>
-			{isLoading && <Spinner />}
-			{error && (
-				<Alert variant="danger">
-					<AlertCircle />
-					<AlertDescription>{error.message}</AlertDescription>
-				</Alert>
-			)}
-			{projectKey && (
-				<>
-					<OneTimeDisplay value={projectKey} label="ZENV_PROJECT_KEY" masked={false} />
-					<p className="mt-2 text-[11px] text-muted-foreground">
-						Unwrapped in your browser using your private key. The server never sees this value.
-					</p>
-				</>
-			)}
 		</section>
 	)
 }
@@ -266,14 +309,17 @@ function ProjectKeySection({ projectId }: { projectId: string }) {
 
 function QuickStartSection({ projectId }: { projectId: string }) {
 	return (
-		<section className="rounded-lg border border-border p-4">
-			<div className="mb-3 flex items-center gap-2">
-				<Terminal className="size-4 text-muted-foreground" />
-				<h2 className="text-sm font-medium">Quick Start</h2>
-			</div>
-			<div className="space-y-3">
-				<Step n={1} label="Link this project" cmd={`zenv projects init ${projectId}`} />
-				<Step n={2} label="Run with secrets injected" cmd="zenv run -- npm start" />
+		<section>
+			<SectionHeader label="Quick start" />
+			<div className="overflow-hidden rounded-lg border border-border">
+				<div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+					<Terminal className="size-3.5 text-muted-foreground" />
+					<span className="text-[11px] font-medium text-muted-foreground">Terminal</span>
+				</div>
+				<div className="divide-y divide-border">
+					<Step n={1} label="Link this project" cmd={`zenv projects init ${projectId}`} />
+					<Step n={2} label="Run with secrets injected" cmd="zenv run -- npm start" />
+				</div>
 			</div>
 		</section>
 	)
@@ -290,63 +336,70 @@ function Step({ n, label, cmd }: { n: number; label: string; cmd: string }) {
 	}
 
 	return (
-		<div>
-			<p className="mb-1 text-xs text-muted-foreground">
-				<span className="mr-1.5 inline-flex size-4 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-					{n}
-				</span>
-				{label}
-			</p>
-			<div className="flex items-center gap-2">
-				<code className="flex-1 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs">$ {cmd}</code>
-				<Button variant="outline" size="icon-sm" onClick={handleCopy}>
-					{copied ? <Check className="text-success" /> : <Copy />}
-				</Button>
+		<div className="flex items-center gap-4 px-4 py-3">
+			<span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-medium tabular-nums text-muted-foreground">
+				{n}
+			</span>
+			<div className="min-w-0 flex-1">
+				<p className="mb-1 text-[11px] text-muted-foreground">{label}</p>
+				<code className="block truncate font-mono text-xs text-foreground">$ {cmd}</code>
 			</div>
+			<button
+				type="button"
+				onClick={handleCopy}
+				className="shrink-0 rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+			>
+				{copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+			</button>
 		</div>
 	)
 }
 
 /* ── Recent Activity ── */
 
+const ACTION_RESULT_DOT: Record<string, string> = {
+	success: "bg-emerald-500",
+	denied: "bg-red-500",
+	error: "bg-amber-500",
+}
+
 function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string }) {
 	const { data, isLoading } = useQuery(auditQueryOptions(projectId, { per_page: 5 }))
 	const logs = data?.entries ?? []
 
 	return (
-		<section className="rounded-lg border border-border p-4">
+		<section>
 			<div className="mb-3 flex items-center justify-between">
-				<h2 className="text-sm font-medium">Recent Activity</h2>
+				<SectionHeader label="Recent activity" noMargin />
 				<Link
 					to="/orgs/$orgId/projects/$projectId/audit"
 					params={{ orgId, projectId }}
-					className="text-xs text-muted-foreground hover:text-foreground"
+					className="flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
 				>
-					View all <ArrowRight className="ml-0.5 inline size-3" />
+					View all <ArrowUpRight className="size-3" />
 				</Link>
 			</div>
 
-			{isLoading ? (
-				<div className="flex justify-center py-4"><Spinner /></div>
-			) : logs.length === 0 ? (
-				<p className="py-4 text-center text-xs text-muted-foreground">No activity yet</p>
-			) : (
-				<div className="space-y-2">
-					{logs.map((log) => (
-						<div key={log.id} className="flex items-center gap-3">
-							<Badge
-								variant={log.result === "success" ? "success" : log.result === "denied" ? "danger" : "neutral"}
-								className="text-[10px]"
-							>
-								{log.action}
-							</Badge>
-							<span className="ml-auto text-[11px] text-muted-foreground">
+			<div className="overflow-hidden rounded-lg border border-border">
+				{isLoading ? (
+					<div className="flex justify-center py-8"><Spinner /></div>
+				) : logs.length === 0 ? (
+					<p className="py-10 text-center text-xs text-muted-foreground">No activity yet</p>
+				) : (
+					logs.map((log, i) => (
+						<div
+							key={log.id}
+							className={`flex items-center gap-3 px-4 py-2.5 ${i < logs.length - 1 ? "border-b border-border" : ""}`}
+						>
+							<div className={`size-1.5 shrink-0 rounded-full ${ACTION_RESULT_DOT[log.result!] ?? "bg-muted-foreground"}`} />
+							<code className="flex-1 truncate font-mono text-xs text-foreground">{log.action}</code>
+							<span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
 								{log.created_at ? formatRelativeTime(log.created_at) : "—"}
 							</span>
 						</div>
-					))}
-				</div>
-			)}
+					))
+				)}
+			</div>
 		</section>
 	)
 }
@@ -355,42 +408,68 @@ function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string
 
 function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string }) {
 	const { data, isLoading } = useQuery(tokensQueryOptions(projectId, { per_page: 5 }))
-	const tokens: { id: string; name?: string; permission?: string; environment?: string; last_used_at?: string }[] =
-		(data as { tokens?: { id: string; name?: string; permission?: string; environment?: string; last_used_at?: string }[] })?.tokens ?? []
+	const tokens: {
+		id: string
+		name?: string
+		permission?: string
+		environment?: string
+		last_used_at?: string
+	}[] = (data as any)?.tokens ?? []
 
 	return (
-		<section className="rounded-lg border border-border p-4">
+		<section>
 			<div className="mb-3 flex items-center justify-between">
-				<h2 className="text-sm font-medium">Service Tokens</h2>
+				<SectionHeader label="Service tokens" noMargin />
 				<Link
 					to="/orgs/$orgId/projects/$projectId/tokens"
 					params={{ orgId, projectId }}
 					search={{ status: "all" }}
-					className="text-xs text-muted-foreground hover:text-foreground"
+					className="flex items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
 				>
-					View all <ArrowRight className="ml-0.5 inline size-3" />
+					View all <ArrowUpRight className="size-3" />
 				</Link>
 			</div>
 
-			{isLoading ? (
-				<div className="flex justify-center py-4"><Spinner /></div>
-			) : tokens.length === 0 ? (
-				<p className="py-4 text-center text-xs text-muted-foreground">No tokens yet</p>
-			) : (
-				<div className="space-y-2">
-					{tokens.map((token) => (
-						<div key={token.id} className="flex items-center gap-2">
-							<FileKey className="size-3.5 text-muted-foreground" />
-							<span className="flex-1 truncate text-sm font-medium">{token.name}</span>
-							<Badge variant="neutral" className="text-[10px]">{token.permission === "read_write" ? "rw" : "r"}</Badge>
-							<Badge variant="neutral" className="text-[10px]">{token.environment}</Badge>
+			<div className="overflow-hidden rounded-lg border border-border">
+				{isLoading ? (
+					<div className="flex justify-center py-8"><Spinner /></div>
+				) : tokens.length === 0 ? (
+					<p className="py-10 text-center text-xs text-muted-foreground">No tokens yet</p>
+				) : (
+					tokens.map((token, i) => (
+						<div
+							key={token.id}
+							className={`flex items-center gap-3 px-4 py-2.5 ${i < tokens.length - 1 ? "border-b border-border" : ""}`}
+						>
+							<FileKey className="size-3.5 shrink-0 text-muted-foreground" />
+							<span className="flex-1 truncate text-sm">{token.name}</span>
+							<div className="flex items-center gap-1.5">
+								<EnvDot env={token.environment} />
+								<span className="text-[11px] capitalize text-muted-foreground">{token.environment}</span>
+							</div>
+							<span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+								{token.permission === "read_write" ? "rw" : "r"}
+							</span>
 						</div>
-					))}
-					{tokens.length > 5 && (
-						<p className="text-xs text-muted-foreground">+{tokens.length - 5} more</p>
-					)}
-				</div>
-			)}
+					))
+				)}
+			</div>
 		</section>
+	)
+}
+
+/* ── Shared primitives ── */
+
+function SectionHeader({ label, noMargin }: { label: string; noMargin?: boolean }) {
+	return (
+		<h2 className={`text-xs font-medium uppercase tracking-widest text-muted-foreground ${noMargin ? "" : "mb-3"}`}>
+			{label}
+		</h2>
+	)
+}
+
+function EnvDot({ env }: { env?: string }) {
+	return (
+		<div className={`size-1.5 rounded-full ${ENV_COLORS[env ?? ""] ?? "bg-muted-foreground/40"}`} />
 	)
 }
