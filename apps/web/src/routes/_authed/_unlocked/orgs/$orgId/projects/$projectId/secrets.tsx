@@ -20,6 +20,7 @@ import { useDecryptedSecrets, useDeleteSecret, useSecretVersions, useRollbackSec
 import { useNavStore } from "#/lib/stores/nav"
 import { toast } from "sonner"
 import { KeyRound, Plus, Upload, Eye, EyeOff, Trash2, Copy, Check, Pencil, History, RotateCcw, AlertCircle } from "lucide-react"
+import { formatDateTime } from "#/lib/format"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets")({
 	component: SecretsPage,
@@ -92,7 +93,7 @@ function SecretsPage() {
 			header: "Updated",
 			cell: ({ row }) => (
 				<span className="text-xs text-muted-foreground">
-					{row.original.updated_at ? new Date(row.original.updated_at).toLocaleDateString() : "—"}
+					{row.original.updated_at ? formatDateTime(row.original.updated_at) : "—"}
 				</span>
 			),
 		},
