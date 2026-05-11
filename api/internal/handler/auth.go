@@ -32,16 +32,23 @@ func NewAuthHandler(db *sql.DB, identity *middleware.IdentitySession) *AuthHandl
 	return &AuthHandler{db: db, identity: identity}
 }
 
+// ErrorResponse is returned on all error responses.
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 // --- Vault Lock ---
 
 // Lock clears the vault unlock flag for the current session in Redis.
 //
-//	@Summary		Lock vault
-//	@Description	Removes the vault unlock record, requiring the user to re-enter their Vault Key on next access.
-//	@Tags			auth
-//	@Success		204
-//	@Security		SessionAuth
-//	@Router			/auth/lock [post]
+//	@Summary        Lock vault
+//	@Description    Clears the vault unlock record in Redis, requiring the user to re-enter their Vault Key on next access. Safe to call even if already locked.
+//	@Tags           auth
+//	@Produce        json
+//	@Success        204 "Vault locked successfully"
+//	@Failure        401 {object}    ErrorResponse   "No active session"
+//	@Security       SessionAuth
+//	@Router         /auth/lock [post]
 func (h *AuthHandler) Lock(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(middleware.IdentitySessionCookie)
 	if err != nil || cookie.Value == "" {
@@ -57,77 +64,81 @@ func (h *AuthHandler) Lock(w http.ResponseWriter, r *http.Request) {
 
 // --- Vault Unlock ---
 
+// UnlockRequest is the request body for POST /auth/unlock.
 type UnlockRequest struct {
-	AuthKeyHash string `json:"auth_key_hash"` // base64
+	// AuthKeyHash is the result of HashAuthKey(vaultKey), base64-encoded.
+	// Never send the raw Vault Key — only the derived hash.
+	AuthKeyHash string `json:"auth_key_hash" example:"base64encodedstring=="`
 }
 
+// UnlockResponse contains the encrypted key material returned after a successful unlock.
 type UnlockResponse struct {
-	WrappedDEK        string `json:"wrapped_dek"`         // base64
-	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
-	PublicKey         string `json:"public_key"`          // base64
+	// WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.
+	WrappedDEK string `json:"wrapped_dek" example:"base64encodedstring=="`
+	// WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.
+	WrappedPrivateKey string `json:"wrapped_private_key" example:"base64encodedstring=="`
+	// PublicKey is the user's raw Ed25519 public key, base64-encoded.
+	PublicKey string `json:"public_key" example:"base64encodedstring=="`
 }
 
 // Unlock verifies the Vault Key (via Auth Key hash) and returns the Wrapped DEK.
-// Requires an active identity session.
 //
-//	@Summary		Unlock vault
-//	@Description	Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair on success.
-//	@Tags			auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		UnlockRequest	true	"Auth Key hash (base64)"
-//	@Success		200		{object}	UnlockResponse
-//	@Failure		403		{object}	ErrorResponse	"Wrong Vault Key"
-//	@Security		SessionAuth
-//	@Router			/auth/unlock [post]
+//	@Summary        Unlock vault
+//	@Description    Verify the Auth Key hash (proof of Vault Key knowledge). On success, marks the session as vault-unlocked in Redis and returns the wrapped DEK and keypair so the client can derive the KEK and unwrap locally. The raw Vault Key never leaves the client.
+//	@Tags           auth
+//	@Accept         json
+//	@Produce        json
+//	@Param          body    body        UnlockRequest   true    "Auth Key hash derived from the user's Vault Key"
+//	@Success        200     {object}    UnlockResponse  "Vault unlocked — key material returned"
+//	@Failure        400     {object}    ErrorResponse   "Invalid request body or malformed base64"
+//	@Failure        401     {object}    ErrorResponse   "No active session"
+//	@Failure        403     {object}    ErrorResponse   "Wrong Vault Key — auth key hash mismatch"
+//	@Failure        404     {object}    ErrorResponse   "Vault not set up for this account"
+//	@Failure        500     {object}    ErrorResponse   "Internal server error"
+//	@Security       SessionAuth
+//	@Router         /auth/unlock [post]
 func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
 
 	var req UnlockRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	submittedHash, err := decodeBase64Field(req.AuthKeyHash, "auth_key_hash")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in auth_key_hash"})
 		return
 	}
 
-	submittedHash, err := base64.StdEncoding.DecodeString(req.AuthKeyHash)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid base64 in auth_key_hash"})
-		return
-	}
-
-	// Fetch user by identity ID.
-	var user model.Users
-	stmt := SELECT(
-		table.Users.AuthKeyHash,
-		table.Users.WrappedDek,
-		table.Users.WrappedPrivateKey,
-		table.Users.PublicKey,
-	).FROM(table.Users).WHERE(table.Users.IdentityID.EQ(String(sess.IdentityID)))
-
-	err = stmt.Query(h.db, &user)
-	if err != nil {
+	var identity model.Identities
+	if err := SELECT(
+		table.Identities.AuthKeyHash,
+		table.Identities.WrappedDek,
+		table.Identities.WrappedPrivateKey,
+		table.Identities.PublicKey,
+	).FROM(table.Identities).WHERE(table.Identities.IdentityID.EQ(UUID(userID))).
+		Query(h.db, &identity); err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "vault not set up"})
 			return
 		}
-		slog.Error("unlock: fetch user", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch user"})
+		slog.Error("unlock: fetch identity", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch user"})
 		return
 	}
 
 	// Constant-time comparison to prevent timing attacks.
-	// The client already ran HashAuthKey(authKey) — we compare directly.
-	if subtle.ConstantTimeCompare(submittedHash, user.AuthKeyHash) != 1 {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "wrong Vault Key"})
+	if subtle.ConstantTimeCompare(submittedHash, identity.AuthKeyHash) != 1 {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "wrong Vault Key"})
 		return
 	}
 
-	// Auth Key verified — mark vault as unlocked in Redis.
-	// Use the token part of the cookie (before ".") to match how RequireSession looks it up.
 	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
 	if cookie != nil {
 		sessionToken := strings.Split(cookie.Value, ".")[0]
@@ -137,59 +148,72 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, UnlockResponse{
-		WrappedDEK:        base64.StdEncoding.EncodeToString(user.WrappedDek),
-		WrappedPrivateKey: base64.StdEncoding.EncodeToString(user.WrappedPrivateKey),
-		PublicKey:         base64.StdEncoding.EncodeToString(user.PublicKey),
+		WrappedDEK:        base64.StdEncoding.EncodeToString(identity.WrappedDek),
+		WrappedPrivateKey: base64.StdEncoding.EncodeToString(identity.WrappedPrivateKey),
+		PublicKey:         base64.StdEncoding.EncodeToString(identity.PublicKey),
 	})
 }
 
 // --- Vault Setup ---
 
+// SetupVaultRequest is the request body for POST /auth/setup-vault.
 type SetupVaultRequest struct {
-	VaultKeyType       string `json:"vault_key_type"`       // "pin" or "passphrase"
-	Salt               string `json:"salt"`                 // base64
-	AuthKeyHash        string `json:"auth_key_hash"`        // base64
-	WrappedDEK         string `json:"wrapped_dek"`          // base64
-	PublicKey          string `json:"public_key"`           // base64
-	WrappedPrivateKey  string `json:"wrapped_private_key"`  // base64
-	RecoveryWrappedDEK string `json:"recovery_wrapped_dek"` // base64, optional — DEK wrapped with recovery key
-	RecoveryDisabled   bool   `json:"recovery_disabled"`    // enterprise opt-in to disable recovery
+	// VaultKeyType is the type of Vault Key the user chose. Must be "pin" or "passphrase".
+	VaultKeyType string `json:"vault_key_type" enums:"pin,passphrase" example:"passphrase"`
+	// Salt is the random salt used to derive the Key Encryption Key from the Vault Key, base64-encoded.
+	Salt string `json:"salt" example:"base64encodedstring=="`
+	// AuthKeyHash is HashAuthKey(vaultKey), used to verify the Vault Key on unlock, base64-encoded.
+	AuthKeyHash string `json:"auth_key_hash" example:"base64encodedstring=="`
+	// WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.
+	WrappedDEK string `json:"wrapped_dek" example:"base64encodedstring=="`
+	// PublicKey is the user's raw Ed25519 public key, base64-encoded.
+	PublicKey string `json:"public_key" example:"base64encodedstring=="`
+	// WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.
+	WrappedPrivateKey string `json:"wrapped_private_key" example:"base64encodedstring=="`
+	// RecoveryWrappedDEK is the DEK wrapped with the recovery key, base64-encoded. Optional.
+	RecoveryWrappedDEK string `json:"recovery_wrapped_dek,omitempty" example:"base64encodedstring=="`
+	// RecoveryDisabled disables all recovery methods for this account. Enterprise opt-in.
+	RecoveryDisabled bool `json:"recovery_disabled" example:"false"`
 }
 
+// SetupVaultResponse is returned after a successful vault setup.
 type SetupVaultResponse struct {
-	UserID             string `json:"user_id"`
-	VaultSetupComplete bool   `json:"vault_setup_complete"`
+	// UserID is the newly created vault identity UUID.
+	UserID string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	// VaultSetupComplete is always true on success.
+	VaultSetupComplete bool `json:"vault_setup_complete" example:"true"`
 }
 
-// SetupVault creates a zEnv user row linked to the authenticated identity.
-// Called after the user signs in and chooses a Vault Key.
+// SetupVault creates a vault identity linked to the authenticated user.
 //
-// @Summary		Setup vault
-// @Description	Store client-generated crypto material and link to authenticated identity.
-// @Tags			auth
-// @Accept			json
-// @Produce		json
-// @Param			body	body		SetupVaultRequest	true	"Crypto material from client"
-// @Success		201		{object}	SetupVaultResponse
-// @Failure		400		{object}	ErrorResponse
-// @Failure		409		{object}	ErrorResponse
-// @Security		SessionAuth
-// @Router			/auth/setup-vault [post]
+//	@Summary        Setup vault
+//	@Description    Store client-generated cryptographic material and link to the authenticated identity. Must be called once after signup before any vault operations. All crypto material is generated client-side — the server stores ciphertext only. On success, the session is immediately marked as vault-unlocked.
+//	@Tags           auth
+//	@Accept         json
+//	@Produce        json
+//	@Param          body    body        SetupVaultRequest   true    "Client-generated crypto material"
+//	@Success        201     {object}    SetupVaultResponse  "Vault created and session unlocked"
+//	@Failure        400     {object}    ErrorResponse       "Missing required fields, invalid vault_key_type, or malformed base64"
+//	@Failure        401     {object}    ErrorResponse       "No active session"
+//	@Failure        409     {object}    ErrorResponse       "Vault already set up for this account"
+//	@Failure        500     {object}    ErrorResponse       "Internal server error"
+//	@Security       SessionAuth
+//	@Router         /auth/setup-vault [post]
 func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
-	if sess == nil || sess.IdentityID == "" {
+	if sess == nil {
 		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
 
 	var req SetupVaultRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
-
 	if req.Salt == "" || req.AuthKeyHash == "" || req.WrappedDEK == "" || req.PublicKey == "" || req.WrappedPrivateKey == "" {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "all fields are required"})
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "salt, auth_key_hash, wrapped_dek, public_key, and wrapped_private_key are required"})
 		return
 	}
 	if req.VaultKeyType != "pin" && req.VaultKeyType != "passphrase" {
@@ -197,93 +221,81 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if vault already set up for this user.
-	var existingID string
-	err := h.db.QueryRowContext(r.Context(),
-		`SELECT id FROM users WHERE identity_id = $1`, sess.IdentityID,
-	).Scan(&existingID)
-	if err == nil {
+	// Use HasIdentity from session (set by LEFT JOIN in RequireSession) to avoid a round trip.
+	if sess.HasIdentity {
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "vault already set up for this account"})
 		return
 	}
 
-	// Decode base64 fields.
-	salt, err := base64.StdEncoding.DecodeString(req.Salt)
+	salt, err := decodeBase64Field(req.Salt, "salt")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in salt"})
 		return
 	}
-	authKeyHash, err := base64.StdEncoding.DecodeString(req.AuthKeyHash)
+	authKeyHash, err := decodeBase64Field(req.AuthKeyHash, "auth_key_hash")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in auth_key_hash"})
 		return
 	}
-	wrappedDEK, err := base64.StdEncoding.DecodeString(req.WrappedDEK)
+	wrappedDEK, err := decodeBase64Field(req.WrappedDEK, "wrapped_dek")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in wrapped_dek"})
 		return
 	}
-	publicKey, err := base64.StdEncoding.DecodeString(req.PublicKey)
+	publicKey, err := decodeBase64Field(req.PublicKey, "public_key")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in public_key"})
 		return
 	}
-	wrappedPrivateKey, err := base64.StdEncoding.DecodeString(req.WrappedPrivateKey)
+	wrappedPrivateKey, err := decodeBase64Field(req.WrappedPrivateKey, "wrapped_private_key")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in wrapped_private_key"})
 		return
 	}
-
-	// Decode optional recovery material.
 	var recoveryWrappedDEK []byte
 	if req.RecoveryWrappedDEK != "" {
-		recoveryWrappedDEK, err = base64.StdEncoding.DecodeString(req.RecoveryWrappedDEK)
+		recoveryWrappedDEK, err = decodeBase64Field(req.RecoveryWrappedDEK, "recovery_wrapped_dek")
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in recovery_wrapped_dek"})
 			return
 		}
 	}
 
-	userID := uuid.New()
+	identityID := uuid.New()
 	now := time.Now().UTC()
 
-	insertStmt := table.Users.INSERT(
-		table.Users.ID,
-		table.Users.Email,
-		table.Users.AuthKeyHash,
-		table.Users.VaultKeyType,
-		table.Users.Salt,
-		table.Users.WrappedDek,
-		table.Users.PublicKey,
-		table.Users.WrappedPrivateKey,
-		table.Users.IdentityID,
-		table.Users.RecoveryWrappedDek,
-		table.Users.RecoveryDisabled,
-		table.Users.CreatedAt,
-		table.Users.UpdatedAt,
+	if _, err := table.Identities.INSERT(
+		table.Identities.ID,
+		table.Identities.AuthKeyHash,
+		table.Identities.VaultKeyType,
+		table.Identities.Salt,
+		table.Identities.WrappedDek,
+		table.Identities.PublicKey,
+		table.Identities.WrappedPrivateKey,
+		table.Identities.IdentityID,
+		table.Identities.RecoveryWrappedDek,
+		table.Identities.RecoveryDisabled,
+		table.Identities.CreatedAt,
+		table.Identities.UpdatedAt,
 	).VALUES(
-		userID,
-		sess.Email,
+		identityID,
 		authKeyHash,
 		req.VaultKeyType,
 		salt,
 		wrappedDEK,
 		publicKey,
 		wrappedPrivateKey,
-		sess.IdentityID,
+		userID,
 		recoveryWrappedDEK,
 		req.RecoveryDisabled,
 		now,
 		now,
-	)
-
-	if _, err := insertStmt.Exec(h.db); err != nil {
-		slog.Error("setup-vault: insert user", "error", err)
+	).Exec(h.db); err != nil {
+		slog.Error("setup-vault: insert identity", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to set up vault"})
 		return
 	}
 
-	// Mark vault as unlocked — the user just derived keys during setup.
 	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
 	if cookie != nil {
 		sessionToken := strings.Split(cookie.Value, ".")[0]
@@ -293,64 +305,68 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, SetupVaultResponse{
-		UserID:             userID.String(),
+		UserID:             identityID.String(),
 		VaultSetupComplete: true,
 	})
 }
 
-// --- Me (user state) ---
+// --- Me ---
 
+// MeResponse is the response body for GET /auth/me.
 type MeResponse struct {
-	Email              string `json:"email"`
-	Name               string `json:"name,omitempty"`
-	VaultSetupComplete bool   `json:"vault_setup_complete"`
-	VaultKeyType       string `json:"vault_key_type,omitempty"`
-	Salt               string `json:"salt,omitempty"` // base64
-	VaultUnlocked      bool   `json:"vault_unlocked"`
+	// Email is the user's email address from their identity provider.
+	Email string `json:"email" example:"user@example.com"`
+	// Name is the user's display name from their identity provider.
+	Name string `json:"name,omitempty" example:"Jane Doe"`
+	// VaultSetupComplete is true if the user has completed vault setup.
+	VaultSetupComplete bool `json:"vault_setup_complete" example:"true"`
+	// VaultKeyType is the type of Vault Key the user chose ("pin" or "passphrase"). Only present if vault is set up.
+	VaultKeyType model.VaultKeyType `json:"vault_key_type,omitempty" enums:"pin,passphrase" example:"passphrase"`
+	// Salt is the KDF salt for the user's Key Encryption Key, base64-encoded. Only present if vault is set up.
+	Salt string `json:"salt,omitempty" example:"base64encodedstring=="`
+	// VaultUnlocked is true if the user has completed both auth layers in this session.
+	VaultUnlocked bool `json:"vault_unlocked" example:"false"`
 }
 
-// Me returns the current user's auth state.
+// Me returns the current user's auth and vault state.
 //
-//	@Summary		Get auth state
-//	@Description	Returns identity, vault setup status, and vault lock state.
-//	@Tags			auth
-//	@Produce		json
-//	@Success		200	{object}	MeResponse		"Successfully retrieved user state"
-//	@Failure		401	{object}	ErrorResponse	"Authentication required"
-//	@Security		SessionAuth
-//	@Router			/auth/me [get]
+//	@Summary        Get auth state
+//	@Description    Returns the authenticated user's identity info, vault setup status, and vault lock state. Use this to determine whether to show the vault setup flow, the unlock prompt, or the main UI. The salt is returned so the client can derive the KEK locally without an extra round trip.
+//	@Tags           auth
+//	@Produce        json
+//	@Success        200 {object}    MeResponse      "Current user state"
+//	@Failure        401 {object}    ErrorResponse   "No active session"
+//	@Security       SessionAuth
+//	@Router         /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
-	if sess == nil || sess.IdentityID == "" {
+	if sess == nil {
 		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
+
+	// Fetch name from unified users table.
+	var user model.Users
+	_ = SELECT(table.Users.Name).FROM(table.Users).WHERE(table.Users.ID.EQ(UUID(userID))).
+		Query(h.db, &user)
 
 	resp := MeResponse{
 		Email:         sess.Email,
+		Name:          user.Name,
 		VaultUnlocked: sess.IsVaultUnlocked(),
 	}
 
-	// Fetch display name from identity provider's user table.
-	var name string
-	_ = h.db.QueryRowContext(r.Context(),
-		`SELECT name FROM "user" WHERE id = $1`, sess.IdentityID,
-	).Scan(&name)
-	resp.Name = name
-
-	// Check if zEnv user exists (vault set up).
-	var user model.Users
-	stmt := SELECT(
-		table.Users.VaultKeyType,
-		table.Users.Salt,
-	).FROM(table.Users).WHERE(
-		table.Users.IdentityID.EQ(String(sess.IdentityID)),
-	)
-
-	if err := stmt.Query(h.db, &user); err == nil {
+	// Fetch vault material if identity exists.
+	var identity model.Identities
+	if err := SELECT(
+		table.Identities.VaultKeyType,
+		table.Identities.Salt,
+	).FROM(table.Identities).WHERE(table.Identities.IdentityID.EQ(UUID(userID))).
+		Query(h.db, &identity); err == nil {
 		resp.VaultSetupComplete = true
-		resp.VaultKeyType = user.VaultKeyType
-		resp.Salt = base64.StdEncoding.EncodeToString(user.Salt)
+		resp.VaultKeyType = identity.VaultKeyType
+		resp.Salt = base64.StdEncoding.EncodeToString(identity.Salt)
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -358,45 +374,51 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 // --- Vault Key Change ---
 
+// ChangeVaultKeyRequest is the request body for PUT /auth/change-vault-key.
 type ChangeVaultKeyRequest struct {
-	CurrentAuthKeyHash   string `json:"current_auth_key_hash"`   // base64
-	NewVaultKeyType      string `json:"new_vault_key_type"`      // "pin" or "passphrase"
-	NewSalt              string `json:"new_salt"`                // base64
-	NewAuthKeyHash       string `json:"new_auth_key_hash"`       // base64
-	NewWrappedDEK        string `json:"new_wrapped_dek"`         // base64
-	NewWrappedPrivateKey string `json:"new_wrapped_private_key"` // base64
+	// CurrentAuthKeyHash is HashAuthKey(currentVaultKey), used to verify the current Vault Key before rotation, base64-encoded.
+	CurrentAuthKeyHash string `json:"current_auth_key_hash" example:"base64encodedstring=="`
+	// NewVaultKeyType is the type of the new Vault Key. Must be "pin" or "passphrase".
+	NewVaultKeyType string `json:"new_vault_key_type" enums:"pin,passphrase" example:"passphrase"`
+	// NewSalt is a freshly generated KDF salt for the new Key Encryption Key, base64-encoded.
+	NewSalt string `json:"new_salt" example:"base64encodedstring=="`
+	// NewAuthKeyHash is HashAuthKey(newVaultKey), base64-encoded.
+	NewAuthKeyHash string `json:"new_auth_key_hash" example:"base64encodedstring=="`
+	// NewWrappedDEK is the same DEK re-wrapped with the new KEK, base64-encoded.
+	NewWrappedDEK string `json:"new_wrapped_dek" example:"base64encodedstring=="`
+	// NewWrappedPrivateKey is the private key re-wrapped with the new DEK, base64-encoded.
+	NewWrappedPrivateKey string `json:"new_wrapped_private_key" example:"base64encodedstring=="`
 }
 
-// ChangeVaultKey rotates the Vault Key without touching any item rows.
-// The client derives the old KEK, unwraps the DEK, derives a new KEK from
-// the new Vault Key, re-wraps the same DEK, and sends the new crypto material.
-// This is an O(1) operation — zero item rows are modified.
+// ChangeVaultKey rotates the Vault Key without touching any vault item rows.
 //
-//	@Summary		Change vault key
-//	@Description	Rotate vault key: verify current auth key, store new crypto material. O(1) — no item rows touched.
-//	@Tags			auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		ChangeVaultKeyRequest	true	"Current auth proof + new crypto material"
-//	@Success		200		{object}	map[string]string
-//	@Failure		400		{object}	ErrorResponse
-//	@Failure		403		{object}	ErrorResponse	"Wrong current Vault Key"
-//	@Security		SessionAuth
-//	@Router			/auth/change-vault-key [put]
+//	@Summary        Change vault key
+//	@Description    Rotate the Vault Key. The client derives the old KEK, unwraps the DEK, derives a new KEK from the new Vault Key, re-wraps the same DEK, and submits the new crypto material. This is an O(1) operation — zero vault item rows are touched. Requires the current Vault Key to be verified before rotation is applied.
+//	@Tags           auth
+//	@Accept         json
+//	@Produce        json
+//	@Param          body    body        ChangeVaultKeyRequest   true    "Current auth proof and new crypto material"
+//	@Success        200     {object}    map[string]string       "Vault key rotated successfully"
+//	@Failure        400     {object}    ErrorResponse           "Missing required fields, invalid vault_key_type, or malformed base64"
+//	@Failure        401     {object}    ErrorResponse           "No active session"
+//	@Failure        403     {object}    ErrorResponse           "Wrong current Vault Key"
+//	@Failure        404     {object}    ErrorResponse           "Vault not set up"
+//	@Failure        500     {object}    ErrorResponse           "Internal server error"
+//	@Security       SessionAuth
+//	@Router         /auth/change-vault-key [put]
 func (h *AuthHandler) ChangeVaultKey(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.GetSession(r.Context())
 	if sess == nil {
 		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
 
 	var req ChangeVaultKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
-
-	// Validate required fields.
 	if req.CurrentAuthKeyHash == "" || req.NewSalt == "" || req.NewAuthKeyHash == "" ||
 		req.NewWrappedDEK == "" || req.NewWrappedPrivateKey == "" {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "all fields are required"})
@@ -407,89 +429,73 @@ func (h *AuthHandler) ChangeVaultKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode current auth key hash.
-	currentHash, err := base64.StdEncoding.DecodeString(req.CurrentAuthKeyHash)
+	currentHash, err := decodeBase64Field(req.CurrentAuthKeyHash, "current_auth_key_hash")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in current_auth_key_hash"})
 		return
 	}
 
-	// Fetch stored auth key hash for verification.
-	var user model.Users
-	stmt := SELECT(
-		table.Users.ID,
-		table.Users.AuthKeyHash,
-	).FROM(table.Users).WHERE(table.Users.IdentityID.EQ(String(sess.IdentityID)))
-
-	if err := stmt.Query(h.db, &user); err != nil {
+	var identity model.Identities
+	if err := SELECT(table.Identities.ID, table.Identities.AuthKeyHash).
+		FROM(table.Identities).WHERE(table.Identities.IdentityID.EQ(UUID(userID))).
+		Query(h.db, &identity); err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
 			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "vault not set up"})
 			return
 		}
-		slog.Error("change-vault-key: fetch user", "error", err)
+		slog.Error("change-vault-key: fetch identity", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch user"})
 		return
 	}
 
-	// Verify current Vault Key via Auth Key hash (same as unlock flow).
 	rehashedSubmitted := amnesia.HashAuthKey(currentHash)
-	if subtle.ConstantTimeCompare(rehashedSubmitted, user.AuthKeyHash) != 1 {
+	if subtle.ConstantTimeCompare(rehashedSubmitted, identity.AuthKeyHash) != 1 {
 		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "wrong current Vault Key"})
 		return
 	}
 
-	// Decode new crypto material.
-	newSalt, err := base64.StdEncoding.DecodeString(req.NewSalt)
+	newSalt, err := decodeBase64Field(req.NewSalt, "new_salt")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in new_salt"})
 		return
 	}
-	newAuthKeyHash, err := base64.StdEncoding.DecodeString(req.NewAuthKeyHash)
+	newAuthKeyHash, err := decodeBase64Field(req.NewAuthKeyHash, "new_auth_key_hash")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in new_auth_key_hash"})
 		return
 	}
-	newWrappedDEK, err := base64.StdEncoding.DecodeString(req.NewWrappedDEK)
+	newWrappedDEK, err := decodeBase64Field(req.NewWrappedDEK, "new_wrapped_dek")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in new_wrapped_dek"})
 		return
 	}
-	newWrappedPrivateKey, err := base64.StdEncoding.DecodeString(req.NewWrappedPrivateKey)
+	newWrappedPrivateKey, err := decodeBase64Field(req.NewWrappedPrivateKey, "new_wrapped_private_key")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in new_wrapped_private_key"})
 		return
 	}
 
-	// Update user row with new crypto material. Same DEK, just re-wrapped.
-	now := time.Now().UTC()
-	updateStmt := table.Users.UPDATE(
-		table.Users.VaultKeyType,
-		table.Users.Salt,
-		table.Users.AuthKeyHash,
-		table.Users.WrappedDek,
-		table.Users.WrappedPrivateKey,
-		table.Users.UpdatedAt,
+	if _, err := table.Identities.UPDATE(
+		table.Identities.VaultKeyType,
+		table.Identities.Salt,
+		table.Identities.AuthKeyHash,
+		table.Identities.WrappedDek,
+		table.Identities.WrappedPrivateKey,
+		table.Identities.UpdatedAt,
 	).SET(
 		req.NewVaultKeyType,
 		newSalt,
 		newAuthKeyHash,
 		newWrappedDEK,
 		newWrappedPrivateKey,
-		now,
-	).WHERE(table.Users.ID.EQ(UUID(user.ID)))
-
-	if _, err := updateStmt.Exec(h.db); err != nil {
-		slog.Error("change-vault-key: update user", "error", err)
+		time.Now().UTC(),
+	).WHERE(table.Identities.ID.EQ(UUID(identity.ID))).Exec(h.db); err != nil {
+		slog.Error("change-vault-key: update identity", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update vault key"})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "vault key changed"})
-}
-
-// ErrorResponse is returned on all error responses.
-type ErrorResponse struct {
-	Error string `json:"error"`
 }
 
 // --- Helpers ---
@@ -498,4 +504,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func decodeBase64Field(s, field string) ([]byte, error) {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, errors.New("invalid base64 in " + field)
+	}
+	return b, nil
 }
