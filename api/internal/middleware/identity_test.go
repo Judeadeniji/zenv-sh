@@ -34,8 +34,8 @@ func TestRequireSession_ValidCookie(t *testing.T) {
 		if sess == nil {
 			t.Fatal("session is nil in context")
 		}
-		if sess.IdentityID != user.IdentityID {
-			t.Errorf("identity ID = %q, want %q", sess.IdentityID, user.IdentityID)
+		if sess.UserID != user.IdentityID {
+			t.Errorf("identity ID = %q, want %q", sess.UserID, user.IdentityID)
 		}
 		if sess.Email != user.Email {
 			t.Errorf("email = %q, want %q", sess.Email, user.Email)
@@ -63,8 +63,8 @@ func TestRequireSession_ValidBearerHeader(t *testing.T) {
 		if sess == nil {
 			t.Fatal("session is nil")
 		}
-		if sess.IdentityID != user.IdentityID {
-			t.Errorf("identity ID = %q, want %q", sess.IdentityID, user.IdentityID)
+		if sess.UserID != user.IdentityID {
+			t.Errorf("identity ID = %q, want %q", sess.UserID, user.IdentityID)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))

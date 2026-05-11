@@ -26,9 +26,9 @@ const (
 type TokenInfo struct {
 	TokenID     string
 	ProjectID   string
-	Environment string
-	Permission  string // "read" or "read_write"
-	CreatedBy   string // zEnv user ID of the token creator
+	Environment model.Environment
+	Permission  model.Permission // "read" or "read_write"
+	CreatedBy   string           // zEnv user ID of the token creator
 }
 
 // IsWriteAllowed returns true if this token has write permission.

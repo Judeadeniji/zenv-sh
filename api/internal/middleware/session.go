@@ -16,13 +16,13 @@ const (
 
 // Session represents an authenticated user session.
 // The vault is NOT unlocked until VaultUnlockedAt is set (two-layer auth).
+// HasIdentity is false if the user has never completed vault setup.
 type Session struct {
 	ID              string  `json:"id"`
-	UserID          string  `json:"user_id"`               // zEnv user UUID (may be empty if vault not set up)
-	IdentityID      string  `json:"identity_id,omitempty"` // External identity provider user ID
+	UserID          string  `json:"user_id"`
 	Email           string  `json:"email"`
-	VaultUnlockedAt *string `json:"vault_unlocked_at,omitempty"` // set after Vault Key verification
-	CreatedAt       string  `json:"created_at"`
+	VaultUnlockedAt *string `json:"vault_unlocked_at,omitempty"`
+	HasIdentity     bool    `json:"has_identity"`
 }
 
 // IsVaultUnlocked returns true if the user has completed both auth layers.
@@ -36,8 +36,7 @@ func GetSession(ctx context.Context) *Session {
 	return sess
 }
 
-// jsonError writes a JSON error response. Use instead of http.Error
-// to ensure Content-Type: application/json on all error responses.
+// jsonError writes a JSON error response.
 func jsonError(w http.ResponseWriter, msg string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
