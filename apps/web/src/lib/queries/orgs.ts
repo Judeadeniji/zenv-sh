@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { authClient } from "../auth-client"
+import slugify from "slug"
 
 export function orgsQueryOptions(opts?: {
 	page?: number
@@ -13,11 +14,11 @@ export function orgsQueryOptions(opts?: {
 	return queryOptions({
 		queryKey: queryKeys.orgs.list(opts),
 		queryFn: async ({ signal }) => {
-			const { data, error } = await api().GET("/orgs", {
-				params: { query: { ...opts } },
-				signal,
+			const { data, error } = await authClient.organization.list({
+				query: opts,
+				fetchOptions: { signal },
 			})
-			if (error || !data) throw new Error("Failed to fetch organizations")
+			if (error || !data) throw new Error(error.message || "Failed to fetch organizations")
 			return data
 		},
 		staleTime: 30_000,
@@ -57,16 +58,14 @@ export function orgMembersQueryOptions(
 				params: { path: { orgID: orgId }, query: { ...opts } },
 				signal,
 			})
-			if (error || !data) throw new Error("Failed to fetch members")
+			if (error || !data) throw new Error(error?.error || "Failed to fetch members")
 			return data
 		},
 		staleTime: 30_000,
 	})
 }
 
-export function orgInvitationqQueries({ orgId }: {
-	orgId: string
-}) {
+export function orgInvitationQueries(orgId: string) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.invitations(orgId),
 		queryFn: async ({ signal }) => {
@@ -85,10 +84,14 @@ export function useCreateOrg() {
 	return useMutation({
 		mutationKey: mutationKeys.orgs.create,
 		mutationFn: async ({ name }: { name: string }) => {
-			const { data, error } = await api().POST("/orgs", {
-				body: { name },
+			const { data, error } = await authClient.organization.create({
+				name,
+				slug: slugify(name),
+				metadata: {
+					'__zenv-org': true,
+				}
 			})
-			if (error || !data) throw new Error("Failed to create organization")
+			if (error || !data) throw new Error(error.message || "Failed to create organization")
 			return data
 		},
 		onSuccess: async () => {
@@ -106,7 +109,7 @@ export function useAddMember() {
 				params: { path: { orgID: orgId } },
 				body: { email, role },
 			})
-			if (error || !data) throw new Error("Failed to add member")
+			if (error || !data) throw new Error(error.error ||"Failed to add member")
 			return data
 		},
 		onSuccess: async (_, { orgId }) => {
@@ -123,7 +126,7 @@ export function useRemoveMember() {
 			const { error } = await api().DELETE("/orgs/{orgID}/members/{memberID}", {
 				params: { path: { orgID: orgId, memberID: memberId } },
 			})
-			if (error) throw new Error("Failed to remove member")
+			if (error) throw new Error(error.error ||"Failed to remove member")
 		},
 		onSuccess: async (_, { orgId }) => {
 			// Prefix matching queryKeys.orgs.all covers the list and details
