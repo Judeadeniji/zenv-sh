@@ -52,6 +52,7 @@ import {
 	Users,
 	UserStarIcon,
 } from "lucide-react"
+import { getInitials } from "#/lib/utils"
 
 export function AppSidebar() {
 	const location = useLocation()
@@ -69,14 +70,14 @@ export function AppSidebar() {
 	const orgId = params.orgId
 	const projectId = params.projectId
 
-	const orgList = (orgsData as { organizations?: { id: string; name: string }[] })?.organizations ?? []
+	const orgList = orgsData || [];
 	const activeOrg = orgList.find((o) => o.id === orgId) ?? orgList[0]
 
 	const { data: projectsData, isLoading: projectsLoading } = useQuery({
 		...projectsQueryOptions(activeOrg?.id ?? ""),
 		enabled: !!activeOrg && !!crypto,
 	})
-	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
+	const projectList = ((projectsData)?.projects ?? []) as { id: string, name: string }[]
 
 	const pinnedIds = useNavStore((s) => s.pinnedProjects)
 	const pinProject = useNavStore((s) => s.pinProject)
@@ -86,7 +87,7 @@ export function AppSidebar() {
 	const pinned = pinnedIds
 		.map((id) => projectList.find((p) => p.id === id))
 		.filter(Boolean) as { id: string; name: string }[]
-	const unpinned = projectList.filter((p) => !pinnedIds.includes(p.id))
+	const unpinned = projectList.filter((p) => !pinnedIds.includes(p.id!))
 	const hasPins = pinned.length > 0
 
 	const handlePin = (id: string) => {
@@ -100,7 +101,7 @@ export function AppSidebar() {
 		updatePrefs.mutate({ pinned_projects: next })
 	}
 
-	const initials = me?.email?.slice(0, 2).toUpperCase() ?? "?"
+	const initials = getInitials(me?.name || me?.email || '?')
 
 	const projectItems = activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []
 	const orgItems = activeOrg ? getOrgItems(activeOrg.id, projectId) : []
@@ -227,7 +228,7 @@ export function AppSidebar() {
 												orgId={activeOrg?.id ?? ""}
 												isActive={project.id === projectId}
 												isPinned={false}
-												onTogglePin={() => handlePin(project.id)}
+												onTogglePin={() => handlePin(project.id!)}
 											/>
 										))
 									)}

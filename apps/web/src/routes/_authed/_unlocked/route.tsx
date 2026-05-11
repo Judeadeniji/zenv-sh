@@ -27,16 +27,9 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 		// Onboarding guard — redirect to onboarding if user has zero orgs
 		// (skip if already on onboarding to avoid loop)
 		if (location.pathname !== "/onboarding") {
-			try {
-				const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions())
-				const orgList = (orgs as { organizations?: { id: string }[] }).organizations ?? []
-
-				if (orgList.length === 0) {
-					throw redirect({ to: "/onboarding" })
-				}
-			} catch (e) {
-				if (e && typeof e === "object" && "to" in e) throw e
-			}
+			const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions())
+			if (orgs.length > 0) return;
+			throw redirect({ to: "/onboarding" })
 		}
 
 		// Prefetch preferences so they're ready for hydration.
