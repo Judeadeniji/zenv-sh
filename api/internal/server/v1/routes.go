@@ -20,7 +20,6 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
-	orgs := handler.NewOrgsHandler(db)
 	auditH := handler.NewAuditHandler(db, al)
 	prefs := handler.NewPreferencesHandler(db)
 
@@ -86,15 +85,6 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Delete("/{projectID}/rotation/{rotationID}", projects.CancelRotation)
 		})
 
-		r.Route("/orgs", func(r chi.Router) {
-			r.Post("/", orgs.Create)
-			r.Get("/", orgs.List)
-			r.Get("/{orgID}", orgs.Get)
-			r.Get("/{orgID}/members", orgs.ListMembers)
-			r.Post("/{orgID}/members", orgs.AddMember)
-			r.Delete("/{orgID}/members/{memberID}", orgs.RemoveMember)
-		})
-
 		// Recovery — requires vault unlocked
 		r.Post("/auth/recovery/trusted-contact", recovery.SetTrustedContact)
 		r.Delete("/auth/recovery/trusted-contact", recovery.RemoveTrustedContact)
@@ -116,14 +106,6 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 
 		r.Get("/whoami", tokens.Whoami)
 		r.Get("/vault", projects.GetVaultMaterial)
-
-		// Organizations
-		r.Get("/orgs", orgs.ListForToken)
-		r.Post("/orgs", orgs.CreateForToken)
-		r.Get("/orgs/{orgID}", orgs.Get)
-		r.Get("/orgs/{orgID}/members", orgs.ListMembers)
-		r.Post("/orgs/{orgID}/members", orgs.AddMemberForToken)
-		r.Delete("/orgs/{orgID}/members/{memberID}", orgs.RemoveMemberForToken)
 
 		// Projects
 		r.Get("/projects", projects.List)
