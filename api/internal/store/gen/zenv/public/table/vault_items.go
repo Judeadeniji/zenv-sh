@@ -26,6 +26,7 @@ type vaultItemsTable struct {
 	Version     postgres.ColumnInteger
 	CreatedAt   postgres.ColumnTimestampz
 	UpdatedAt   postgres.ColumnTimestampz
+	DekVersion  postgres.ColumnInteger
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -76,9 +77,10 @@ func newVaultItemsTableImpl(schemaName, tableName, alias string) vaultItemsTable
 		VersionColumn     = postgres.IntegerColumn("version")
 		CreatedAtColumn   = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn   = postgres.TimestampzColumn("updated_at")
-		allColumns        = postgres.ColumnList{IDColumn, ProjectIDColumn, EnvironmentColumn, NameHashColumn, CiphertextColumn, NonceColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn}
-		mutableColumns    = postgres.ColumnList{ProjectIDColumn, EnvironmentColumn, NameHashColumn, CiphertextColumn, NonceColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn}
-		defaultColumns    = postgres.ColumnList{IDColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn}
+		DekVersionColumn  = postgres.IntegerColumn("dek_version")
+		allColumns        = postgres.ColumnList{IDColumn, ProjectIDColumn, EnvironmentColumn, NameHashColumn, CiphertextColumn, NonceColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn, DekVersionColumn}
+		mutableColumns    = postgres.ColumnList{ProjectIDColumn, EnvironmentColumn, NameHashColumn, CiphertextColumn, NonceColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn, DekVersionColumn}
+		defaultColumns    = postgres.ColumnList{IDColumn, VersionColumn, CreatedAtColumn, UpdatedAtColumn, DekVersionColumn}
 	)
 
 	return vaultItemsTable{
@@ -94,6 +96,7 @@ func newVaultItemsTableImpl(schemaName, tableName, alias string) vaultItemsTable
 		Version:     VersionColumn,
 		CreatedAt:   CreatedAtColumn,
 		UpdatedAt:   UpdatedAtColumn,
+		DekVersion:  DekVersionColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

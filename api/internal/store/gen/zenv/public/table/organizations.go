@@ -17,11 +17,13 @@ type organizationsTable struct {
 	postgres.Table
 
 	// Columns
-	ID            postgres.ColumnString
-	Name          postgres.ColumnString
-	OwnerID       postgres.ColumnString
-	CreatedAt     postgres.ColumnTimestampz
-	IdentityOrgID postgres.ColumnString
+	ID        postgres.ColumnString
+	Name      postgres.ColumnString
+	Slug      postgres.ColumnString
+	Logo      postgres.ColumnString
+	CreatedAt postgres.ColumnTimestamp
+	Metadata  postgres.ColumnString
+	OwnerID   postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,25 +65,29 @@ func newOrganizationsTable(schemaName, tableName, alias string) *OrganizationsTa
 
 func newOrganizationsTableImpl(schemaName, tableName, alias string) organizationsTable {
 	var (
-		IDColumn            = postgres.StringColumn("id")
-		NameColumn          = postgres.StringColumn("name")
-		OwnerIDColumn       = postgres.StringColumn("owner_id")
-		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
-		IdentityOrgIDColumn = postgres.StringColumn("identity_org_id")
-		allColumns          = postgres.ColumnList{IDColumn, NameColumn, OwnerIDColumn, CreatedAtColumn, IdentityOrgIDColumn}
-		mutableColumns      = postgres.ColumnList{NameColumn, OwnerIDColumn, CreatedAtColumn, IdentityOrgIDColumn}
-		defaultColumns      = postgres.ColumnList{IDColumn, CreatedAtColumn}
+		IDColumn        = postgres.StringColumn("id")
+		NameColumn      = postgres.StringColumn("name")
+		SlugColumn      = postgres.StringColumn("slug")
+		LogoColumn      = postgres.StringColumn("logo")
+		CreatedAtColumn = postgres.TimestampColumn("created_at")
+		MetadataColumn  = postgres.StringColumn("metadata")
+		OwnerIDColumn   = postgres.StringColumn("owner_id")
+		allColumns      = postgres.ColumnList{IDColumn, NameColumn, SlugColumn, LogoColumn, CreatedAtColumn, MetadataColumn, OwnerIDColumn}
+		mutableColumns  = postgres.ColumnList{NameColumn, SlugColumn, LogoColumn, CreatedAtColumn, MetadataColumn, OwnerIDColumn}
+		defaultColumns  = postgres.ColumnList{IDColumn}
 	)
 
 	return organizationsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:            IDColumn,
-		Name:          NameColumn,
-		OwnerID:       OwnerIDColumn,
-		CreatedAt:     CreatedAtColumn,
-		IdentityOrgID: IdentityOrgIDColumn,
+		ID:        IDColumn,
+		Name:      NameColumn,
+		Slug:      SlugColumn,
+		Logo:      LogoColumn,
+		CreatedAt: CreatedAtColumn,
+		Metadata:  MetadataColumn,
+		OwnerID:   OwnerIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

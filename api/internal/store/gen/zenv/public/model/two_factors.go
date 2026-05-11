@@ -9,18 +9,11 @@ package model
 
 import (
 	"github.com/google/uuid"
-	"time"
 )
 
-type ServiceTokens struct {
+type TwoFactors struct {
 	ID          uuid.UUID `sql:"primary_key"`
-	ProjectID   uuid.UUID
-	Name        string
-	TokenHash   []byte
-	Environment Environment
-	Permission  Permission
-	CreatedBy   *uuid.UUID
-	ExpiresAt   *time.Time
-	RevokedAt   *time.Time
-	CreatedAt   time.Time
+	Secret      string
+	BackupCodes string
+	UserID      uuid.UUID
 }

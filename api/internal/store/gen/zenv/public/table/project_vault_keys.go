@@ -22,6 +22,7 @@ type projectVaultKeysTable struct {
 	ProjectSalt       postgres.ColumnBytea
 	WrappedProjectDek postgres.ColumnBytea
 	CreatedAt         postgres.ColumnTimestampz
+	DekVersion        postgres.ColumnInteger
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -68,9 +69,10 @@ func newProjectVaultKeysTableImpl(schemaName, tableName, alias string) projectVa
 		ProjectSaltColumn       = postgres.ByteaColumn("project_salt")
 		WrappedProjectDekColumn = postgres.ByteaColumn("wrapped_project_dek")
 		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
-		allColumns              = postgres.ColumnList{IDColumn, ProjectIDColumn, ProjectSaltColumn, WrappedProjectDekColumn, CreatedAtColumn}
-		mutableColumns          = postgres.ColumnList{ProjectIDColumn, ProjectSaltColumn, WrappedProjectDekColumn, CreatedAtColumn}
-		defaultColumns          = postgres.ColumnList{IDColumn, CreatedAtColumn}
+		DekVersionColumn        = postgres.IntegerColumn("dek_version")
+		allColumns              = postgres.ColumnList{IDColumn, ProjectIDColumn, ProjectSaltColumn, WrappedProjectDekColumn, CreatedAtColumn, DekVersionColumn}
+		mutableColumns          = postgres.ColumnList{ProjectIDColumn, ProjectSaltColumn, WrappedProjectDekColumn, CreatedAtColumn, DekVersionColumn}
+		defaultColumns          = postgres.ColumnList{IDColumn, CreatedAtColumn, DekVersionColumn}
 	)
 
 	return projectVaultKeysTable{
@@ -82,6 +84,7 @@ func newProjectVaultKeysTableImpl(schemaName, tableName, alias string) projectVa
 		ProjectSalt:       ProjectSaltColumn,
 		WrappedProjectDek: WrappedProjectDekColumn,
 		CreatedAt:         CreatedAtColumn,
+		DekVersion:        DekVersionColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

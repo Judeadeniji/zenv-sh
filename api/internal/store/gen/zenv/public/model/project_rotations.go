@@ -12,15 +12,14 @@ import (
 	"time"
 )
 
-type ServiceTokens struct {
+type ProjectRotations struct {
 	ID          uuid.UUID `sql:"primary_key"`
 	ProjectID   uuid.UUID
-	Name        string
-	TokenHash   []byte
-	Environment Environment
-	Permission  Permission
-	CreatedBy   *uuid.UUID
-	ExpiresAt   *time.Time
-	RevokedAt   *time.Time
-	CreatedAt   time.Time
+	RotationID  uuid.UUID
+	Status      RotationStatus
+	TotalItems  int32
+	StagedItems int32
+	InitiatedBy uuid.UUID
+	StartedAt   time.Time
+	CompletedAt *time.Time
 }

@@ -15,11 +15,12 @@ import (
 type VaultItems struct {
 	ID          uuid.UUID `sql:"primary_key"`
 	ProjectID   uuid.UUID
-	Environment string
+	Environment Environment
 	NameHash    []byte
 	Ciphertext  []byte
 	Nonce       []byte
 	Version     int32
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	DekVersion  int32
 }

@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-type ProjectVaultKeys struct {
-	ID                uuid.UUID `sql:"primary_key"`
-	ProjectID         uuid.UUID
-	ProjectSalt       []byte
-	WrappedProjectDek []byte
-	CreatedAt         time.Time
-	DekVersion        int32
+type Verifications struct {
+	ID         uuid.UUID `sql:"primary_key"`
+	Identifier string
+	Value      string
+	ExpiresAt  time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
