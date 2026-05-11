@@ -7,10 +7,12 @@ import (
 	"testing"
 	"time"
 
+	// . "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
+	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
 )
 
@@ -21,19 +23,33 @@ func setupProjectCtx(t *testing.T) (sessionToken string, userID uuid.UUID, orgID
 	identity := testutil.CreateIdentityUser(t, ts.DB)
 	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
-	// Create org via fixture (direct DB insert).
+	// Create org via Jet.
 	oid := uuid.New()
-	_, err := ts.DB.Exec(
-		`INSERT INTO organizations (id, name, owner_id) VALUES ($1, $2, $3)`,
-		oid, "TestOrg-"+uuid.New().String()[:8], zenvUser.UserID,
-	)
+	_, err := table.Organizations.INSERT(
+		table.Organizations.ID,
+		table.Organizations.Name,
+		table.Organizations.Slug,
+	).VALUES(
+		oid.String(),
+		"TestOrg-"+uuid.New().String()[:8],
+		"test-org-"+uuid.New().String()[:8],
+	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org: %v", err)
 	}
-	_, err = ts.DB.Exec(
-		`INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'admin')`,
-		oid, zenvUser.UserID,
-	)
+
+	// Create membership via Jet.
+	_, err = table.Members.INSERT(
+		table.Members.ID,
+		table.Members.OrganizationID,
+		table.Members.UserID,
+		table.Members.Role,
+	).VALUES(
+		uuid.New().String(),
+		oid.String(),
+		zenvUser.UserID,
+		"admin",
+	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org member: %v", err)
 	}
@@ -64,10 +80,10 @@ func TestCreateProject_Success(t *testing.T) {
 	wrappedPVK := amnesia.GenerateKey() // stand-in for wrapped key
 
 	reqBody := jsonBody{
-		"organization_id":          orgID.String(),
-		"name":                     "my-project-" + uuid.New().String()[:8],
-		"project_salt":             base64.StdEncoding.EncodeToString(projectSalt),
-		"wrapped_project_dek":      base64.StdEncoding.EncodeToString(wrappedPDEKFull),
+		"organization_id":           orgID.String(),
+		"name":                      "my-project-" + uuid.New().String()[:8],
+		"project_salt":              base64.StdEncoding.EncodeToString(projectSalt),
+		"wrapped_project_dek":       base64.StdEncoding.EncodeToString(wrappedPDEKFull),
 		"wrapped_project_vault_key": base64.StdEncoding.EncodeToString(wrappedPVK),
 	}
 
