@@ -84,7 +84,7 @@ export function DataTable<TData>({
 		<div className="space-y-3">
 			{rows.length === 0 ? (
 				data.length === 0 ? (
-					<Empty className="min-h-60">
+					<Empty className="min-h-60 h-full">
 						<EmptyHeader>
 							{emptyIcon && <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>}
 							<EmptyContent>
