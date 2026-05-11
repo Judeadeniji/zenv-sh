@@ -33,23 +33,23 @@ func NewSecretsHandler(db *sql.DB) *SecretsHandler {
 // --- Create ---
 
 type CreateSecretRequest struct {
-	ProjectID   string `json:"project_id"`
-	Environment string `json:"environment"`
-	NameHash    string `json:"name_hash"`  // base64 HMAC-SHA256 of secret name
-	Ciphertext  string `json:"ciphertext"` // base64 AES-256-GCM encrypted item JSON
-	Nonce       string `json:"nonce"`      // base64 96-bit nonce
+	ProjectID   string            `json:"project_id"`
+	Environment model.Environment `json:"environment"`
+	NameHash    string            `json:"name_hash"`  // base64 HMAC-SHA256 of secret name
+	Ciphertext  string            `json:"ciphertext"` // base64 AES-256-GCM encrypted item JSON
+	Nonce       string            `json:"nonce"`      // base64 96-bit nonce
 }
 
 type SecretResponse struct {
-	ID          string `json:"id"`
-	ProjectID   string `json:"project_id"`
-	Environment string `json:"environment"`
-	NameHash    string `json:"name_hash"`
-	Ciphertext  string `json:"ciphertext"`
-	Nonce       string `json:"nonce"`
-	Version     int    `json:"version"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          string            `json:"id"`
+	ProjectID   string            `json:"project_id"`
+	Environment model.Environment `json:"environment"`
+	NameHash    string            `json:"name_hash"`
+	Ciphertext  string            `json:"ciphertext"`
+	Nonce       string            `json:"nonce"`
+	Version     int               `json:"version"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
 }
 
 // @Summary		Create secret
@@ -105,7 +105,7 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		FROM(table.VaultItems).
 		WHERE(
 			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(req.Environment))).
+				AND(table.VaultItems.Environment.EQ(String(req.Environment.String()))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
 	if err := existsStmt.Query(h.db, &existing); err == nil {
@@ -458,12 +458,12 @@ func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // --- List ---
 
 type SecretListItem struct {
-	ID          string `json:"id"`
-	NameHash    string `json:"name_hash"`
-	Environment string `json:"environment"`
-	Version     int    `json:"version"`
-	UpdatedAt   string `json:"updated_at"`
-	CreatedAt   string `json:"created_at"`
+	ID          string            `json:"id"`
+	NameHash    string            `json:"name_hash"`
+	Environment model.Environment `json:"environment"`
+	Version     int               `json:"version"`
+	UpdatedAt   string            `json:"updated_at"`
+	CreatedAt   string            `json:"created_at"`
 }
 
 type ListSecretsResponse struct {

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -866,9 +867,9 @@ func (h *ProjectsHandler) CreateForToken(w http.ResponseWriter, r *http.Request)
 // --- Project Crypto (SDK machine access) ---
 
 type ProjectCryptoResponse struct {
-	ProjectSalt       string `json:"project_salt"`             // base64
-	WrappedProjectDEK string `json:"wrapped_project_dek"`      // base64
-	VaultKeyType      string `json:"vault_key_type,omitempty"` // "pin" or "passphrase"
+	ProjectSalt       string             `json:"project_salt"`             // base64
+	WrappedProjectDEK string             `json:"wrapped_project_dek"`      // base64
+	VaultKeyType      model.VaultKeyType `json:"vault_key_type,omitempty"` // "pin" or "passphrase"
 }
 
 // @Summary		Get project crypto
@@ -915,9 +916,9 @@ func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 	info := middleware.GetTokenInfo(r.Context())
 	if info != nil && info.CreatedBy != "" {
 		creatorID, _ := uuid.Parse(info.CreatedBy)
-		var user model.Users
-		userStmt := SELECT(table.Users.VaultKeyType).FROM(table.Users).WHERE(
-			table.Users.ID.EQ(UUID(creatorID)),
+		var user model.Identities
+		userStmt := SELECT(table.Identities.VaultKeyType).FROM(table.Identities).WHERE(
+			table.Identities.ID.EQ(UUID(creatorID)),
 		)
 		if err := userStmt.Query(h.db, &user); err == nil {
 			resp.VaultKeyType = user.VaultKeyType
@@ -1182,11 +1183,11 @@ func (h *ProjectsHandler) GetKeyGrantForToken(w http.ResponseWriter, r *http.Req
 // --- SDK Vault Material ---
 
 type VaultMaterialResponse struct {
-	Salt              string `json:"salt"`                // base64
-	VaultKeyType      string `json:"vault_key_type"`      // "pin" or "passphrase"
-	WrappedDEK        string `json:"wrapped_dek"`         // base64
-	WrappedPrivateKey string `json:"wrapped_private_key"` // base64
-	PublicKey         string `json:"public_key"`          // base64
+	Salt              string             `json:"salt"`                // base64
+	VaultKeyType      model.VaultKeyType `json:"vault_key_type"`      // "pin" or "passphrase"
+	WrappedDEK        string             `json:"wrapped_dek"`         // base64
+	WrappedPrivateKey string             `json:"wrapped_private_key"` // base64
+	PublicKey         string             `json:"public_key"`          // base64
 }
 
 // @Summary		Get vault material
@@ -1204,14 +1205,14 @@ func (h *ProjectsHandler) GetVaultMaterial(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var user model.Users
+	var user model.Identities
 	stmt := SELECT(
-		table.Users.Salt,
-		table.Users.VaultKeyType,
-		table.Users.WrappedDek,
-		table.Users.WrappedPrivateKey,
-		table.Users.PublicKey,
-	).FROM(table.Users).WHERE(table.Users.ID.EQ(UUID(userID)))
+		table.Identities.Salt,
+		table.Identities.VaultKeyType,
+		table.Identities.WrappedDek,
+		table.Identities.WrappedPrivateKey,
+		table.Identities.PublicKey,
+	).FROM(table.Identities).WHERE(table.Identities.ID.EQ(UUID(userID)))
 
 	if err := stmt.Query(h.db, &user); err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
@@ -1316,4 +1317,12 @@ func (h *ProjectsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		TotalServiceTokens: tokensCount.Count,
 		TotalAuditLogs:     auditCount.Count,
 	})
+}
+
+func tokenCreatorID(r *http.Request) (uuid.UUID, error) {
+	info := middleware.GetTokenInfo(r.Context())
+	if info == nil || info.CreatedBy == "" {
+		return uuid.Nil, fmt.Errorf("could not resolve token creator")
+	}
+	return uuid.Parse(info.CreatedBy)
 }

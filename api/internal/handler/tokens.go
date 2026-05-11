@@ -263,14 +263,14 @@ func (h *TokensHandler) Destroy(w http.ResponseWriter, r *http.Request) {
 // --- List ---
 
 type TokenListItem struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	ProjectID   string  `json:"project_id"`
-	Environment string  `json:"environment"`
-	Permission  string  `json:"permission"`
-	ExpiresAt   *string `json:"expires_at,omitempty"`
-	RevokedAt   *string `json:"revoked_at,omitempty"`
-	CreatedAt   string  `json:"created_at"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	ProjectID   string            `json:"project_id"`
+	Environment model.Environment `json:"environment"`
+	Permission  model.Permission  `json:"permission"`
+	ExpiresAt   *string           `json:"expires_at,omitempty"`
+	RevokedAt   *string           `json:"revoked_at,omitempty"`
+	CreatedAt   string            `json:"created_at"`
 }
 
 type ListTokensResponse struct {
@@ -518,15 +518,15 @@ func (h *TokensHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
 // --- Whoami ---
 
 type WhoamiResponse struct {
-	UserName         string `json:"user_name,omitempty"`
-	UserEmail        string `json:"user_email,omitempty"`
-	TokenName        string `json:"token_name"`
-	ProjectName      string `json:"project_name"`
-	ProjectID        string `json:"project_id"`
-	OrganizationID   string `json:"organization_id,omitempty"`
-	OrganizationName string `json:"organization_name,omitempty"`
-	Environment      string `json:"environment"`
-	Permission       string `json:"permission"`
+	UserName         string            `json:"user_name,omitempty"`
+	UserEmail        string            `json:"user_email,omitempty"`
+	TokenName        string            `json:"token_name"`
+	ProjectName      string            `json:"project_name"`
+	ProjectID        string            `json:"project_id"`
+	OrganizationID   string            `json:"organization_id,omitempty"`
+	OrganizationName string            `json:"organization_name,omitempty"`
+	Environment      model.Environment `json:"environment"`
+	Permission       model.Permission  `json:"permission"`
 }
 
 // Whoami returns identity and scope information for the authenticated service token.
@@ -576,12 +576,12 @@ func (h *TokensHandler) Whoami(w http.ResponseWriter, r *http.Request) {
 	// Creator identity
 	if info.CreatedBy != "" {
 		creatorID, _ := uuid.Parse(info.CreatedBy)
-		var identity model.User
+		var identity model.Users
 		identityStmt := SELECT(
-			table.User.Name,
-			table.User.Email,
+			table.Users.Name,
+			table.Users.Email,
 		).FROM(
-			table.Users.INNER_JOIN(table.User, table.User.ID.EQ(table.Users.IdentityID)),
+			table.Users.INNER_JOIN(table.Users, table.Users.ID.EQ(table.Users.ID)),
 		).WHERE(
 			table.Users.ID.EQ(UUID(creatorID)),
 		)

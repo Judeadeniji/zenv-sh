@@ -6,8 +6,14 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
+
+	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
+	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
+	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
 
 // PreferencesHandler handles user preference endpoints.
@@ -36,13 +42,22 @@ func (h *PreferencesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
 
-	var prefs json.RawMessage
-	err := h.db.QueryRowContext(r.Context(),
-		`SELECT preferences FROM users WHERE id = $1`, sess.UserID,
-	).Scan(&prefs)
+	var result struct {
+		Preferences json.RawMessage
+	}
+
+	err := SELECT(
+		table.Identities.Preferences,
+	).FROM(
+		table.Identities,
+	).WHERE(
+		table.Identities.IdentityID.EQ(UUID(userID)),
+	).QueryContext(r.Context(), h.db, &result)
+
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == qrm.ErrNoRows {
 			writeJSON(w, http.StatusOK, json.RawMessage(`{}`))
 			return
 		}
@@ -53,7 +68,7 @@ func (h *PreferencesHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(prefs)
+	w.Write(result.Preferences)
 }
 
 // Update merges the provided JSON into the user's preferences.
@@ -76,27 +91,36 @@ func (h *PreferencesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
 		return
 	}
+	userID, _ := uuid.Parse(sess.UserID)
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 64*1024)) // 64KB limit
+	body, err := io.ReadAll(io.LimitReader(r.Body, 64*1024))
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 		return
 	}
 
-	// Validate it's valid JSON.
 	if !json.Valid(body) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON"})
 		return
 	}
 
-	// Shallow merge with Postgres || operator and return the result.
-	var merged json.RawMessage
-	err = h.db.QueryRowContext(r.Context(),
-		`UPDATE users SET preferences = preferences || $1, updated_at = NOW()
-		 WHERE id = $2
-		 RETURNING preferences`,
-		body, sess.UserID,
-	).Scan(&merged)
+	var result struct {
+		Preferences json.RawMessage
+	}
+
+	// StringExp wraps Raw to satisfy the StringExpression interface (fixing the BETWEEN error)
+	err = table.Identities.UPDATE(
+		table.Identities.Preferences,
+		table.Identities.UpdatedAt,
+	).SET(
+		Raw("identities.preferences || #payload#::jsonb", map[string]interface{}{"payload": string(body)}),
+		TimestampT(time.Now().UTC()),
+	).WHERE(
+		table.Identities.IdentityID.EQ(UUID(userID)),
+	).RETURNING(
+		table.Identities.Preferences,
+	).QueryContext(r.Context(), h.db, &result)
+
 	if err != nil {
 		slog.Error("preferences: update", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update preferences"})
@@ -105,5 +129,5 @@ func (h *PreferencesHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(merged)
+	w.Write(result.Preferences)
 }
