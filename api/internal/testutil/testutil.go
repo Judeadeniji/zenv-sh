@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -20,111 +19,16 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// identityTablesDDL creates the identity provider tables that the Go API reads.
-// Consolidated from the auth server's drizzle migrations. Uses IF NOT EXISTS
-// so it's safe to run on a reused container.
-const identityTablesDDL = `
-CREATE TABLE IF NOT EXISTS "user" (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    email_verified BOOLEAN DEFAULT false NOT NULL,
-    image TEXT,
-    created_at TIMESTAMP DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP DEFAULT now() NOT NULL,
-    role TEXT,
-    banned BOOLEAN DEFAULT false,
-    ban_reason TEXT,
-    ban_expires TIMESTAMP,
-    two_factor_enabled BOOLEAN DEFAULT false
-);
-
-CREATE TABLE IF NOT EXISTS "session" (
-    id TEXT PRIMARY KEY NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    token TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP DEFAULT now() NOT NULL,
-    ip_address TEXT,
-    user_agent TEXT,
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    impersonated_by TEXT,
-    active_organization_id TEXT
-);
-
-CREATE TABLE IF NOT EXISTS "account" (
-    id TEXT PRIMARY KEY NOT NULL,
-    account_id TEXT NOT NULL,
-    provider_id TEXT NOT NULL,
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    access_token TEXT,
-    refresh_token TEXT,
-    id_token TEXT,
-    access_token_expires_at TIMESTAMP,
-    refresh_token_expires_at TIMESTAMP,
-    scope TEXT,
-    password TEXT,
-    created_at TIMESTAMP DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS "verification" (
-    id TEXT PRIMARY KEY NOT NULL,
-    identifier TEXT NOT NULL,
-    value TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "two_factor" (
-    id TEXT PRIMARY KEY NOT NULL,
-    secret TEXT NOT NULL,
-    backup_codes TEXT NOT NULL,
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "organization" (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    logo TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    metadata TEXT
-);
-
-CREATE TABLE IF NOT EXISTS "member" (
-    id TEXT PRIMARY KEY NOT NULL,
-    organization_id TEXT NOT NULL REFERENCES "organization"(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'member',
-    created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS "invitation" (
-    id TEXT PRIMARY KEY NOT NULL,
-    organization_id TEXT NOT NULL REFERENCES "organization"(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
-    role TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT now() NOT NULL,
-    inviter_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
-);
-`
-
 const (
-	pgContainerName    = "zenv-test-postgres"
-	redisContainerName = "zenv-test-redis"
+	pgContainerName         = "zenv-test-postgres"
+	redisContainerName      = "zenv-test-redis"
+	drizzleMigrationRelPath = "../apps/auth/drizzle"
 )
 
 func init() {
-	// Disable Ryuk so reused containers persist after the test process exits.
-	// Containers must be stopped manually: docker rm -f zenv-test-postgres zenv-test-redis
 	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
-// SetupDB starts (or reuses) a Postgres container, runs migrations, returns *sql.DB.
 func SetupDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := setupDB()
@@ -135,7 +39,6 @@ func SetupDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// SetupDBForMain is like SetupDB but for TestMain.
 func SetupDBForMain() (*sql.DB, func()) {
 	db, err := setupDB()
 	if err != nil {
@@ -154,8 +57,7 @@ func setupDB() (*sql.DB, error) {
 		tcPostgres.WithPassword("test"),
 		testcontainers.WithReuseByName(pgContainerName),
 		testcontainers.WithWaitStrategy(
-			wait.ForListeningPort("5432/tcp").
-				WithStartupTimeout(60*time.Second),
+			wait.ForListeningPort("5432/tcp").WithStartupTimeout(30*time.Second),
 		),
 	)
 	if err != nil {
@@ -172,22 +74,92 @@ func setupDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// Identity tables (idempotent — IF NOT EXISTS).
-	if _, err := db.ExecContext(ctx, identityTablesDDL); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("identity tables: %w", err)
+	// Retry ping to ensure the process inside the container is actually accepting queries
+	var pingErr error
+	for i := 0; i < 10; i++ {
+		if pingErr = db.PingContext(ctx); pingErr == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if pingErr != nil {
+		return nil, fmt.Errorf("ping db: %w", pingErr)
 	}
 
-	// zEnv migrations (idempotent — check if already applied).
-	if err := runMigrationsIdempotent(ctx, db); err != nil {
+	if err := syncDrizzleSchema(ctx, db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("migrations: %w", err)
+		return nil, err
 	}
 
 	return db, nil
 }
 
-// SetupRedis starts (or reuses) a Redis container.
+func syncDrizzleSchema(ctx context.Context, db *sql.DB) error {
+	// Advisory lock prevents parallel package tests from migrating at the same time
+	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_lock(1234)"); err != nil {
+		return fmt.Errorf("lock for migration: %w", err)
+	}
+	defer db.ExecContext(ctx, "SELECT pg_advisory_unlock(1234)")
+
+	var sessionsExists bool
+	err := db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='sessions')`,
+	).Scan(&sessionsExists)
+	if err != nil {
+		return fmt.Errorf("check schema existence: %w", err)
+	}
+
+	if sessionsExists {
+		return nil
+	}
+
+	cwd, _ := os.Getwd()
+	goRoot := findGoRoot(cwd)
+	if goRoot == "" {
+		return fmt.Errorf("could not find go.mod starting from %s", cwd)
+	}
+
+	migrationDir := filepath.Join(goRoot, drizzleMigrationRelPath)
+	entries, err := os.ReadDir(migrationDir)
+	if err != nil {
+		return fmt.Errorf("read drizzle migrations at %s: %w", migrationDir, err)
+	}
+
+	var sqlFiles []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
+			sqlFiles = append(sqlFiles, e.Name())
+		}
+	}
+	sort.Strings(sqlFiles)
+
+	for _, file := range sqlFiles {
+		content, err := os.ReadFile(filepath.Join(migrationDir, file))
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", file, err)
+		}
+
+		if _, err := db.ExecContext(ctx, string(content)); err != nil {
+			return fmt.Errorf("apply migration %s: %w", file, err)
+		}
+	}
+
+	return nil
+}
+
+func findGoRoot(path string) string {
+	for {
+		if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+			return path
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return ""
+		}
+		path = parent
+	}
+}
+
 func SetupRedis(t *testing.T) *redis.Client {
 	t.Helper()
 	rdb, err := setupRedis()
@@ -198,7 +170,6 @@ func SetupRedis(t *testing.T) *redis.Client {
 	return rdb
 }
 
-// SetupRedisForMain is like SetupRedis but for TestMain.
 func SetupRedisForMain() (*redis.Client, func()) {
 	rdb, err := setupRedis()
 	if err != nil {
@@ -229,51 +200,4 @@ func setupRedis() (*redis.Client, error) {
 	}
 
 	return rdb, nil
-}
-
-// migrationsDir resolves the path to api/migrations/ relative to this file.
-func migrationsDir() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
-}
-
-// runMigrationsIdempotent runs migrations only if not already applied.
-// Checks for the `users` table as a sentinel.
-func runMigrationsIdempotent(ctx context.Context, db *sql.DB) error {
-	var exists bool
-	err := db.QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='users')`,
-	).Scan(&exists)
-	if err != nil {
-		return fmt.Errorf("check migrations: %w", err)
-	}
-	if exists {
-		return nil // already migrated
-	}
-
-	dir := migrationsDir()
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("read migrations dir: %w", err)
-	}
-
-	var upFiles []string
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".up.sql") {
-			upFiles = append(upFiles, f.Name())
-		}
-	}
-	sort.Strings(upFiles)
-
-	for _, name := range upFiles {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			return fmt.Errorf("read %s: %w", name, err)
-		}
-		if _, err := db.ExecContext(ctx, string(data)); err != nil {
-			return fmt.Errorf("run %s: %w", name, err)
-		}
-	}
-
-	return nil
 }

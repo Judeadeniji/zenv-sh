@@ -8,9 +8,11 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
+	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
 
 // IdentityUser represents a test identity user with session.
@@ -20,28 +22,40 @@ type IdentityUser struct {
 	SessionToken string
 }
 
-// CreateIdentityUser inserts a user + session into the identity tables.
+// CreateIdentityUser inserts a user + session into the identity provider tables.
 func CreateIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
 	t.Helper()
 
-	id := "id-" + uuid.New().String()[:8]
+	id := uuid.New().String()
 	email := fmt.Sprintf("test-%s@test.zenv.sh", uuid.New().String()[:8])
 	token := "tok-" + uuid.New().String()
 
-	_, err := db.Exec(
-		`INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)`,
-		id, "Test User", email,
-	)
+	_, err := table.Users.INSERT(
+		table.Users.ID,
+		table.Users.Name,
+		table.Users.Email,
+	).VALUES(
+		id,
+		"Test User",
+		email,
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert identity user: %v", err)
 	}
 
-	_, err = db.Exec(
-		`INSERT INTO "session" (id, token, user_id, expires_at, updated_at)
-		 VALUES ($1, $2, $3, $4, NOW())`,
-		"sess-"+uuid.New().String()[:8], token, id,
+	_, err = table.Sessions.INSERT(
+		table.Sessions.ID,
+		table.Sessions.Token,
+		table.Sessions.UserID,
+		table.Sessions.ExpiresAt,
+		table.Sessions.UpdatedAt,
+	).VALUES(
+		uuid.New().String(),
+		token,
+		id,
 		time.Now().Add(24*time.Hour),
-	)
+		time.Now(),
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert identity session: %v", err)
 	}
@@ -56,45 +70,28 @@ func CreateIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
 // CreateExpiredIdentityUser creates an identity user with an expired session.
 func CreateExpiredIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
 	t.Helper()
+	u := CreateIdentityUser(t, db)
 
-	id := "id-" + uuid.New().String()[:8]
-	email := fmt.Sprintf("test-%s@test.zenv.sh", uuid.New().String()[:8])
-	token := "tok-" + uuid.New().String()
-
-	_, err := db.Exec(
-		`INSERT INTO "user" (id, name, email) VALUES ($1, $2, $3)`,
-		id, "Expired User", email,
-	)
+	// Update the session to be expired
+	_, err := table.Sessions.UPDATE(table.Sessions.ExpiresAt).
+		SET(time.Now().Add(-1 * time.Hour)).
+		WHERE(table.Sessions.Token.EQ(String(u.SessionToken))).
+		Exec(db)
 	if err != nil {
-		t.Fatalf("insert identity user: %v", err)
+		t.Fatalf("expire session: %v", err)
 	}
 
-	_, err = db.Exec(
-		`INSERT INTO "session" (id, token, user_id, expires_at, updated_at)
-		 VALUES ($1, $2, $3, $4, NOW())`,
-		"sess-"+uuid.New().String()[:8], token, id,
-		time.Now().Add(-1*time.Hour),
-	)
-	if err != nil {
-		t.Fatalf("insert expired session: %v", err)
-	}
-
-	return IdentityUser{
-		IdentityID:   id,
-		Email:        email,
-		SessionToken: token,
-	}
+	return u
 }
 
 // ZenvUser represents a test zEnv user with crypto material.
 type ZenvUser struct {
 	UserID   uuid.UUID
-	VaultKey string // plaintext vault key for unlock tests
-	AuthKey  []byte // raw auth key (before hashing) for unlock tests
+	VaultKey string
+	AuthKey  []byte
 }
 
-// CreateZenvUser creates a zEnv user linked to an identity ID,
-// using real Amnesia crypto.
+// CreateZenvUser creates a vault identity linked to a Better Auth user.
 func CreateZenvUser(t *testing.T, db *sql.DB, identityID, email string) ZenvUser {
 	t.Helper()
 
@@ -122,63 +119,92 @@ func CreateZenvUser(t *testing.T, db *sql.DB, identityID, email string) ZenvUser
 	}
 	wrappedPrivKeyFull := append(privNonce, wrappedPrivKey...)
 
-	userID := uuid.New()
+	identityUUID := uuid.New()
 	now := time.Now().UTC()
 
-	// Schema: users(id, email, auth_key_hash, vault_key_type, salt,
-	//   wrapped_dek, public_key, wrapped_private_key, created_at, updated_at, identity_id)
-	_, err = db.Exec(
-		`INSERT INTO users (id, email, auth_key_hash, vault_key_type, salt,
-		 wrapped_dek, public_key, wrapped_private_key, identity_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-		userID, email, authKeyHash, "passphrase", salt,
-		wrappedDEKFull, pubKey, wrappedPrivKeyFull, identityID, now, now,
-	)
+	// Using Identities table from your refactored schema
+	_, err = table.Identities.INSERT(
+		table.Identities.ID,
+		table.Identities.AuthKeyHash,
+		table.Identities.VaultKeyType,
+		table.Identities.Salt,
+		table.Identities.WrappedDek,
+		table.Identities.PublicKey,
+		table.Identities.WrappedPrivateKey,
+		table.Identities.IdentityID,
+		table.Identities.CreatedAt,
+		table.Identities.UpdatedAt,
+	).VALUES(
+		identityUUID,
+		authKeyHash,
+		"passphrase", // Use the generated Enum type
+		salt,
+		wrappedDEKFull,
+		pubKey,
+		wrappedPrivKeyFull,
+		identityID,
+		now,
+		now,
+	).Exec(db)
 	if err != nil {
-		t.Fatalf("insert zenv user: %v", err)
+		t.Fatalf("insert identities row: %v", err)
 	}
 
 	return ZenvUser{
-		UserID:   userID,
+		UserID:   identityUUID,
 		VaultKey: vaultKey,
 		AuthKey:  authKey,
 	}
 }
 
-// CreateProject creates an org + project + vault key for testing.
+// CreateProject creates an org + project + vault key.
 func CreateProject(t *testing.T, db *sql.DB, ownerID uuid.UUID) (orgID, projectID uuid.UUID) {
 	t.Helper()
 
-	// Schema: organizations(id, name, owner_id, created_at)
 	orgID = uuid.New()
-	_, err := db.Exec(
-		`INSERT INTO organizations (id, name, owner_id) VALUES ($1, $2, $3)`,
-		orgID, "TestOrg-"+uuid.New().String()[:8], ownerID,
-	)
+	_, err := table.Organizations.INSERT(
+		table.Organizations.ID,
+		table.Organizations.Name,
+		table.Organizations.Slug,
+	).VALUES(
+		orgID.String(),
+		"TestOrg-"+uuid.New().String()[:8],
+		"test-org-"+uuid.New().String()[:8],
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert org: %v", err)
 	}
 
-	// Schema: organization_members(id, organization_id, user_id, role, joined_at)
-	_, err = db.Exec(
-		`INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'admin')`,
-		orgID, ownerID,
-	)
+	// Insert membership using the 'Member' table from Drizzle schema
+	_, err = table.Members.INSERT(
+		table.Members.ID,
+		table.Members.OrganizationID,
+		table.Members.UserID,
+		table.Members.Role,
+	).VALUES(
+		uuid.New().String(),
+		orgID.String(),
+		ownerID,
+		"admin",
+	).Exec(db)
 	if err != nil {
-		t.Fatalf("insert org member: %v", err)
+		t.Fatalf("insert member: %v", err)
 	}
 
-	// Schema: projects(id, organization_id, name, created_at)
 	projectID = uuid.New()
-	_, err = db.Exec(
-		`INSERT INTO projects (id, organization_id, name) VALUES ($1, $2, $3)`,
-		projectID, orgID, "TestProj-"+uuid.New().String()[:8],
-	)
+	_, err = table.Projects.INSERT(
+		table.Projects.ID,
+		table.Projects.OrganizationID,
+		table.Projects.Name,
+	).VALUES(
+		projectID,
+		orgID.String(),
+		"TestProj-"+uuid.New().String()[:8],
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert project: %v", err)
 	}
 
-	// Schema: project_vault_keys(id, project_id, project_salt, wrapped_project_dek, created_at)
 	projectSalt := amnesia.GenerateSalt()
 	projectDEK := amnesia.GenerateKey()
 	projectKEK, _ := amnesia.DeriveKeys("project-vault-key", projectSalt, amnesia.KeyTypePassphrase)
@@ -188,10 +214,17 @@ func CreateProject(t *testing.T, db *sql.DB, ownerID uuid.UUID) (orgID, projectI
 	}
 	wrappedPDEKFull := append(pdNonce, wrappedPDEK...)
 
-	_, err = db.Exec(
-		`INSERT INTO project_vault_keys (project_id, project_salt, wrapped_project_dek) VALUES ($1, $2, $3)`,
-		projectID, projectSalt, wrappedPDEKFull,
-	)
+	_, err = table.ProjectVaultKeys.INSERT(
+		table.ProjectVaultKeys.ID,
+		table.ProjectVaultKeys.ProjectID,
+		table.ProjectVaultKeys.ProjectSalt,
+		table.ProjectVaultKeys.WrappedProjectDek,
+	).VALUES(
+		uuid.New(),
+		projectID,
+		projectSalt,
+		wrappedPDEKFull,
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert project vault key: %v", err)
 	}
@@ -200,17 +233,27 @@ func CreateProject(t *testing.T, db *sql.DB, ownerID uuid.UUID) (orgID, projectI
 }
 
 // CreateServiceToken creates a service token and returns the plaintext.
-// Schema: service_tokens(id, project_id, name, token_hash, environment, permission, created_by, expires_at, revoked_at, created_at)
 func CreateServiceToken(t *testing.T, db *sql.DB, projectID uuid.UUID, env, permission string) string {
 	t.Helper()
 
 	tokenPlaintext := fmt.Sprintf("ze_%s_%s", env, hex.EncodeToString(amnesia.GenerateKey()))
 	hash := sha256.Sum256([]byte(tokenPlaintext))
 
-	_, err := db.Exec(
-		`INSERT INTO service_tokens (project_id, name, token_hash, environment, permission) VALUES ($1, $2, $3, $4, $5)`,
-		projectID, "test-token-"+uuid.New().String()[:8], hash[:], env, permission,
-	)
+	_, err := table.ServiceTokens.INSERT(
+		table.ServiceTokens.ID,
+		table.ServiceTokens.ProjectID,
+		table.ServiceTokens.Name,
+		table.ServiceTokens.TokenHash,
+		table.ServiceTokens.Environment,
+		table.ServiceTokens.Permission,
+	).VALUES(
+		uuid.New(),
+		projectID,
+		"test-token-"+uuid.New().String()[:8],
+		hash[:],
+		env,
+		permission,
+	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert service token: %v", err)
 	}
