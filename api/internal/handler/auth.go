@@ -50,7 +50,10 @@ type ErrorResponse struct {
 //	@Security       SessionAuth
 //	@Router         /auth/lock [post]
 func (h *AuthHandler) Lock(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(middleware.IdentitySessionCookie)
+	cookie, err := r.Cookie(middleware.IdentitySessionCookieSecure)
+	if err != nil || cookie.Value == "" {
+		cookie, err = r.Cookie(middleware.IdentitySessionCookie)
+	}
 	if err != nil || cookie.Value == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -139,7 +142,10 @@ func (h *AuthHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
+	cookie, _ := r.Cookie(middleware.IdentitySessionCookieSecure)
+	if cookie == nil || cookie.Value == "" {
+		cookie, _ = r.Cookie(middleware.IdentitySessionCookie)
+	}
 	if cookie != nil {
 		sessionToken := strings.Split(cookie.Value, ".")[0]
 		if err := h.identity.SetVaultUnlocked(r.Context(), sessionToken, time.Now().Add(24*time.Hour)); err != nil {
@@ -296,7 +302,10 @@ func (h *AuthHandler) SetupVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, _ := r.Cookie(middleware.IdentitySessionCookie)
+	cookie, _ := r.Cookie(middleware.IdentitySessionCookieSecure)
+	if cookie == nil || cookie.Value == "" {
+		cookie, _ = r.Cookie(middleware.IdentitySessionCookie)
+	}
 	if cookie != nil {
 		sessionToken := strings.Split(cookie.Value, ".")[0]
 		if err := h.identity.SetVaultUnlocked(r.Context(), sessionToken, time.Now().Add(24*time.Hour)); err != nil {
@@ -346,14 +355,9 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := uuid.Parse(sess.UserID)
 
-	// Fetch name from unified users table.
-	var user model.Users
-	_ = SELECT(table.Users.Name).FROM(table.Users).WHERE(table.Users.ID.EQ(UUID(userID))).
-		Query(h.db, &user)
-
 	resp := MeResponse{
 		Email:         sess.Email,
-		Name:          user.Name,
+		Name:          sess.Name,
 		VaultUnlocked: sess.IsVaultUnlocked(),
 	}
 

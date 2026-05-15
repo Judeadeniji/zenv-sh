@@ -7,13 +7,14 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
+	"github.com/Judeadeniji/zenv-sh/api/internal/auth_client"
 	"github.com/Judeadeniji/zenv-sh/api/internal/handler"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 )
 
 // Routes mounts all /v1 endpoints onto the given router.
-func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
-	identity := middleware.NewIdentitySession(db, rdb)
+func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer, ac *auth_client.Client) {
+	identity := middleware.NewIdentitySession(db, rdb, ac)
 	ta := middleware.NewTokenAuth(db)
 	auth := handler.NewAuthHandler(db, identity)
 	recovery := handler.NewRecoveryHandler(db, identity)

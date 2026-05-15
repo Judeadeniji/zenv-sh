@@ -3,19 +3,17 @@ package middleware
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
-	"github.com/go-jet/jet/v2/qrm"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
-	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
+	"github.com/Judeadeniji/zenv-sh/api/internal/auth_client"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
 
@@ -26,23 +24,17 @@ const (
 )
 
 type IdentitySession struct {
-	db  *sql.DB
-	rdb *redis.Client
+	db   *sql.DB
+	rdb  *redis.Client
+	auth *auth_client.Client
 }
 
-func NewIdentitySession(db *sql.DB, rdb *redis.Client) *IdentitySession {
-	return &IdentitySession{db: db, rdb: rdb}
+func NewIdentitySession(db *sql.DB, rdb *redis.Client, auth *auth_client.Client) *IdentitySession {
+	return &IdentitySession{db: db, rdb: rdb, auth: auth}
 }
 
-type sessionRow struct {
-	model.Sessions
-	model.Users
-	Identity *model.Identities
-}
-
-// RequireSession reads the identity session cookie, validates it against Postgres,
-// and injects a Session into context. A single query joins sessions → users → identities
-// (LEFT JOIN) so vault setup state is resolved in the same round trip.
+// RequireSession validates the session with the auth server (GET /get-session),
+// then loads vault-setup state from the identities table in Postgres.
 func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := extractToken(r)
@@ -54,32 +46,37 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 
 		slog.Debug("identity: resolving session", "token_prefix", token[:min(8, len(token))]+"...")
 
-		var row sessionRow
-		stmt := SELECT(
-			table.Sessions.ID,
-			table.Sessions.UserID,
-			table.Sessions.ExpiresAt,
-			table.Users.Email,
-			table.Identities.ID,
-		).FROM(
-			table.Sessions.
-				INNER_JOIN(table.Users, table.Users.ID.EQ(table.Sessions.UserID)).
-				LEFT_JOIN(table.Identities, table.Identities.IdentityID.EQ(table.Users.ID)),
-		).WHERE(
-			table.Sessions.Token.EQ(String(token)).
-				AND(table.Sessions.ExpiresAt.GT(TimestampT(time.Now().UTC()))),
-		)
-
-		if err := stmt.QueryContext(r.Context(), id.db, &row); err != nil {
-			if errors.Is(err, qrm.ErrNoRows) {
-				slog.Debug("identity: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
-				jsonError(w, "session expired or invalid", http.StatusUnauthorized)
-				return
-			}
-			slog.Error("identity: query session", "error", err)
+		info, err := id.auth.GetSession(r.Context(), r)
+		if err != nil {
+			slog.Error("identity: auth get-session", "error", err)
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		if info == nil || info.UserID == "" {
+			slog.Debug("identity: no matching session", "token_prefix", token[:min(8, len(token))]+"...")
+			jsonError(w, "session expired or invalid", http.StatusUnauthorized)
+			return
+		}
+
+		authUID, err := uuid.Parse(info.UserID)
+		if err != nil {
+			slog.Debug("identity: invalid user id from auth", "error", err)
+			jsonError(w, "session expired or invalid", http.StatusUnauthorized)
+			return
+		}
+
+		var countResult struct {
+			Count int64 `alias:"count"`
+		}
+		if err := SELECT(COUNT(table.Identities.ID).AS("count")).
+			FROM(table.Identities).
+			WHERE(table.Identities.IdentityID.EQ(UUID(authUID))).
+			QueryContext(r.Context(), id.db, &countResult); err != nil {
+			slog.Error("identity: check identities", "error", err)
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		hasIdentity := countResult.Count > 0
 
 		var vaultUnlockedAt *string
 		if val, redisErr := id.rdb.Get(r.Context(), vaultUnlockPrefix+token).Result(); redisErr == nil && val != "" {
@@ -87,17 +84,16 @@ func (id *IdentitySession) RequireSession(next http.Handler) http.Handler {
 		}
 
 		sess := &Session{
-			ID:              row.Sessions.ID.String(),
-			UserID:          row.Sessions.UserID.String(),
-			Email:           row.Users.Email,
+			ID:              info.SessionID,
+			UserID:          info.UserID,
+			Email:           info.Email,
+			Name:            info.Name,
 			VaultUnlockedAt: vaultUnlockedAt,
-			HasIdentity:     row.Identity != nil,
+			HasIdentity:     hasIdentity,
 		}
 
 		ctx := context.WithValue(r.Context(), sessionContextKey, sess)
-		if uid, err := uuid.Parse(sess.UserID); err == nil {
-			ctx = audit.SetUserID(ctx, uid)
-		}
+		ctx = audit.SetUserID(ctx, authUID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -140,8 +136,8 @@ func extractToken(r *http.Request) string {
 	if cookie, err := r.Cookie(IdentitySessionCookie); err == nil && cookie.Value != "" {
 		return strings.Split(cookie.Value, ".")[0]
 	}
-	if h := r.Header.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
-		return h[7:]
+	if h := r.Header.Get("Authorization"); len(h) > 7 && strings.EqualFold(h[:7], "Bearer ") {
+		return strings.Split(strings.TrimSpace(h[7:]), ".")[0]
 	}
 	return ""
 }

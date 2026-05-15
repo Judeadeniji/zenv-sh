@@ -21,6 +21,7 @@ type Session struct {
 	ID              string  `json:"id"`
 	UserID          string  `json:"user_id"`
 	Email           string  `json:"email"`
+	Name            string  `json:"name,omitempty"`
 	VaultUnlockedAt *string `json:"vault_unlocked_at,omitempty"`
 	HasIdentity     bool    `json:"has_identity"`
 }
