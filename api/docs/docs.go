@@ -93,6 +93,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -122,8 +134,20 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -187,7 +211,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "CSV stream (Content-Disposition attachment)"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -199,7 +241,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Rotate vault key: verify current auth key, store new crypto material. O(1) — no item rows touched.",
+                "description": "Rotate the Vault Key. The client derives the old KEK, unwraps the DEK, derives a new KEK from the new Vault Key, re-wraps the same DEK, and submits the new crypto material. This is an O(1) operation — zero vault item rows are touched. Requires the current Vault Key to be verified before rotation is applied.",
                 "consumes": [
                     "application/json"
                 ],
@@ -212,7 +254,7 @@ const docTemplate = `{
                 "summary": "Change vault key",
                 "parameters": [
                     {
-                        "description": "Current auth proof + new crypto material",
+                        "description": "Current auth proof and new crypto material",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -223,7 +265,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Vault key rotated successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -232,13 +274,31 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing required fields, invalid vault_key_type, or malformed base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "No active session",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Wrong current Vault Key",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Vault not set up",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -253,14 +313,23 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Removes the vault unlock record, requiring the user to re-enter their Vault Key on next access.",
+                "description": "Clears the vault unlock record in Redis, requiring the user to re-enter their Vault Key on next access. Safe to call even if already locked.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "auth"
                 ],
                 "summary": "Lock vault",
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Vault locked successfully"
+                    },
+                    "401": {
+                        "description": "No active session",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -272,7 +341,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Returns identity, vault setup status, and vault lock state.",
+                "description": "Returns the authenticated user's identity info, vault setup status, and vault lock state. Use this to determine whether to show the vault setup flow, the unlock prompt, or the main UI. The salt is returned so the client can derive the KEK locally without an extra round trip.",
                 "produces": [
                     "application/json"
                 ],
@@ -282,13 +351,13 @@ const docTemplate = `{
                 "summary": "Get auth state",
                 "responses": {
                     "200": {
-                        "description": "Successfully retrieved user state",
+                        "description": "Current user state",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.MeResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "No active session",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -303,7 +372,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.",
                 "consumes": [
                     "application/json"
                 ],
@@ -327,7 +395,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully updated",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -336,19 +404,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to update recovery setting",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -381,19 +449,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to fetch requests",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -408,7 +470,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Returns the recovery-wrapped DEK so the client can attempt recovery.",
                 "produces": [
                     "application/json"
                 ],
@@ -424,19 +485,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Recovery disabled",
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "No recovery kit or User not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -449,7 +510,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.",
                 "consumes": [
                     "application/json"
                 ],
@@ -473,7 +533,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully regenerated",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -482,31 +542,31 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or base64",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Recovery disabled",
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to update recovery kit",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -521,7 +581,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Client verified recovery words, unwrapped DEK, set new Vault Key. Submit new crypto material.",
                 "consumes": [
                     "application/json"
                 ],
@@ -545,7 +604,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Vault successfully recovered",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -554,19 +613,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body, key type, or base64",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to update vault",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -596,13 +655,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "No active recovery request",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -615,7 +674,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Start 72-hour waiting period for trusted contact recovery.",
                 "consumes": [
                     "application/json"
                 ],
@@ -639,32 +697,32 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Recovery request created",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or base64",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "No trusted contact configured",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Active recovery request already exists",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -686,7 +744,7 @@ const docTemplate = `{
                 "summary": "Cancel recovery request",
                 "responses": {
                     "200": {
-                        "description": "Request cancelled",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -695,19 +753,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to cancel",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -722,7 +774,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Trusted contact provides DEK re-wrapped with recovering user's ephemeral key.",
                 "consumes": [
                     "application/json"
                 ],
@@ -753,7 +804,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Request approved",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -762,31 +813,31 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID, body, base64, or request not pending",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Not trusted contact or 72-hour wait period not elapsed",
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Recovery request not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to approve",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -831,7 +882,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Vault successfully recovered",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -840,25 +891,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID, body, or request not approved",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Recovery request not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to update vault or complete request",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -889,13 +940,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -910,7 +961,6 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Wrap DEK with contact's public key and store. Requires unlocked vault.",
                 "consumes": [
                     "application/json"
                 ],
@@ -934,7 +984,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Trusted contact set",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -943,31 +993,31 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid body, base64, or self-designation",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Recovery disabled",
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "User or contact not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to set trusted contact",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -989,7 +1039,7 @@ const docTemplate = `{
                 "summary": "Remove trusted contact",
                 "responses": {
                     "200": {
-                        "description": "Trusted contact removed",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -998,19 +1048,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Failed to remove trusted contact",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -1025,7 +1069,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Store client-generated crypto material and link to authenticated identity.",
+                "description": "Store client-generated cryptographic material and link to the authenticated identity. Must be called once after signup before any vault operations. All crypto material is generated client-side — the server stores ciphertext only. On success, the session is immediately marked as vault-unlocked.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1038,7 +1082,7 @@ const docTemplate = `{
                 "summary": "Setup vault",
                 "parameters": [
                     {
-                        "description": "Crypto material from client",
+                        "description": "Client-generated crypto material",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -1049,19 +1093,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Vault created and session unlocked",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.SetupVaultResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Missing required fields, invalid vault_key_type, or malformed base64",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "No active session",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Vault already set up for this account",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -1076,7 +1132,7 @@ const docTemplate = `{
                         "SessionAuth": []
                     }
                 ],
-                "description": "Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair on success.",
+                "description": "Verify the Auth Key hash (proof of Vault Key knowledge). On success, marks the session as vault-unlocked in Redis and returns the wrapped DEK and keypair so the client can derive the KEK and unwrap locally. The raw Vault Key never leaves the client.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1089,7 +1145,7 @@ const docTemplate = `{
                 "summary": "Unlock vault",
                 "parameters": [
                     {
-                        "description": "Auth Key hash (base64)",
+                        "description": "Auth Key hash derived from the user's Vault Key",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -1100,353 +1156,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Vault unlocked — key material returned",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.UnlockResponse"
                         }
                     },
-                    "403": {
-                        "description": "Wrong Vault Key",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/orgs": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "List all organizations the current user is a member of.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "List organizations",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page",
-                        "name": "per_page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort by field",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort direction (asc/desc)",
-                        "name": "sort_dir",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search by organization name",
-                        "name": "search",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ListOrgsResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "Create an organization. The creating user becomes the owner and is added as an admin member.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "Create organization",
-                "parameters": [
-                    {
-                        "description": "Organization name",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.CreateOrgRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.OrgResponse"
-                        }
-                    },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or malformed base64",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "401": {
+                        "description": "No active session",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/orgs/{orgID}": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "Get a single organization by ID.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "Get organization",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Organization UUID",
-                        "name": "orgID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    },
+                    "403": {
+                        "description": "Wrong Vault Key — auth key hash mismatch",
                         "schema": {
-                            "$ref": "#/definitions/api_internal_handler.OrgResponse"
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/orgs/{orgID}/members": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "List organization members",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Organization UUID",
-                        "name": "orgID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page number (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page (default: 20, max: 100)",
-                        "name": "per_page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort field: email | role | joined_at (default: joined_at)",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort direction: asc | desc (default: desc)",
-                        "name": "sort_dir",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search by email (case-insensitive)",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by role",
-                        "name": "role",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ListMembersResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid organization ID",
+                        "description": "Vault not set up for this account",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "Add a user to an organization. Provide either email (web) or user_id UUID (CLI).",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "Add organization member",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Organization UUID",
-                        "name": "orgID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "User (email or user_id) and role",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.AddMemberRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.MemberResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/orgs/{orgID}/members/{memberID}": {
-            "delete": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "description": "Remove a member from an organization.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "organizations"
-                ],
-                "summary": "Remove organization member",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Organization UUID",
-                        "name": "orgID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Member UUID",
-                        "name": "memberID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2253,6 +1993,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/sdk/projects": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a project as the **service token creator** (Better Auth user resolved from the token's ` + "`" + `created_by` + "`" + `). Inserts the project, initial ` + "`" + `project_vault_keys` + "`" + ` row, and a ` + "`" + `project_key_grants` + "`" + ` row for that user. Payload matches dashboard create: organization, display name, base64 project salt, wrapped project DEK, and wrapped project vault key for the creator.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Create project (SDK)",
+                "parameters": [
+                    {
+                        "description": "organization_id, name, project_salt, wrapped_project_dek, wrapped_project_vault_key (all base64 where applicable)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.CreateProjectRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ProjectResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Project name already exists in organization",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/sdk/projects/{projectID}/crypto": {
             "get": {
                 "security": [
@@ -2293,6 +2096,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/sdk/projects/{projectID}/key-grant": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the **token creator's** wrapped project vault key for the given project (` + "`" + `project_key_grants` + "`" + ` row matching token ` + "`" + `created_by` + "`" + ` and path ` + "`" + `projectID` + "`" + `). Used by CLIs and automation to unwrap the project vault key without a browser session. Not a generic lookup for arbitrary users.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Get project key grant (SDK)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.KeyGrantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No grant row for this creator and project",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/sdk/secrets": {
             "get": {
                 "security": [
@@ -2300,7 +2161,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
+                "description": "List secret rows for a project: name hash, environment, version, timestamps, and plaintext ` + "`" + `metadata` + "`" + ` (never ciphertext or nonces). Supports pagination, sorting, and filters by environment and version.",
                 "produces": [
                     "application/json"
                 ],
@@ -2380,7 +2241,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
+                "description": "Store an encrypted vault item. The server stores opaque ciphertext and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash). Optional ` + "`" + `metadata` + "`" + ` is plaintext JSON (mime_type, description, tags, labels) for operators and tooling — never put secret values in metadata.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2437,7 +2298,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each item in the response includes optional plaintext ` + "`" + `metadata` + "`" + ` alongside ciphertext. Missing hashes are omitted from the result (no error).",
                 "consumes": [
                     "application/json"
                 ],
@@ -2488,7 +2349,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
+                "description": "Retrieve one encrypted secret by HMAC-SHA256 name hash (must match exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext metadata. Partial or plaintext name lookups are not supported.",
                 "produces": [
                     "application/json"
                 ],
@@ -2552,7 +2413,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
+                "description": "Replace ciphertext and nonce for an existing secret; the prior row is archived and the version counter increments. Optional ` + "`" + `metadata` + "`" + ` in the body is shallow-merged with existing server-side metadata (same validation as PATCH metadata). Use GET /{nameHash}/versions for history.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2586,7 +2447,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "New ciphertext and nonce",
+                        "description": "New ciphertext, nonce, and optional metadata merge",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2668,6 +2529,84 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sdk/secrets/{nameHash}/metadata": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Shallow-merge plaintext metadata for a vault item without changing ciphertext, nonce, or the secret version counter. Use this when only labels, MIME hints, or descriptions change. Body must be a JSON object; unknown keys return 400. Send JSON null for a key to remove it. Total metadata size is capped server-side.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Patch secret metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Environment (development | staging | production)",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to merge (partial object)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.SecretMetadataMergeBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.SecretResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Empty body, invalid JSON, unknown keys, or metadata limits exceeded",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -2831,6 +2770,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/sdk/tokens": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Issues a new service token on behalf of the **authenticated token's creator** (the ` + "`" + `created_by` + "`" + ` user from the parent token). Same semantics as dashboard token create: plaintext returned once, stored as a hash. Requires a valid service token with ` + "`" + `read_write` + "`" + ` when routed through the SDK write group.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sdk"
+                ],
+                "summary": "Create service token (SDK)",
+                "parameters": [
+                    {
+                        "description": "project_id, name, environment; optional permission (read|read_write, default read) and expires_at (RFC3339)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.CreateTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.CreateTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/sdk/vault": {
             "get": {
                 "security": [
@@ -2869,7 +2865,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the token name, creator, project, environment, and permission.",
+                "description": "Returns the token name, human-readable creator (when available), project and organization names, environment, and permission for the **Bearer** service token used on this request.",
                 "produces": [
                     "application/json"
                 ],
@@ -2883,6 +2879,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.WhoamiResponse"
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -2894,7 +2902,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.",
+                "description": "List secret rows for a project: name hash, environment, version, timestamps, and plaintext ` + "`" + `metadata` + "`" + ` (never ciphertext or nonces). Supports pagination, sorting, and filters by environment and version.",
                 "produces": [
                     "application/json"
                 ],
@@ -2974,7 +2982,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.",
+                "description": "Store an encrypted vault item. The server stores opaque ciphertext and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash). Optional ` + "`" + `metadata` + "`" + ` is plaintext JSON (mime_type, description, tags, labels) for operators and tooling — never put secret values in metadata.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3031,7 +3039,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.",
+                "description": "Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each item in the response includes optional plaintext ` + "`" + `metadata` + "`" + ` alongside ciphertext. Missing hashes are omitted from the result (no error).",
                 "consumes": [
                     "application/json"
                 ],
@@ -3082,7 +3090,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.",
+                "description": "Retrieve one encrypted secret by HMAC-SHA256 name hash (must match exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext metadata. Partial or plaintext name lookups are not supported.",
                 "produces": [
                     "application/json"
                 ],
@@ -3146,7 +3154,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.",
+                "description": "Replace ciphertext and nonce for an existing secret; the prior row is archived and the version counter increments. Optional ` + "`" + `metadata` + "`" + ` in the body is shallow-merged with existing server-side metadata (same validation as PATCH metadata). Use GET /{nameHash}/versions for history.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3180,7 +3188,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "New ciphertext and nonce",
+                        "description": "New ciphertext, nonce, and optional metadata merge",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -3262,6 +3270,84 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Missing params or invalid name hash",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Secret not found",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{nameHash}/metadata": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Shallow-merge plaintext metadata for a vault item without changing ciphertext, nonce, or the secret version counter. Use this when only labels, MIME hints, or descriptions change. Body must be a JSON object; unknown keys return 400. Send JSON null for a key to remove it. Total metadata size is capped server-side.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Patch secret metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "HMAC-SHA256 name hash (base64, URL-encoded)",
+                        "name": "nameHash",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Environment (development | staging | production)",
+                        "name": "environment",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to merge (partial object)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.SecretMetadataMergeBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api_internal_handler.SecretResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Empty body, invalid JSON, unknown keys, or metadata limits exceeded",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -3643,19 +3729,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Email query param required",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Authentication required",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api_internal_handler.ErrorResponse"
                         }
@@ -3665,28 +3751,10 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api_internal_handler.AddMemberRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "description": "email — used by web; looked up to resolve UUID",
-                    "type": "string"
-                },
-                "role": {
-                    "description": "admin, senior_dev, dev, contractor, ci_bot",
-                    "type": "string"
-                },
-                "user_id": {
-                    "description": "UUID — used by CLI",
-                    "type": "string"
-                }
-            }
-        },
         "api_internal_handler.ApproveRecoveryRequest": {
             "type": "object",
             "properties": {
                 "recovery_payload": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -3778,28 +3846,38 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "current_auth_key_hash": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "CurrentAuthKeyHash is HashAuthKey(currentVaultKey), used to verify the current Vault Key before rotation, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "new_auth_key_hash": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "NewAuthKeyHash is HashAuthKey(newVaultKey), base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "new_salt": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "NewSalt is a freshly generated KDF salt for the new Key Encryption Key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "new_vault_key_type": {
-                    "description": "\"pin\" or \"passphrase\"",
-                    "type": "string"
+                    "description": "NewVaultKeyType is the type of the new Vault Key. Must be \"pin\" or \"passphrase\".",
+                    "type": "string",
+                    "enum": [
+                        "pin",
+                        "passphrase"
+                    ],
+                    "example": "passphrase"
                 },
                 "new_wrapped_dek": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "NewWrappedDEK is the same DEK re-wrapped with the new KEK, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "new_wrapped_private_key": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "NewWrappedPrivateKey is the private key re-wrapped with the new DEK, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 }
             }
         },
@@ -3851,17 +3929,6 @@ const docTemplate = `{
                 },
                 "new_wrapped_private_key": {
                     "type": "string"
-                },
-                "request_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api_internal_handler.CreateOrgRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
                 }
             }
         },
@@ -3896,7 +3963,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "environment": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"
+                },
+                "metadata": {
+                    "description": "Metadata is optional plaintext hints (MIME, description, tags). Never put secret material here.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "name_hash": {
                     "description": "base64 HMAC-SHA256 of secret name",
@@ -4019,7 +4093,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus"
                 }
             }
         },
@@ -4027,7 +4101,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "recovery_public_key": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -4066,34 +4139,6 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/api_internal_handler.KeyGrantMember"
-                    }
-                }
-            }
-        },
-        "api_internal_handler.ListMembersResponse": {
-            "type": "object",
-            "properties": {
-                "members": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api_internal_handler.MemberResponse"
-                    }
-                },
-                "meta": {
-                    "$ref": "#/definitions/api_internal_handler.Meta"
-                }
-            }
-        },
-        "api_internal_handler.ListOrgsResponse": {
-            "type": "object",
-            "properties": {
-                "meta": {
-                    "$ref": "#/definitions/api_internal_handler.Meta"
-                },
-                "organizations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api_internal_handler.OrgResponse"
                     }
                 }
             }
@@ -4144,46 +4189,42 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "Email is the user's email address from their identity provider.",
+                    "type": "string",
+                    "example": "user@example.com"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "Name is the user's display name from their identity provider.",
+                    "type": "string",
+                    "example": "Jane Doe"
                 },
                 "salt": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "Salt is the KDF salt for the user's Key Encryption Key, base64-encoded. Only present if vault is set up.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "vault_key_type": {
-                    "type": "string"
+                    "description": "VaultKeyType is the type of Vault Key the user chose (\"pin\" or \"passphrase\"). Only present if vault is set up.",
+                    "enum": [
+                        "pin",
+                        "passphrase"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType"
+                        }
+                    ],
+                    "example": "passphrase"
                 },
                 "vault_setup_complete": {
-                    "type": "boolean"
+                    "description": "VaultSetupComplete is true if the user has completed vault setup.",
+                    "type": "boolean",
+                    "example": true
                 },
                 "vault_unlocked": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "api_internal_handler.MemberResponse": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "joined_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
+                    "description": "VaultUnlocked is true if the user has completed both auth layers in this session.",
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },
@@ -4204,23 +4245,6 @@ const docTemplate = `{
                 }
             }
         },
-        "api_internal_handler.OrgResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner_id": {
-                    "type": "string"
-                }
-            }
-        },
         "api_internal_handler.ProjectCryptoResponse": {
             "type": "object",
             "properties": {
@@ -4230,7 +4254,11 @@ const docTemplate = `{
                 },
                 "vault_key_type": {
                     "description": "\"pin\" or \"passphrase\"",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType"
+                        }
+                    ]
                 },
                 "wrapped_project_dek": {
                     "description": "base64",
@@ -4282,7 +4310,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "public_key": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -4314,7 +4341,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "recovery_wrapped_dek": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -4335,7 +4361,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus"
                 }
             }
         },
@@ -4360,7 +4386,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "recovery_wrapped_dek": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -4380,10 +4405,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "environment": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"
                 },
                 "id": {
                     "type": "string"
+                },
+                "metadata": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "name_hash": {
                     "type": "string"
@@ -4393,6 +4424,29 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "api_internal_handler.SecretMetadataMergeBody": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -4406,10 +4460,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "environment": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"
                 },
                 "id": {
                     "type": "string"
+                },
+                "metadata": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "name_hash": {
                     "type": "string"
@@ -4435,7 +4495,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "trusted_wrapped_dek": {
-                    "description": "base64",
                     "type": "string"
                 }
             }
@@ -4444,36 +4503,48 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "auth_key_hash": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "AuthKeyHash is HashAuthKey(vaultKey), used to verify the Vault Key on unlock, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "public_key": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "PublicKey is the user's raw Ed25519 public key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "recovery_disabled": {
-                    "description": "enterprise opt-in to disable recovery",
-                    "type": "boolean"
+                    "description": "RecoveryDisabled disables all recovery methods for this account. Enterprise opt-in.",
+                    "type": "boolean",
+                    "example": false
                 },
                 "recovery_wrapped_dek": {
-                    "description": "base64, optional — DEK wrapped with recovery key",
-                    "type": "string"
+                    "description": "RecoveryWrappedDEK is the DEK wrapped with the recovery key, base64-encoded. Optional.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "salt": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "Salt is the random salt used to derive the Key Encryption Key from the Vault Key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "vault_key_type": {
-                    "description": "\"pin\" or \"passphrase\"",
-                    "type": "string"
+                    "description": "VaultKeyType is the type of Vault Key the user chose. Must be \"pin\" or \"passphrase\".",
+                    "type": "string",
+                    "enum": [
+                        "pin",
+                        "passphrase"
+                    ],
+                    "example": "passphrase"
                 },
                 "wrapped_dek": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "wrapped_private_key": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 }
             }
         },
@@ -4481,10 +4552,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "user_id": {
-                    "type": "string"
+                    "description": "UserID is the newly created vault identity UUID.",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "vault_setup_complete": {
-                    "type": "boolean"
+                    "description": "VaultSetupComplete is always true on success.",
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -4555,7 +4630,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "environment": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"
                 },
                 "expires_at": {
                     "type": "string"
@@ -4567,7 +4642,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "permission": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission"
                 },
                 "project_id": {
                     "type": "string"
@@ -4581,8 +4656,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "auth_key_hash": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "AuthKeyHash is the result of HashAuthKey(vaultKey), base64-encoded.\nNever send the raw Vault Key — only the derived hash.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 }
             }
         },
@@ -4590,16 +4666,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "public_key": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "PublicKey is the user's raw Ed25519 public key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "wrapped_dek": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 },
                 "wrapped_private_key": {
-                    "description": "base64",
-                    "type": "string"
+                    "description": "WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.",
+                    "type": "string",
+                    "example": "base64encodedstring=="
                 }
             }
         },
@@ -4609,6 +4688,12 @@ const docTemplate = `{
                 "ciphertext": {
                     "description": "base64",
                     "type": "string"
+                },
+                "metadata": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "nonce": {
                     "description": "base64",
@@ -4629,7 +4714,11 @@ const docTemplate = `{
                 },
                 "vault_key_type": {
                     "description": "\"pin\" or \"passphrase\"",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType"
+                        }
+                    ]
                 },
                 "wrapped_dek": {
                     "description": "base64",
@@ -4670,7 +4759,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "environment": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"
                 },
                 "organization_id": {
                     "type": "string"
@@ -4679,7 +4768,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "permission": {
-                    "type": "string"
+                    "$ref": "#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission"
                 },
                 "project_id": {
                     "type": "string"
@@ -4697,6 +4786,58 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment": {
+            "type": "string",
+            "enum": [
+                "development",
+                "staging",
+                "production"
+            ],
+            "x-enum-varnames": [
+                "Environment_Development",
+                "Environment_Staging",
+                "Environment_Production"
+            ]
+        },
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission": {
+            "type": "string",
+            "enum": [
+                "read",
+                "read_write"
+            ],
+            "x-enum-varnames": [
+                "Permission_Read",
+                "Permission_ReadWrite"
+            ]
+        },
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "approved",
+                "cancelled",
+                "expired",
+                "completed"
+            ],
+            "x-enum-varnames": [
+                "RecoveryStatus_Pending",
+                "RecoveryStatus_Approved",
+                "RecoveryStatus_Cancelled",
+                "RecoveryStatus_Expired",
+                "RecoveryStatus_Completed"
+            ]
+        },
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType": {
+            "type": "string",
+            "enum": [
+                "pin",
+                "passphrase"
+            ],
+            "x-enum-varnames": [
+                "VaultKeyType_Pin",
+                "VaultKeyType_Passphrase"
+            ]
         }
     },
     "securityDefinitions": {
