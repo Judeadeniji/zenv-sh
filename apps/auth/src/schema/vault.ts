@@ -69,6 +69,8 @@ export const vaultItems = pgTable(
         ciphertext: bytea("ciphertext").notNull(),
         nonce: bytea("nonce").notNull(),
         version: integer().default(1).notNull(),
+        /** Unencrypted per-item hints (MIME, labels, notes). Never put secrets here. */
+        metadata: jsonb().default({}).notNull(),
         createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
         dekVersion: integer("dek_version").default(1).notNull(),

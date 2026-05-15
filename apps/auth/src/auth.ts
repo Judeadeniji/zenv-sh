@@ -64,6 +64,7 @@ export const auth = betterAuth({
 						ownerId: {
 							type: "string",
 							fieldName: "owner_id",
+							required: false,
 							references: {
 								model: "users",
 								field: "id",
