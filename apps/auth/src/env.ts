@@ -4,6 +4,12 @@ import { z } from "zod/v4";
 export const env = createEnv({
   server: {
     DATABASE_URL: z.url(),
+    REDIS_URL: z
+      .string()
+      .min(1)
+      .refine((s) => /^(redis|rediss):\/\//i.test(s), {
+        message: "REDIS_URL must start with redis:// or rediss://",
+      }),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     TRUSTED_ORIGINS: z.string().default(""),

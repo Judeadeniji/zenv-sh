@@ -1,9 +1,11 @@
+import { redisStorage } from "@better-auth/redis-storage"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin, openAPI, organization, twoFactor } from "better-auth/plugins"
 import { db } from "./db.js"
 import * as schema from "./schema/index.js"
 import { env } from "./env.js"
+import { redis } from "./redis.js"
 
 const trustedOrigins = env.TRUSTED_ORIGINS
 	? env.TRUSTED_ORIGINS.split(",").map((s) => s.trim())
@@ -16,6 +18,10 @@ export const auth = betterAuth({
 		schema: schema,
 		usePlural: true,
 		transaction: true,
+	}),
+	secondaryStorage: redisStorage({
+		client: redis,
+		keyPrefix: "better-auth:",
 	}),
 	emailAndPassword: {
 		enabled: true,
@@ -95,7 +101,7 @@ export const auth = betterAuth({
 							ownerId: user.id,
 						},
 					}
-        }
+				},
 			},
 		}),
 	],
