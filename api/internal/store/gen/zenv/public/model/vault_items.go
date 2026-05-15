@@ -23,4 +23,5 @@ type VaultItems struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DekVersion  int32
+	Metadata    string
 }

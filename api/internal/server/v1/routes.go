@@ -59,6 +59,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer, ac *a
 			r.Get("/{nameHash}", secrets.Get)
 			r.Get("/{nameHash}/versions", secrets.Versions)
 			r.Post("/{nameHash}/rollback", secrets.Rollback)
+			r.Patch("/{nameHash}/metadata", secrets.PatchMetadata)
 			r.Put("/{nameHash}", secrets.Update)
 			r.Delete("/{nameHash}", secrets.Delete)
 		})
@@ -132,6 +133,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer, ac *a
 
 			r.Post("/secrets", secrets.Create)
 			r.Put("/secrets/{nameHash}", secrets.Update)
+			r.Patch("/secrets/{nameHash}/metadata", secrets.PatchMetadata)
 			r.Post("/secrets/{nameHash}/rollback", secrets.Rollback)
 			r.Delete("/secrets/{nameHash}", secrets.Delete)
 		})

@@ -12,6 +12,10 @@ package table
 func UseSchema(schema string) {
 	Accounts = Accounts.FromSchema(schema)
 	AuditLogs = AuditLogs.FromSchema(schema)
+	AuditLogs202605 = AuditLogs202605.FromSchema(schema)
+	AuditLogs202606 = AuditLogs202606.FromSchema(schema)
+	AuditLogs202607 = AuditLogs202607.FromSchema(schema)
+	AuditLogs202608 = AuditLogs202608.FromSchema(schema)
 	Identities = Identities.FromSchema(schema)
 	Invitations = Invitations.FromSchema(schema)
 	Members = Members.FromSchema(schema)

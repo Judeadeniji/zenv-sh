@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -38,6 +39,8 @@ type CreateSecretRequest struct {
 	NameHash    string            `json:"name_hash"`  // base64 HMAC-SHA256 of secret name
 	Ciphertext  string            `json:"ciphertext"` // base64 AES-256-GCM encrypted item JSON
 	Nonce       string            `json:"nonce"`      // base64 96-bit nonce
+	// Metadata is optional plaintext hints (MIME, description, tags). Never put secret material here.
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 type SecretResponse struct {
@@ -47,13 +50,14 @@ type SecretResponse struct {
 	NameHash    string            `json:"name_hash"`
 	Ciphertext  string            `json:"ciphertext"`
 	Nonce       string            `json:"nonce"`
+	Metadata    json.RawMessage   `json:"metadata,omitempty"`
 	Version     int               `json:"version"`
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 }
 
 // @Summary		Create secret
-// @Description	Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
+// @Description	Store an encrypted vault item. The server stores opaque ciphertext and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash). Optional `metadata` is plaintext JSON (mime_type, description, tags, labels) for operators and tooling — never put secret values in metadata.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
@@ -105,7 +109,7 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		FROM(table.VaultItems).
 		WHERE(
 			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(req.Environment.String()))).
+				AND(table.VaultItems.Environment.EQ(NewEnumValue(req.Environment.String()))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
 	if err := existsStmt.Query(h.db, &existing); err == nil {
@@ -116,6 +120,16 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New()
 	now := time.Now().UTC()
 
+	metaJSON := "{}"
+	if len(req.Metadata) > 0 {
+		mb, err := normalizeSecretMetadata(req.Metadata)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		metaJSON = string(mb)
+	}
+
 	insertStmt := table.VaultItems.INSERT(
 		table.VaultItems.ID,
 		table.VaultItems.ProjectID,
@@ -124,10 +138,11 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.Ciphertext,
 		table.VaultItems.Nonce,
 		table.VaultItems.Version,
+		table.VaultItems.Metadata,
 		table.VaultItems.CreatedAt,
 		table.VaultItems.UpdatedAt,
 	).VALUES(
-		id, projectID, req.Environment, nameHash, ciphertext, nonce, 1, now, now,
+		id, projectID, req.Environment, nameHash, ciphertext, nonce, 1, String(metaJSON), now, now,
 	)
 
 	if _, err := insertStmt.Exec(h.db); err != nil {
@@ -136,23 +151,23 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, SecretResponse{
-		ID:          id.String(),
-		ProjectID:   projectID.String(),
-		Environment: req.Environment,
-		NameHash:    req.NameHash,
-		Ciphertext:  req.Ciphertext,
-		Nonce:       req.Nonce,
-		Version:     1,
-		CreatedAt:   now.Format(time.RFC3339),
-		UpdatedAt:   now.Format(time.RFC3339),
-	})
+	var created model.VaultItems
+	if err := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(table.VaultItems.ID.EQ(UUID(id))).
+		Query(h.db, &created); err != nil {
+		slog.Error("secrets.create: fetch", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to load secret"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, toSecretResponse(created))
 }
 
 // --- Get single secret by name_hash ---
 
 // @Summary		Get secret
-// @Description	Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
+// @Description	Retrieve one encrypted secret by HMAC-SHA256 name hash (must match exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext metadata. Partial or plaintext name lookups are not supported.
 // @Tags			secrets
 // @Produce		json
 // @Param			nameHash	path		string	true	"HMAC-SHA256 name hash (base64, URL-encoded)"
@@ -184,7 +199,7 @@ func (h *SecretsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.AllColumns,
 	).FROM(table.VaultItems).WHERE(
 		table.VaultItems.ProjectID.EQ(UUID(projectID)).
-			AND(table.VaultItems.Environment.EQ(String(env))).
+			AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
 			AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 	)
 
@@ -214,7 +229,7 @@ type BulkFetchResponse struct {
 }
 
 // @Summary		Bulk fetch secrets
-// @Description	Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
+// @Description	Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each item in the response includes optional plaintext `metadata` alongside ciphertext. Missing hashes are omitted from the result (no error).
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
@@ -258,7 +273,7 @@ func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.AllColumns,
 	).FROM(table.VaultItems).WHERE(
 		table.VaultItems.ProjectID.EQ(UUID(projectID)).
-			AND(table.VaultItems.Environment.EQ(String(req.Environment))).
+			AND(table.VaultItems.Environment.EQ(NewEnumValue(req.Environment))).
 			AND(table.VaultItems.NameHash.IN(hashExpressions...)),
 	)
 
@@ -279,19 +294,29 @@ func (h *SecretsHandler) BulkFetch(w http.ResponseWriter, r *http.Request) {
 // --- Update (new version, new nonce) ---
 
 type UpdateSecretRequest struct {
-	Ciphertext string `json:"ciphertext"` // base64
-	Nonce      string `json:"nonce"`      // base64
+	Ciphertext string          `json:"ciphertext"` // base64
+	Nonce      string          `json:"nonce"`      // base64
+	Metadata   json.RawMessage `json:"metadata,omitempty"`
+}
+
+// SecretMetadataMergeBody documents the JSON body for PATCH /secrets/{nameHash}/metadata.
+// Allowed keys: mime_type, description, tags, labels. Unknown keys are rejected. JSON null removes a key.
+type SecretMetadataMergeBody struct {
+	MimeType    string            `json:"mime_type,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
 }
 
 // @Summary		Update secret
-// @Description	Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
+// @Description	Replace ciphertext and nonce for an existing secret; the prior row is archived and the version counter increments. Optional `metadata` in the body is shallow-merged with existing server-side metadata (same validation as PATCH metadata). Use GET /{nameHash}/versions for history.
 // @Tags			secrets
 // @Accept			json
 // @Produce		json
 // @Param			nameHash	path		string				true	"HMAC-SHA256 name hash (base64, URL-encoded)"
 // @Param			project_id	query		string				true	"Project ID"
 // @Param			environment	query		string				true	"Environment"
-// @Param			body		body		UpdateSecretRequest	true	"New ciphertext and nonce"
+// @Param			body		body		UpdateSecretRequest	true	"New ciphertext, nonce, and optional metadata merge"
 // @Success		200			{object}	SecretResponse
 // @Failure		400			{object}	ErrorResponse	"Missing params or invalid base64"
 // @Failure		404			{object}	ErrorResponse	"Secret not found"
@@ -342,7 +367,7 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		FROM(table.VaultItems).
 		WHERE(
 			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
 	if err := fetchCurrent.Query(h.db, &current); err != nil {
@@ -353,6 +378,15 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		slog.Error("secrets.update: fetch current", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
 		return
+	}
+
+	var mergedMeta []byte
+	if len(req.Metadata) > 0 {
+		mergedMeta, err = mergeSecretMetadataJSON(current.Metadata, req.Metadata)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
 	}
 
 	// Archive the current version before overwriting.
@@ -369,22 +403,41 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("secrets.update: archive version failed", "error", err)
 	}
 
-	updateStmt := table.VaultItems.UPDATE(
-		table.VaultItems.Ciphertext,
-		table.VaultItems.Nonce,
-		table.VaultItems.Version,
-		table.VaultItems.UpdatedAt,
-	).SET(
-		Bytea(ciphertext),
-		Bytea(nonce),
-		table.VaultItems.Version.ADD(Int(1)),
-		TimestampzT(now),
-	).WHERE(
-		table.VaultItems.ID.EQ(UUID(current.ID)),
-	)
+	var execErr error
+	if mergedMeta != nil {
+		_, execErr = table.VaultItems.UPDATE(
+			table.VaultItems.Ciphertext,
+			table.VaultItems.Nonce,
+			table.VaultItems.Version,
+			table.VaultItems.Metadata,
+			table.VaultItems.UpdatedAt,
+		).SET(
+			Bytea(ciphertext),
+			Bytea(nonce),
+			table.VaultItems.Version.ADD(Int(1)),
+			String(string(mergedMeta)),
+			TimestampzT(now),
+		).WHERE(
+			table.VaultItems.ID.EQ(UUID(current.ID)),
+		).Exec(h.db)
+	} else {
+		_, execErr = table.VaultItems.UPDATE(
+			table.VaultItems.Ciphertext,
+			table.VaultItems.Nonce,
+			table.VaultItems.Version,
+			table.VaultItems.UpdatedAt,
+		).SET(
+			Bytea(ciphertext),
+			Bytea(nonce),
+			table.VaultItems.Version.ADD(Int(1)),
+			TimestampzT(now),
+		).WHERE(
+			table.VaultItems.ID.EQ(UUID(current.ID)),
+		).Exec(h.db)
+	}
 
-	if _, err := updateStmt.Exec(h.db); err != nil {
-		slog.Error("secrets.update: exec", "error", err)
+	if execErr != nil {
+		slog.Error("secrets.update: exec", "error", execErr)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update secret"})
 		return
 	}
@@ -435,7 +488,7 @@ func (h *SecretsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	deleteStmt := table.VaultItems.DELETE().WHERE(
 		table.VaultItems.ProjectID.EQ(UUID(projectID)).
-			AND(table.VaultItems.Environment.EQ(String(env))).
+			AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
 			AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 	)
 
@@ -462,6 +515,7 @@ type SecretListItem struct {
 	NameHash    string            `json:"name_hash"`
 	Environment model.Environment `json:"environment"`
 	Version     int               `json:"version"`
+	Metadata    json.RawMessage   `json:"metadata,omitempty"`
 	UpdatedAt   string            `json:"updated_at"`
 	CreatedAt   string            `json:"created_at"`
 }
@@ -472,7 +526,7 @@ type ListSecretsResponse struct {
 }
 
 // @Summary		List secrets
-// @Description	List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
+// @Description	List secret rows for a project: name hash, environment, version, timestamps, and plaintext `metadata` (never ciphertext or nonces). Supports pagination, sorting, and filters by environment and version.
 // @Tags			secrets
 // @Produce		json
 // @Param			project_id		query		string	true	"Project ID"
@@ -508,7 +562,7 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 	condition := table.VaultItems.ProjectID.EQ(UUID(projectID))
 
 	if environment != "" {
-		condition = condition.AND(table.VaultItems.Environment.EQ(String(environment)))
+		condition = condition.AND(table.VaultItems.Environment.EQ(NewEnumValue(environment)))
 	}
 
 	if versionStr != "" {
@@ -562,6 +616,7 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.NameHash,
 		table.VaultItems.Environment,
 		table.VaultItems.Version,
+		table.VaultItems.Metadata,
 		table.VaultItems.CreatedAt,
 		table.VaultItems.UpdatedAt,
 	).FROM(table.VaultItems).
@@ -578,11 +633,16 @@ func (h *SecretsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	result := make([]SecretListItem, 0, len(items))
 	for _, item := range items {
+		md := json.RawMessage(`{}`)
+		if item.Metadata != "" {
+			md = json.RawMessage(item.Metadata)
+		}
 		result = append(result, SecretListItem{
 			ID:          item.ID.String(),
 			NameHash:    base64.StdEncoding.EncodeToString(item.NameHash),
 			Environment: item.Environment,
 			Version:     int(item.Version),
+			Metadata:    md,
 			CreatedAt:   item.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   item.UpdatedAt.Format(time.RFC3339),
 		})
@@ -639,7 +699,7 @@ func (h *SecretsHandler) Versions(w http.ResponseWriter, r *http.Request) {
 		FROM(table.VaultItems).
 		WHERE(
 			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
 
@@ -729,7 +789,7 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 		FROM(table.VaultItems).
 		WHERE(
 			table.VaultItems.ProjectID.EQ(UUID(projectID)).
-				AND(table.VaultItems.Environment.EQ(String(env))).
+				AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
 				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
 		)
 
@@ -805,6 +865,100 @@ func (h *SecretsHandler) Rollback(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toSecretResponse(item))
 }
 
+// @Summary		Patch secret metadata
+// @Description	Shallow-merge plaintext metadata for a vault item without changing ciphertext, nonce, or the secret version counter. Use this when only labels, MIME hints, or descriptions change. Body must be a JSON object; unknown keys return 400. Send JSON null for a key to remove it. Total metadata size is capped server-side.
+// @Tags			secrets
+// @Accept			json
+// @Produce		json
+// @Param			nameHash	path		string					true	"HMAC-SHA256 name hash (base64, URL-encoded)"
+// @Param			project_id	query		string					true	"Project ID"
+// @Param			environment	query		string					true	"Environment (development | staging | production)"
+// @Param			body		body		SecretMetadataMergeBody	true	"Fields to merge (partial object)"
+// @Success		200			{object}	SecretResponse
+// @Failure		400			{object}	ErrorResponse	"Empty body, invalid JSON, unknown keys, or metadata limits exceeded"
+// @Failure		404			{object}	ErrorResponse	"Secret not found"
+// @Failure		500			{object}	ErrorResponse	"Internal server error"
+// @Security		BearerAuth
+// @Router			/sdk/secrets/{nameHash}/metadata [patch]
+// @Router			/secrets/{nameHash}/metadata [patch]
+func (h *SecretsHandler) PatchMetadata(w http.ResponseWriter, r *http.Request) {
+	projectID, env, err := parseProjectEnv(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	nameHashB64 := chi.URLParam(r, "nameHash")
+	nameHash, err := decodeNameHash(nameHashB64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid name_hash in URL"})
+		return
+	}
+
+	patch, err := io.ReadAll(io.LimitReader(r.Body, maxSecretMetadataBytes+4096))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if len(patch) == 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "empty body"})
+		return
+	}
+	if !json.Valid(patch) {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid JSON"})
+		return
+	}
+
+	var current model.VaultItems
+	if err := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(
+			table.VaultItems.ProjectID.EQ(UUID(projectID)).
+				AND(table.VaultItems.Environment.EQ(NewEnumValue(env))).
+				AND(table.VaultItems.NameHash.EQ(Bytea(nameHash))),
+		).Query(h.db, &current); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "secret not found"})
+			return
+		}
+		slog.Error("secrets.patch_meta: fetch", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch secret"})
+		return
+	}
+
+	out, err := mergeSecretMetadataJSON(current.Metadata, patch)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	now := time.Now().UTC()
+	if _, err := table.VaultItems.UPDATE(
+		table.VaultItems.Metadata,
+		table.VaultItems.UpdatedAt,
+	).SET(
+		String(string(out)),
+		TimestampzT(now),
+	).WHERE(table.VaultItems.ID.EQ(UUID(current.ID))).
+		Exec(h.db); err != nil {
+		slog.Error("secrets.patch_meta: update", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update metadata"})
+		return
+	}
+
+	var item model.VaultItems
+	if err := SELECT(table.VaultItems.AllColumns).
+		FROM(table.VaultItems).
+		WHERE(table.VaultItems.ID.EQ(UUID(current.ID))).
+		Query(h.db, &item); err != nil {
+		slog.Error("secrets.patch_meta: refetch", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to load secret"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toSecretResponse(item))
+}
+
 // --- Helpers ---
 
 func parseProjectEnv(r *http.Request) (uuid.UUID, string, error) {
@@ -844,6 +998,12 @@ func decodeNameHash(s string) ([]byte, error) {
 }
 
 func toSecretResponse(item model.VaultItems) SecretResponse {
+	var md json.RawMessage
+	if item.Metadata != "" {
+		md = json.RawMessage(item.Metadata)
+	} else {
+		md = json.RawMessage(`{}`)
+	}
 	return SecretResponse{
 		ID:          item.ID.String(),
 		ProjectID:   item.ProjectID.String(),
@@ -851,6 +1011,7 @@ func toSecretResponse(item model.VaultItems) SecretResponse {
 		NameHash:    base64.StdEncoding.EncodeToString(item.NameHash),
 		Ciphertext:  base64.StdEncoding.EncodeToString(item.Ciphertext),
 		Nonce:       base64.StdEncoding.EncodeToString(item.Nonce),
+		Metadata:    md,
 		Version:     int(item.Version),
 		CreatedAt:   item.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   item.UpdatedAt.Format(time.RFC3339),
