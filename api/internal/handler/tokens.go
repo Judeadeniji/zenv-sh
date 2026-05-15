@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
+	"github.com/Judeadeniji/zenv-sh/api/internal/user_lookup"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
@@ -410,7 +411,18 @@ func (h *TokensHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // --- SDK Token Create ---
 
-// CreateForToken creates a service token on behalf of the authenticated token's creator.
+// @Summary		Create service token (SDK)
+// @Description	Issues a new service token on behalf of the **authenticated token's creator** (the `created_by` user from the parent token). Same semantics as dashboard token create: plaintext returned once, stored as a hash. Requires a valid service token with `read_write` when routed through the SDK write group.
+// @Tags			sdk
+// @Accept			json
+// @Produce		json
+// @Param			body	body		CreateTokenRequest	true	"project_id, name, environment; optional permission (read|read_write, default read) and expires_at (RFC3339)"
+// @Success		201		{object}	CreateTokenResponse
+// @Failure		400		{object}	ErrorResponse
+// @Failure		401		{object}	ErrorResponse
+// @Failure		500		{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/tokens [post]
 func (h *TokensHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
 	userID, err := tokenCreatorID(r)
 	if err != nil {
@@ -532,10 +544,12 @@ type WhoamiResponse struct {
 // Whoami returns identity and scope information for the authenticated service token.
 //
 //	@Summary		Token identity
-//	@Description	Returns the token name, creator, project, environment, and permission.
+//	@Description	Returns the token name, human-readable creator (when available), project and organization names, environment, and permission for the **Bearer** service token used on this request.
 //	@Tags			sdk
 //	@Produce		json
 //	@Success		200	{object}	WhoamiResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/sdk/whoami [get]
 func (h *TokensHandler) Whoami(w http.ResponseWriter, r *http.Request) {
@@ -576,18 +590,9 @@ func (h *TokensHandler) Whoami(w http.ResponseWriter, r *http.Request) {
 	// Creator identity
 	if info.CreatedBy != "" {
 		creatorID, _ := uuid.Parse(info.CreatedBy)
-		var identity model.Users
-		identityStmt := SELECT(
-			table.Users.Name,
-			table.Users.Email,
-		).FROM(
-			table.Users.INNER_JOIN(table.Users, table.Users.ID.EQ(table.Users.ID)),
-		).WHERE(
-			table.Users.ID.EQ(UUID(creatorID)),
-		)
-		if err := identityStmt.Query(h.db, &identity); err == nil {
-			resp.UserName = identity.Name
-			resp.UserEmail = identity.Email
+		if n, em, ok, err := user_lookup.ByID(r.Context(), h.db, creatorID); err == nil && ok {
+			resp.UserName = n
+			resp.UserEmail = em
 		}
 	}
 

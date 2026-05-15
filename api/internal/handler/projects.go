@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -17,9 +18,34 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
+	"github.com/Judeadeniji/zenv-sh/api/internal/user_lookup"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
+
+// upsertProjectKeyGrant inserts or updates a project_key_grants row on (project_id, user_id).
+func upsertProjectKeyGrant(ctx context.Context, db qrm.Executable, projectID, userID uuid.UUID, wrappedKey []byte) error {
+	now := time.Now().UTC()
+	_, err := table.ProjectKeyGrants.INSERT(
+		table.ProjectKeyGrants.ID,
+		table.ProjectKeyGrants.ProjectID,
+		table.ProjectKeyGrants.UserID,
+		table.ProjectKeyGrants.WrappedProjectVaultKey,
+		table.ProjectKeyGrants.GrantedAt,
+	).VALUES(
+		uuid.New(),
+		projectID,
+		userID,
+		wrappedKey,
+		now,
+	).ON_CONFLICT(table.ProjectKeyGrants.ProjectID, table.ProjectKeyGrants.UserID).
+		DO_UPDATE(SET(
+			table.ProjectKeyGrants.WrappedProjectVaultKey.SET(table.ProjectKeyGrants.EXCLUDED.WrappedProjectVaultKey),
+			table.ProjectKeyGrants.GrantedAt.SET(TimestampzT(now)),
+		)).
+		ExecContext(ctx, db)
+	return err
+}
 
 // ProjectsHandler handles project CRUD and project crypto endpoints.
 type ProjectsHandler struct {
@@ -405,27 +431,45 @@ func (h *ProjectsHandler) StartRotation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check no active rotation exists for this project.
-	var existing int
-	err = h.db.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM project_rotations WHERE project_id = $1 AND status IN ('staging', 'committing')`,
-		projectID,
-	).Scan(&existing)
-	if err != nil {
+	var countResult struct {
+		Count int64 `alias:"count"`
+	}
+	if err := SELECT(COUNT(table.ProjectRotations.ID).AS("count")).
+		FROM(table.ProjectRotations).
+		WHERE(
+			table.ProjectRotations.ProjectID.EQ(UUID(projectID)).
+				AND(table.ProjectRotations.Status.IN(
+					String(string(model.RotationStatus_Staging)),
+					String(string(model.RotationStatus_Committing)),
+				)),
+		).
+		QueryContext(r.Context(), h.db, &countResult); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to check rotations"})
 		return
 	}
-	if existing > 0 {
+	if countResult.Count > 0 {
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "a rotation is already in progress for this project"})
 		return
 	}
 
 	rotationID := uuid.New()
-	_, err = h.db.ExecContext(r.Context(),
-		`INSERT INTO project_rotations (project_id, rotation_id, total_items, initiated_by)
-		 VALUES ($1, $2, $3, $4)`,
-		projectID, rotationID, req.TotalItems, sess.UserID,
-	)
+	initiator, err := uuid.Parse(sess.UserID)
 	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+		return
+	}
+
+	if _, err := table.ProjectRotations.INSERT(
+		table.ProjectRotations.ProjectID,
+		table.ProjectRotations.RotationID,
+		table.ProjectRotations.TotalItems,
+		table.ProjectRotations.InitiatedBy,
+	).VALUES(
+		projectID,
+		rotationID,
+		Int32(int32(req.TotalItems)),
+		initiator,
+	).ExecContext(r.Context(), h.db); err != nil {
 		slog.Error("start rotation: insert", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to start rotation"})
 		return
@@ -489,17 +533,22 @@ func (h *ProjectsHandler) StageRotation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Verify rotation exists and is in staging state.
-	var status string
-	var totalItems int
-	err = h.db.QueryRowContext(r.Context(),
-		`SELECT status, total_items FROM project_rotations WHERE rotation_id = $1 AND project_id = $2`,
-		rotationID, projectID,
-	).Scan(&status, &totalItems)
-	if err != nil {
-		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "rotation not found"})
+	var pr model.ProjectRotations
+	if err := SELECT(
+		table.ProjectRotations.Status,
+		table.ProjectRotations.TotalItems,
+	).FROM(table.ProjectRotations).WHERE(
+		table.ProjectRotations.RotationID.EQ(UUID(rotationID)).
+			AND(table.ProjectRotations.ProjectID.EQ(UUID(projectID))),
+	).QueryContext(r.Context(), h.db, &pr); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "rotation not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to load rotation"})
 		return
 	}
-	if status != "staging" {
+	if pr.Status != model.RotationStatus_Staging {
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "rotation is not in staging state"})
 		return
 	}
@@ -529,11 +578,19 @@ func (h *ProjectsHandler) StageRotation(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		_, err = tx.ExecContext(r.Context(),
-			`INSERT INTO vault_item_rotations (project_id, rotation_id, vault_item_id, new_ciphertext, new_nonce)
-			 VALUES ($1, $2, $3, $4, $5)`,
-			projectID, rotationID, itemID, ct, nonce,
-		)
+		_, err = table.VaultItemRotations.INSERT(
+			table.VaultItemRotations.ProjectID,
+			table.VaultItemRotations.RotationID,
+			table.VaultItemRotations.VaultItemID,
+			table.VaultItemRotations.NewCiphertext,
+			table.VaultItemRotations.NewNonce,
+		).VALUES(
+			projectID,
+			rotationID,
+			itemID,
+			ct,
+			nonce,
+		).ExecContext(r.Context(), tx)
 		if err != nil {
 			slog.Error("stage rotation: insert item", "error", err)
 			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to stage item"})
@@ -542,16 +599,22 @@ func (h *ProjectsHandler) StageRotation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Update staged count.
-	var totalStaged int
-	err = tx.QueryRowContext(r.Context(),
-		`UPDATE project_rotations SET staged_items = staged_items + $1
-		 WHERE rotation_id = $2 RETURNING staged_items`,
-		len(req.Items), rotationID,
-	).Scan(&totalStaged)
-	if err != nil {
+	var stagedResult struct {
+		StagedItems int32 `alias:"project_rotations.staged_items"`
+	}
+	if err := table.ProjectRotations.UPDATE(
+		table.ProjectRotations.StagedItems,
+	).SET(
+		table.ProjectRotations.StagedItems.ADD(Int32(int32(len(req.Items)))),
+	).WHERE(
+		table.ProjectRotations.RotationID.EQ(UUID(rotationID)),
+	).RETURNING(
+		table.ProjectRotations.StagedItems,
+	).QueryContext(r.Context(), tx, &stagedResult); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update staged count"})
 		return
 	}
+	totalStaged := int(stagedResult.StagedItems)
 
 	if err := tx.Commit(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit staging"})
@@ -561,7 +624,7 @@ func (h *ProjectsHandler) StageRotation(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, StageResponse{
 		Staged:      len(req.Items),
 		TotalStaged: totalStaged,
-		Total:       totalItems,
+		Total:       int(pr.TotalItems),
 	})
 }
 
@@ -627,45 +690,60 @@ func (h *ProjectsHandler) CommitRotation(w http.ResponseWriter, r *http.Request)
 	defer tx.Rollback()
 
 	// 1. Set rotation status to committing.
-	var status string
-	err = tx.QueryRowContext(r.Context(),
-		`UPDATE project_rotations SET status = 'committing' WHERE rotation_id = $1 AND status = 'staging' RETURNING status`,
-		rotationID,
-	).Scan(&status)
-	if err != nil {
-		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "rotation not in staging state"})
+	var updatedRotation model.ProjectRotations
+	if err = table.ProjectRotations.UPDATE(
+		table.ProjectRotations.Status,
+	).SET(
+		String(string(model.RotationStatus_Committing)),
+	).WHERE(
+		table.ProjectRotations.RotationID.EQ(UUID(rotationID)).
+			AND(table.ProjectRotations.Status.EQ(String(string(model.RotationStatus_Staging)))),
+	).RETURNING(
+		table.ProjectRotations.Status,
+	).QueryContext(r.Context(), tx, &updatedRotation); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			writeJSON(w, http.StatusConflict, ErrorResponse{Error: "rotation not in staging state"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to advance rotation"})
 		return
 	}
 
 	// 2. Apply staged ciphertexts to vault_items.
-	_, err = tx.ExecContext(r.Context(),
-		`UPDATE vault_items SET
-			ciphertext = r.new_ciphertext,
-			nonce = r.new_nonce,
-			dek_version = vault_items.dek_version + 1,
-			version = vault_items.version + 1,
-			updated_at = NOW()
-		 FROM vault_item_rotations r
-		 WHERE r.rotation_id = $1
-		   AND vault_items.id = r.vault_item_id`,
-		rotationID,
-	)
-	if err != nil {
+	stg := table.VaultItemRotations.AS("stg")
+	now := time.Now().UTC()
+	if _, err = table.VaultItems.UPDATE(
+		table.VaultItems.Ciphertext,
+		table.VaultItems.Nonce,
+		table.VaultItems.DekVersion,
+		table.VaultItems.Version,
+		table.VaultItems.UpdatedAt,
+	).SET(
+		stg.NewCiphertext,
+		stg.NewNonce,
+		table.VaultItems.DekVersion.ADD(Int32(1)),
+		table.VaultItems.Version.ADD(Int32(1)),
+		TimestampzT(now),
+	).FROM(stg).WHERE(
+		stg.RotationID.EQ(UUID(rotationID)).AND(table.VaultItems.ID.EQ(stg.VaultItemID)),
+	).ExecContext(r.Context(), tx); err != nil {
 		slog.Error("commit rotation: update items", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to apply rotation"})
 		return
 	}
 
 	// 3. Update project vault keys.
-	_, err = tx.ExecContext(r.Context(),
-		`UPDATE project_vault_keys SET
-			wrapped_project_dek = $1,
-			project_salt = $2,
-			dek_version = dek_version + 1
-		 WHERE project_id = $3`,
-		newWrappedDEK, newSalt, projectID,
-	)
-	if err != nil {
+	if _, err = table.ProjectVaultKeys.UPDATE(
+		table.ProjectVaultKeys.WrappedProjectDek,
+		table.ProjectVaultKeys.ProjectSalt,
+		table.ProjectVaultKeys.DekVersion,
+	).SET(
+		newWrappedDEK,
+		newSalt,
+		table.ProjectVaultKeys.DekVersion.ADD(Int32(1)),
+	).WHERE(
+		table.ProjectVaultKeys.ProjectID.EQ(UUID(projectID)),
+	).ExecContext(r.Context(), tx); err != nil {
 		slog.Error("commit rotation: update vault keys", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update vault keys"})
 		return
@@ -681,42 +759,42 @@ func (h *ProjectsHandler) CommitRotation(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			continue
 		}
-		_, err = tx.ExecContext(r.Context(),
-			`INSERT INTO project_key_grants (id, project_id, user_id, wrapped_project_vault_key, granted_at)
-			 VALUES (gen_random_uuid(), $1, $2, $3, now())
-			 ON CONFLICT (project_id, user_id)
-			 DO UPDATE SET wrapped_project_vault_key = EXCLUDED.wrapped_project_vault_key,
-			               granted_at = now()`,
-			projectID, grantUserID, wrappedKey,
-		)
-		if err != nil {
+		if err = upsertProjectKeyGrant(r.Context(), tx, projectID, grantUserID, wrappedKey); err != nil {
 			slog.Error("commit rotation: upsert grant", "user_id", grantUserID, "error", err)
 		}
 	}
 
 	// 5. Clean up staging rows.
-	_, err = tx.ExecContext(r.Context(),
-		`DELETE FROM vault_item_rotations WHERE rotation_id = $1`, rotationID,
-	)
-	if err != nil {
+	if _, err = table.VaultItemRotations.DELETE().WHERE(
+		table.VaultItemRotations.RotationID.EQ(UUID(rotationID)),
+	).ExecContext(r.Context(), tx); err != nil {
 		slog.Error("commit rotation: cleanup staging", "error", err)
 	}
 
 	// 6. Mark rotation complete.
-	_, err = tx.ExecContext(r.Context(),
-		`UPDATE project_rotations SET status = 'complete', completed_at = NOW() WHERE rotation_id = $1`,
-		rotationID,
-	)
-	if err != nil {
+	if _, err = table.ProjectRotations.UPDATE(
+		table.ProjectRotations.Status,
+		table.ProjectRotations.CompletedAt,
+	).SET(
+		String(string(model.RotationStatus_Complete)),
+		TimestampzT(now),
+	).WHERE(
+		table.ProjectRotations.RotationID.EQ(UUID(rotationID)),
+	).ExecContext(r.Context(), tx); err != nil {
 		slog.Error("commit rotation: mark complete", "error", err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		slog.Error("commit rotation: commit tx", "error", err)
-		// Mark as failed.
-		h.db.ExecContext(r.Context(),
-			`UPDATE project_rotations SET status = 'failed' WHERE rotation_id = $1`, rotationID,
-		)
+		if _, ferr := table.ProjectRotations.UPDATE(
+			table.ProjectRotations.Status,
+		).SET(
+			String(string(model.RotationStatus_Failed)),
+		).WHERE(
+			table.ProjectRotations.RotationID.EQ(UUID(rotationID)),
+		).ExecContext(r.Context(), h.db); ferr != nil {
+			slog.Error("commit rotation: mark failed", "error", ferr)
+		}
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to commit rotation"})
 		return
 	}
@@ -744,11 +822,13 @@ func (h *ProjectsHandler) CancelRotation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	_, err = h.db.ExecContext(r.Context(),
-		`DELETE FROM project_rotations WHERE rotation_id = $1 AND status IN ('staging', 'failed')`,
-		rotationID,
-	)
-	if err != nil {
+	if _, err := table.ProjectRotations.DELETE().WHERE(
+		table.ProjectRotations.RotationID.EQ(UUID(rotationID)).
+			AND(table.ProjectRotations.Status.IN(
+				String(string(model.RotationStatus_Staging)),
+				String(string(model.RotationStatus_Failed)),
+			)),
+	).ExecContext(r.Context(), h.db); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to cancel rotation"})
 		return
 	}
@@ -758,7 +838,19 @@ func (h *ProjectsHandler) CancelRotation(w http.ResponseWriter, r *http.Request)
 
 // --- SDK Project Create ---
 
-// CreateForToken creates a project on behalf of the token's creator.
+// @Summary		Create project (SDK)
+// @Description	Creates a project as the **service token creator** (Better Auth user resolved from the token's `created_by`). Inserts the project, initial `project_vault_keys` row, and a `project_key_grants` row for that user. Payload matches dashboard create: organization, display name, base64 project salt, wrapped project DEK, and wrapped project vault key for the creator.
+// @Tags			sdk
+// @Accept			json
+// @Produce		json
+// @Param			body	body		CreateProjectRequest	true	"organization_id, name, project_salt, wrapped_project_dek, wrapped_project_vault_key (all base64 where applicable)"
+// @Success		201		{object}	ProjectResponse
+// @Failure		400		{object}	ErrorResponse
+// @Failure		401		{object}	ErrorResponse
+// @Failure		409		{object}	ErrorResponse	"Project name already exists in organization"
+// @Failure		500		{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/projects [post]
 func (h *ProjectsHandler) CreateForToken(w http.ResponseWriter, r *http.Request) {
 	userID, err := tokenCreatorID(r)
 	if err != nil {
@@ -1020,44 +1112,59 @@ func (h *ProjectsHandler) ListKeyGrants(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT om.user_id, u.email, u.public_key,
-		        (pkg.user_id IS NOT NULL) AS has_grant
-		 FROM organization_members om
-		 JOIN projects p ON p.id = $1
-		 JOIN users u ON u.id = om.user_id
-		 LEFT JOIN project_key_grants pkg
-		        ON pkg.project_id = $1 AND pkg.user_id = om.user_id
-		 WHERE om.organization_id = p.organization_id
-		   AND u.public_key IS NOT NULL`,
-		projectID,
+	om := table.Members.AS("om")
+	p := table.Projects.AS("p")
+	i := table.Identities.AS("i")
+	pkg := table.ProjectKeyGrants.AS("pkg")
+
+	type keyGrantRow struct {
+		UserID    string `alias:"om.user_id"`
+		PublicKey []byte `alias:"i.public_key"`
+		HasGrant  bool   `alias:"has_grant"`
+	}
+
+	stmt := SELECT(
+		om.UserID,
+		i.PublicKey,
+		pkg.UserID.IS_NOT_NULL().AS("has_grant"),
+	).FROM(
+		om.INNER_JOIN(p, p.ID.EQ(UUID(projectID)).AND(om.OrganizationID.EQ(p.OrganizationID))).
+			INNER_JOIN(i, i.IdentityID.EQ(om.UserID)).
+			LEFT_JOIN(pkg, pkg.ProjectID.EQ(p.ID).AND(pkg.UserID.EQ(om.UserID))),
+	).WHERE(
+		i.PublicKey.IS_NOT_NULL(),
 	)
-	if err != nil {
+
+	var rows []keyGrantRow
+	if err := stmt.QueryContext(r.Context(), h.db, &rows); err != nil {
 		slog.Error("list_key_grants: query", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list key grants"})
 		return
 	}
-	defer rows.Close()
 
-	var members []KeyGrantMember
-	for rows.Next() {
-		var userID uuid.UUID
-		var email string
-		var publicKey []byte
-		var hasGrant bool
-		if err := rows.Scan(&userID, &email, &publicKey, &hasGrant); err != nil {
-			continue
+	var memberIDs []uuid.UUID
+	for _, row := range rows {
+		if uid, err := uuid.Parse(row.UserID); err == nil {
+			memberIDs = append(memberIDs, uid)
 		}
-		members = append(members, KeyGrantMember{
-			UserID:    userID.String(),
-			Email:     email,
-			PublicKey: base64.StdEncoding.EncodeToString(publicKey),
-			HasGrant:  hasGrant,
-		})
+	}
+	profByID, err := user_lookup.BatchByIDs(r.Context(), h.db, memberIDs)
+	if err != nil {
+		slog.Error("list_key_grants: user lookup", "error", err)
 	}
 
-	if members == nil {
-		members = []KeyGrantMember{}
+	members := make([]KeyGrantMember, 0, len(rows))
+	for _, row := range rows {
+		email := ""
+		if p, ok := profByID[row.UserID]; ok {
+			email = p.Email
+		}
+		members = append(members, KeyGrantMember{
+			UserID:    row.UserID,
+			Email:     email,
+			PublicKey: base64.StdEncoding.EncodeToString(row.PublicKey),
+			HasGrant:  row.HasGrant,
+		})
 	}
 
 	writeJSON(w, http.StatusOK, ListKeyGrantsResponse{Members: members})
@@ -1120,15 +1227,7 @@ func (h *ProjectsHandler) GrantAccess(w http.ResponseWriter, r *http.Request) {
 		if err != nil || len(wrappedKey) == 0 {
 			continue
 		}
-		_, err = tx.ExecContext(r.Context(),
-			`INSERT INTO project_key_grants (id, project_id, user_id, wrapped_project_vault_key, granted_at)
-			 VALUES (gen_random_uuid(), $1, $2, $3, now())
-			 ON CONFLICT (project_id, user_id)
-			 DO UPDATE SET wrapped_project_vault_key = EXCLUDED.wrapped_project_vault_key,
-			               granted_at = now()`,
-			projectID, grantUserID, wrappedKey,
-		)
-		if err != nil {
+		if err := upsertProjectKeyGrant(r.Context(), tx, projectID, grantUserID, wrappedKey); err != nil {
 			slog.Error("grant_access: upsert", "user_id", grantUserID, "error", err)
 		}
 	}
@@ -1142,7 +1241,18 @@ func (h *ProjectsHandler) GrantAccess(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// GetKeyGrantForToken returns the token creator's key grant for a project.
+// @Summary		Get project key grant (SDK)
+// @Description	Returns the **token creator's** wrapped project vault key for the given project (`project_key_grants` row matching token `created_by` and path `projectID`). Used by CLIs and automation to unwrap the project vault key without a browser session. Not a generic lookup for arbitrary users.
+// @Tags			sdk
+// @Produce		json
+// @Param			projectID	path	string	true	"Project ID"
+// @Success		200	{object}	KeyGrantResponse
+// @Failure		400	{object}	ErrorResponse
+// @Failure		401	{object}	ErrorResponse
+// @Failure		404	{object}	ErrorResponse	"No grant row for this creator and project"
+// @Failure		500	{object}	ErrorResponse
+// @Security		BearerAuth
+// @Router			/sdk/projects/{projectID}/key-grant [get]
 func (h *ProjectsHandler) GetKeyGrantForToken(w http.ResponseWriter, r *http.Request) {
 	userID, err := tokenCreatorID(r)
 	if err != nil {
