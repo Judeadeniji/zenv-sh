@@ -19,6 +19,7 @@ import (
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
+	"github.com/Judeadeniji/zenv-sh/api/internal/user_lookup"
 )
 
 type RecoveryHandler struct {
@@ -69,19 +70,24 @@ func (h *RecoveryHandler) Status(w http.ResponseWriter, r *http.Request) {
 
 	hasKit := identity.RecoveryWrappedDek != nil && len(*identity.RecoveryWrappedDek) > 0
 
-	contactUser := table.Users.AS("contact_user")
-	type contactRow struct {
-		ContactUser model.Users `alias:"contact_user"`
-	}
-	var cr contactRow
 	hasContact := false
 	contactEmail := ""
-	if err := SELECT(contactUser.Email).FROM(
-		table.TrustedContacts.INNER_JOIN(contactUser, table.TrustedContacts.ContactUserID.EQ(contactUser.ID)),
-	).WHERE(table.TrustedContacts.UserID.EQ(UUID(userID))).
-		Query(h.db, &cr); err == nil {
+	var contactRow struct {
+		ContactUserID uuid.UUID `alias:"trusted_contacts.contact_user_id"`
+	}
+	if err := SELECT(table.TrustedContacts.ContactUserID).
+		FROM(table.TrustedContacts).
+		WHERE(table.TrustedContacts.UserID.EQ(UUID(userID))).
+		LIMIT(1).
+		QueryContext(r.Context(), h.db, &contactRow); err != nil {
+		if !errors.Is(err, qrm.ErrNoRows) {
+			slog.Error("recovery status: contact lookup", "error", err)
+		}
+	} else {
 		hasContact = true
-		contactEmail = cr.ContactUser.Email
+		if _, em, ok, err := user_lookup.ByID(r.Context(), h.db, contactRow.ContactUserID); err == nil && ok && em != "" {
+			contactEmail = em
+		}
 	}
 
 	writeJSON(w, http.StatusOK, RecoveryStatusResponse{
@@ -389,14 +395,17 @@ func (h *RecoveryHandler) SetTrustedContact(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Lookup contact by email from users table
-	var contactUser model.Users
-	if err := SELECT(table.Users.ID).FROM(table.Users).WHERE(table.Users.Email.EQ(String(req.ContactEmail))).
-		Query(h.db, &contactUser); err != nil {
-		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "contact user not found"})
+	contactUserID, err := user_lookup.IDByEmail(r.Context(), h.db, req.ContactEmail)
+	if err != nil {
+		if errors.Is(err, user_lookup.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "contact user not found"})
+			return
+		}
+		slog.Error("set-trusted-contact: lookup contact", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to resolve contact"})
 		return
 	}
-	if contactUser.ID == userID {
+	if contactUserID == userID {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "cannot designate yourself as trusted contact"})
 		return
 	}
@@ -405,7 +414,7 @@ func (h *RecoveryHandler) SetTrustedContact(w http.ResponseWriter, r *http.Reque
 		table.TrustedContacts.UserID,
 		table.TrustedContacts.ContactUserID,
 		table.TrustedContacts.TrustedWrappedDek,
-	).VALUES(userID, contactUser.ID, trustedWrappedDEK).
+	).VALUES(userID, contactUserID, trustedWrappedDEK).
 		ON_CONFLICT(table.TrustedContacts.UserID, table.TrustedContacts.ContactUserID).
 		DO_UPDATE(SET(table.TrustedContacts.TrustedWrappedDek.SET(table.TrustedContacts.EXCLUDED.TrustedWrappedDek))).
 		Exec(h.db); err != nil {
@@ -539,7 +548,7 @@ func (h *RecoveryHandler) CancelRecovery(w http.ResponseWriter, r *http.Request)
 		table.RecoveryRequests.CancelledAt,
 	).SET("cancelled", time.Now().UTC()).WHERE(
 		table.RecoveryRequests.UserID.EQ(UUID(userID)).
-			AND(table.RecoveryRequests.Status.IN(String("pending"), String("approved"))),
+			AND(table.RecoveryRequests.Status.IN(NewEnumValue("pending"), NewEnumValue("approved"))),
 	).Exec(h.db); err != nil {
 		slog.Error("cancel-recovery: update", "error", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to cancel"})
@@ -584,7 +593,7 @@ func (h *RecoveryHandler) GetRecoveryRequest(w http.ResponseWriter, r *http.Requ
 		table.RecoveryRequests.RecoveryPayload,
 	).FROM(table.RecoveryRequests).WHERE(
 		table.RecoveryRequests.UserID.EQ(UUID(userID)).
-			AND(table.RecoveryRequests.Status.IN(String("pending"), String("approved"))),
+			AND(table.RecoveryRequests.Status.IN(NewEnumValue("pending"), NewEnumValue("approved"))),
 	).ORDER_BY(table.RecoveryRequests.RequestedAt.DESC()).LIMIT(1).
 		Query(h.db, &rr); err != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "no active recovery request"})
@@ -627,25 +636,22 @@ func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Req
 	}
 	userID, _ := uuid.Parse(sess.UserID)
 
-	requestingUser := table.Users.AS("requesting_user")
 	type result struct {
 		model.RecoveryRequests
-		RequestingUser model.Users `alias:"requesting_user"`
 	}
 
 	var results []result
 	if err := SELECT(
 		table.RecoveryRequests.ID,
+		table.RecoveryRequests.UserID,
 		table.RecoveryRequests.Status,
 		table.RecoveryRequests.EligibleAt,
 		table.RecoveryRequests.RequestedAt,
-		requestingUser.Name,
-		requestingUser.Email,
 	).FROM(
-		table.RecoveryRequests.INNER_JOIN(requestingUser, table.RecoveryRequests.UserID.EQ(requestingUser.ID)),
+		table.RecoveryRequests,
 	).WHERE(
 		table.RecoveryRequests.ContactUserID.EQ(UUID(userID)).
-			AND(table.RecoveryRequests.Status.IN(String("pending"), String("approved"))),
+			AND(table.RecoveryRequests.Status.IN(NewEnumValue("pending"), NewEnumValue("approved"))),
 	).ORDER_BY(table.RecoveryRequests.RequestedAt.DESC()).
 		Query(h.db, &results); err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		slog.Error("incoming-requests: query", "error", err)
@@ -655,10 +661,14 @@ func (h *RecoveryHandler) GetIncomingRequests(w http.ResponseWriter, r *http.Req
 
 	requests := make([]IncomingRequest, 0, len(results))
 	for _, res := range results {
+		reqName, reqEmail := "", ""
+		if n, em, ok, err := user_lookup.ByID(r.Context(), h.db, res.UserID); err == nil && ok {
+			reqName, reqEmail = n, em
+		}
 		requests = append(requests, IncomingRequest{
 			RequestID:      res.ID.String(),
-			RequesterName:  res.RequestingUser.Name,
-			RequesterEmail: res.RequestingUser.Email,
+			RequesterName:  reqName,
+			RequesterEmail: reqEmail,
 			Status:         res.Status,
 			EligibleAt:     res.EligibleAt.Format(time.RFC3339),
 			RequestedAt:    res.RequestedAt.Format(time.RFC3339),
@@ -890,10 +900,20 @@ func (h *RecoveryHandler) GetPublicKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	aid, err := user_lookup.IDByEmail(r.Context(), h.db, email)
+	if err != nil {
+		if errors.Is(err, user_lookup.ErrNotFound) {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+			return
+		}
+		slog.Error("public-key: resolve email", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to resolve user"})
+		return
+	}
+
 	var identity model.Identities
-	if err := SELECT(table.Identities.PublicKey).FROM(
-		table.Identities.INNER_JOIN(table.Users, table.Identities.IdentityID.EQ(table.Users.ID)),
-	).WHERE(table.Users.Email.EQ(String(email))).
+	if err := SELECT(table.Identities.PublicKey).FROM(table.Identities).
+		WHERE(table.Identities.IdentityID.EQ(UUID(aid))).
 		Query(h.db, &identity); err != nil {
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
 		return
