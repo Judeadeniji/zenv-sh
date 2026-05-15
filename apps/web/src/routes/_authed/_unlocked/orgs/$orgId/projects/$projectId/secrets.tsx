@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useId } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Spinner } from "#/components/ui/spinner"
@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "#/components/ui/alert-dialog"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
 import { Input } from "#/components/ui/input"
+import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Separator } from "#/components/ui/separator"
 import { DataTable } from "#/components/data-table"
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { ImportSecretsDialog } from "#/components/import-secrets-dialog"
 import { EditSecretDialog } from "#/components/edit-secret-dialog"
-import { useDecryptedSecrets, useDeleteSecret, useSecretVersions, useRollbackSecret } from "#/lib/queries/secrets"
+import { useDecryptedSecrets, useDeleteSecret, useSecretVersions, useRollbackSecret, type DecryptedSecretRow } from "#/lib/queries/secrets"
 import { useNavStore } from "#/lib/stores/nav"
 import { toast } from "sonner"
 import { KeyRound, Plus, Upload, Eye, EyeOff, Trash2, Copy, Check, Pencil, History, RotateCcw, AlertCircle } from "lucide-react"
@@ -26,31 +27,28 @@ export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$p
 	component: SecretsPage,
 })
 
-interface DecryptedSecret {
-	name_hash: string
-	name: string
-	value: string
-	version?: number
-	updated_at?: string
-}
-
 function SecretsPage() {
 	const { projectId } = Route.useParams()
 	const environment = useNavStore((s) => s.activeEnvironment)
 	const { data: secrets, isLoading } = useDecryptedSecrets(projectId, environment)
-	const [selectedSecret, setSelectedSecret] = useState<DecryptedSecret | null>(null)
-	const [editingSecret, setEditingSecret] = useState<DecryptedSecret | null>(null)
+	const [selectedSecret, setSelectedSecret] = useState<DecryptedSecretRow | null>(null)
+	const [editingSecret, setEditingSecret] = useState<DecryptedSecretRow | null>(null)
 	const [searchTerm, setSearchTerm] = useState("")
 	const [sortBy, setSortBy] = useState<"name" | "updated">("name")
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 	const [versionFilter, setVersionFilter] = useState<"all" | "multi">("all")
 
-	const allRows = secrets as DecryptedSecret[] ?? []
-	const rows = useMemo(() => {
+	const allRows: DecryptedSecretRow[] = (secrets ?? []) as DecryptedSecretRow[]
+	const rows = useMemo((): DecryptedSecretRow[] => {
 		let filtered = allRows
 		if (searchTerm) {
 			const q = searchTerm.toLowerCase()
-			filtered = filtered.filter((s) => s.name.toLowerCase().includes(q))
+			filtered = filtered.filter((s) => {
+				if (s.name.toLowerCase().includes(q)) return true
+				const m = s.metadata
+				const hay = [m?.description, m?.mime_type, ...(m?.tags ?? [])].filter(Boolean).join(" ").toLowerCase()
+				return hay.includes(q)
+			})
 		}
 		if (versionFilter === "multi") {
 			filtered = filtered.filter((s) => (s.version ?? 1) > 1)
@@ -66,7 +64,7 @@ function SecretsPage() {
 		})
 	}, [allRows, searchTerm, sortBy, sortDir, versionFilter])
 
-	const columns: ColumnDef<DecryptedSecret, unknown>[] = [
+	const columns: ColumnDef<DecryptedSecretRow, unknown>[] = [
 		{
 			accessorKey: "name",
 			header: "Name",
@@ -75,6 +73,36 @@ function SecretsPage() {
 					{row.original.name}
 				</code>
 			),
+		},
+		{
+			id: "details",
+			header: "Details",
+			cell: ({ row }) => {
+				const m = row.original.metadata
+				if (!m?.description && !m?.mime_type && !(m?.tags?.length)) {
+					return <span className="text-xs text-muted-foreground">—</span>
+				}
+				const bits = [m.mime_type, m.description].filter(Boolean)
+				const joined = bits.join(" · ")
+				const label = joined.length > 72 ? `${joined.slice(0, 72)}…` : joined
+				return (
+					<div className="flex max-w-[220px] flex-col gap-0.5">
+						{label ? (
+							<span className="truncate text-xs text-muted-foreground" title={bits.join("\n")}>
+								{label}
+							</span>
+						) : null}
+						{m.tags && m.tags.length > 0 ? (
+							<div className="flex flex-wrap gap-0.5">
+								{m.tags.slice(0, 4).map((t) => (
+									<Badge key={t} variant="neutral" className="px-1 py-0 text-[9px] font-normal">{t}</Badge>
+								))}
+								{m.tags.length > 4 ? <span className="text-[9px] text-muted-foreground">+{m.tags.length - 4}</span> : null}
+							</div>
+						) : null}
+					</div>
+				)
+			},
 		},
 		{
 			id: "value",
@@ -153,7 +181,7 @@ function SecretsPage() {
 
 			<div className="mb-4 flex items-center gap-3">
 				<SearchInput
-					placeholder="Search secrets..."
+					placeholder="Search name, description, tags…"
 					value={searchTerm}
 					onChange={setSearchTerm}
 					debounceMs={150}
@@ -216,7 +244,9 @@ function SecretsPage() {
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{selectedSecret?.name ?? "Secret"}</SheetTitle>
-						<SheetDescription>Decrypted in your browser. Never sent to the server.</SheetDescription>
+						<SheetDescription>
+							Value is decrypted in your browser. Server-visible details (if any) are plaintext metadata only.
+						</SheetDescription>
 					</SheetHeader>
 					{selectedSecret && (
 						<SecretDetailSheet
@@ -248,10 +278,11 @@ function SecretsPage() {
 function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }: {
 	projectId: string
 	environment: string
-	secret: DecryptedSecret
+	secret: DecryptedSecretRow
 	onEdit: () => void
 	onDeleted: () => void
 }) {
+	const confirmFieldId = useId()
 	const [copied, setCopied] = useState<string | null>(null)
 	const [confirmOpen, setConfirmOpen] = useState(false)
 	const [confirmText, setConfirmText] = useState("")
@@ -281,7 +312,7 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 	return (
 		<div className="flex-1 overflow-y-auto space-y-4 px-6 py-4">
 			<div>
-				<label className="text-xs font-medium text-muted-foreground">Name</label>
+				<p className="text-xs font-medium text-muted-foreground">Name</p>
 				<div className="mt-1 flex items-center gap-2">
 					<code className="flex-1 rounded bg-muted px-2 py-1 font-mono text-xs font-semibold">{secret.name}</code>
 					<Button variant="ghost" size="icon-sm" onClick={() => handleCopy(secret.name, "name")}>
@@ -291,7 +322,7 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 			</div>
 
 			<div>
-				<label className="text-xs font-medium text-muted-foreground">Value</label>
+				<p className="text-xs font-medium text-muted-foreground">Value</p>
 				<div className="mt-1 flex items-start gap-2">
 					<code className="flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs">{secret.value}</code>
 					<Button variant="ghost" size="icon-sm" onClick={() => handleCopy(secret.value, "value")}>
@@ -300,13 +331,43 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 				</div>
 			</div>
 
+			{(secret.metadata?.description || secret.metadata?.mime_type || (secret.metadata?.tags && secret.metadata.tags.length > 0)) && (
+				<div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-3">
+					<p className="text-[11px] font-medium text-amber-950 dark:text-amber-200">Stored on the server in plaintext</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Use for MIME hints, runbooks, and search — never put the secret value here.
+					</p>
+					<dl className="mt-2 space-y-1.5 text-xs">
+						{secret.metadata?.mime_type ? (
+							<div className="flex gap-2">
+								<dt className="w-20 shrink-0 text-muted-foreground">MIME</dt>
+								<dd className="font-mono">{secret.metadata.mime_type}</dd>
+							</div>
+						) : null}
+						{secret.metadata?.description ? (
+							<div className="flex gap-2">
+								<dt className="w-20 shrink-0 text-muted-foreground">Note</dt>
+								<dd className="min-w-0 flex-1 whitespace-pre-wrap wrap-break-word">{secret.metadata.description}</dd>
+							</div>
+						) : null}
+						{secret.metadata?.tags && secret.metadata.tags.length > 0 ? (
+							<div className="flex flex-wrap gap-1 pt-0.5">
+								{secret.metadata.tags.map((t) => (
+									<Badge key={t} variant="neutral" className="text-[10px]">{t}</Badge>
+								))}
+							</div>
+						) : null}
+					</dl>
+				</div>
+			)}
+
 			<div className="flex gap-6">
 				<div>
-					<label className="text-xs font-medium text-muted-foreground">Version</label>
+					<p className="text-xs font-medium text-muted-foreground">Version</p>
 					<p className="mt-1 text-sm">v{secret.version ?? 1}</p>
 				</div>
 				<div>
-					<label className="text-xs font-medium text-muted-foreground">Last Updated</label>
+					<p className="text-xs font-medium text-muted-foreground">Last Updated</p>
 					<p className="mt-1 text-sm">
 						{secret.updated_at ? new Date(secret.updated_at).toLocaleString() : "—"}
 					</p>
@@ -314,7 +375,7 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 			</div>
 
 			<div>
-				<label className="text-xs font-medium text-muted-foreground">Copyable</label>
+				<p className="text-xs font-medium text-muted-foreground">Copyable</p>
 				<div className="mt-1 flex items-center gap-2">
 					<code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
 						{secret.name}={secret.value}
@@ -362,10 +423,11 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 							</DialogHeader>
 
 							<div className="py-2">
-								<label className="text-xs font-medium text-muted-foreground">
+								<Label htmlFor={confirmFieldId} className="text-xs font-medium text-muted-foreground">
 									Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{secret.name}</code> to confirm
-								</label>
+								</Label>
 								<Input
+									id={confirmFieldId}
 									className="mt-1.5"
 									placeholder={secret.name}
 									value={confirmText}
@@ -418,7 +480,7 @@ function VersionHistory({ projectId, environment, nameHash }: {
 		<div>
 			<div className="flex items-center gap-2">
 				<History className="size-3.5 text-muted-foreground" />
-				<label className="text-xs font-medium text-muted-foreground">Version History</label>
+				<p className="text-xs font-medium text-muted-foreground">Version History</p>
 			</div>
 
 			{isLoading ? (
@@ -491,8 +553,9 @@ function VersionHistory({ projectId, environment, nameHash }: {
 function DeleteSecretButton({ projectId, environment, secret }: {
 	projectId: string
 	environment: string
-	secret: DecryptedSecret
+	secret: DecryptedSecretRow
 }) {
+	const confirmFieldId = useId()
 	const [confirmOpen, setConfirmOpen] = useState(false)
 	const [confirmText, setConfirmText] = useState("")
 	const deleteSecret = useDeleteSecret()
@@ -534,10 +597,11 @@ function DeleteSecretButton({ projectId, environment, secret }: {
 				</DialogHeader>
 
 				<div className="py-2">
-					<label className="text-xs font-medium text-muted-foreground">
+					<Label htmlFor={confirmFieldId} className="text-xs font-medium text-muted-foreground">
 						Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{secret.name}</code> to confirm
-					</label>
+					</Label>
 					<Input
+						id={confirmFieldId}
 						className="mt-1.5"
 						placeholder={secret.name}
 						value={confirmText}

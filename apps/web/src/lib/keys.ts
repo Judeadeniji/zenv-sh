@@ -75,6 +75,7 @@ export const mutationKeys = {
 		update: ["secrets", "update"] as const,
 		delete: ["secrets", "delete"] as const,
 		rollback: ["secrets", "rollback"] as const,
+		patchMetadata: ["secrets", "patch-metadata"] as const,
 	},
 	tokens: {
 		create: ["tokens", "create"] as const,

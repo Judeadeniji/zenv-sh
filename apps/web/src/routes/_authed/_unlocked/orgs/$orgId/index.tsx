@@ -5,7 +5,7 @@ import { Spinner } from "#/components/ui/spinner";
 import { Button } from "#/components/ui/button";
 import { CreateProjectDialog } from "#/components/create-project-dialog";
 import { InviteMemberDialog } from "#/components/invite-member-dialog";
-import { orgQueryOptions, orgMembersQueryOptions } from "#/lib/queries/orgs";
+import { orgMembersQueryOptions } from "#/lib/queries/orgs";
 import { projectsQueryOptions } from "#/lib/queries/projects";
 import { tokensQueryOptions } from "#/lib/queries/tokens";
 import { secretsQueryOptions } from "#/lib/queries/secrets";
@@ -27,15 +27,15 @@ export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/")({
 
 function OrgDashboard() {
   const { orgId } = Route.useParams();
-  const { data: org } = useQuery(orgQueryOptions(orgId));
+  const { org } = Route.useRouteContext();
   const { data: projectsData, isLoading: projectsLoading } = useQuery(
     projectsQueryOptions(orgId),
   );
   const { data: membersData, isLoading: membersLoading } = useQuery(
-    orgMembersQueryOptions(orgId),
+    orgMembersQueryOptions(orgId, { limit: 6 }),
   );
 
-  const orgName = (org as { name?: string })?.name ?? "Organization";
+  const orgName = org.name;
   const projects = projectsData?.projects ?? [];
   const members = membersData?.members ?? [];
 
@@ -104,7 +104,7 @@ function OrgDashboard() {
           <CreateProjectDialog
             orgId={orgId}
             trigger={
-              <button className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+              <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
                 <Plus className="size-3" />
                 New project
               </button>
@@ -162,23 +162,21 @@ function OrgDashboard() {
           </div>
 
           <div className="overflow-hidden rounded-lg border border-border">
-            {members.slice(0, 6).map((m, i) => (
+            {members.map((m, i) => (
               <div
                 key={m.id}
                 className={`flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/40 ${
                   i < Math.min(members.length, 6) - 1 ? "border-b border-border" : ""
                 }`}
               >
-                <Avatar size="sm" fallback={getInitials(m.name!, m.email)} />
+                <Avatar size="sm" fallback={getInitials(m.user.name, m.user.email)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm leading-none">
-                    {m.name || m.email || "Unnamed"}
+                    {m.user.name}
                   </p>
-                  {m.name && (
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                      {m.email}
-                    </p>
-                  )}
+                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                    {m.user.email}
+                  </p>
                 </div>
                 <RoleBadge role={m.role} />
               </div>

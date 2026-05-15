@@ -101,8 +101,8 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 						</div>
 
 						<div className="flex items-center gap-2">
-							<code className="flex-1 truncate rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs">
-								{inviteLink}
+							<code className="flex-1 min-w-0 truncate rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs">
+								{inviteLink.slice(0, 20)}...{inviteLink.slice(-20)}
 							</code>
 							<Button variant="outline" size="icon-sm" onClick={handleCopy} title="Copy invite link">
 								{copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}

@@ -5,6 +5,23 @@ import { queryKeys, mutationKeys } from "#/lib/keys"
 import { toBase64, fromBase64 } from "#/lib/encoding"
 import { useProjectDEK } from "#/lib/queries/projects"
 
+/** Plaintext metadata returned with list/bulk (server-visible). */
+export type SecretServerMetadata = {
+    mime_type?: string
+    description?: string
+    tags?: string[]
+    labels?: Record<string, string>
+}
+
+export type DecryptedSecretRow = {
+    name_hash: string
+    name: string
+    value: string
+    version?: number
+    updated_at?: string
+    metadata?: SecretServerMetadata
+}
+
 export function secretsQueryOptions(projectId: string, environment: string) {
     return queryOptions({
         queryKey: [...queryKeys.secrets.list(projectId), environment],
@@ -37,12 +54,14 @@ export function useCreateSecret() {
             name,
             value,      // string | Uint8Array
             projectDEK,
+            metadata,
         }: {
             projectId: string
             environment: string
             name: string
             value: string | Uint8Array
             projectDEK: Uint8Array
+            metadata?: Record<string, unknown>
         }) => {
             const MAX_BYTES = 1_048_576 // 1 MB
 
@@ -65,10 +84,11 @@ export function useCreateSecret() {
             const { data, error } = await api().POST("/secrets", {
                 body: {
                     project_id: projectId,
-                    environment,
+                    environment: environment as "development" | "staging" | "production",
                     name_hash: nameHash,
                     ciphertext: toBase64(ciphertext),
                     nonce: toBase64(nonce),
+                    ...(metadata && Object.keys(metadata).length > 0 ? { metadata: metadata as never } : {}),
                 },
             })
             if (error || !data) throw new Error("Failed to create secret")
@@ -140,15 +160,31 @@ export function useDecryptedSecrets(projectId: string, environment: string) {
             })
             if (error || !data) throw new Error("Failed to fetch secrets")
 
-            const items = (data as { secrets?: { name_hash: string; ciphertext: string; nonce: string; version?: number; updated_at?: string }[] })?.secrets ?? []
+            const items = data.secrets ?? []
 
             return Promise.all(items.map(async (s) => {
+                const meta = (s as { metadata?: SecretServerMetadata }).metadata
                 try {
                     const plaintext = await decrypt(fromBase64(s.ciphertext!), fromBase64(s.nonce!), projectDEK)
                     const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as { name: string; value: string }
-                    return { name_hash: s.name_hash, name: parsed.name, value: parsed.value, version: s.version, updated_at: s.updated_at }
+                    const row: DecryptedSecretRow = {
+                        name_hash: s.name_hash!,
+                        name: parsed.name,
+                        value: parsed.value,
+                        version: s.version,
+                        updated_at: s.updated_at,
+                        metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+                    }
+                    return row
                 } catch {
-                    return { name_hash: s.name_hash, name: s.name_hash!.slice(0, 12) + "…", value: "[decrypt error]", version: s.version, updated_at: s.updated_at }
+                    return {
+                        name_hash: s.name_hash ?? "",
+                        name: `${(s.name_hash ?? "").slice(0, 12)}…`,
+                        value: "[decrypt error]",
+                        version: s.version,
+                        updated_at: s.updated_at,
+                        metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+                    } satisfies DecryptedSecretRow
                 }
             }))
         },
@@ -181,6 +217,7 @@ export function useUpdateSecret() {
             name,
             value,
             projectDEK,
+            metadata,
         }: {
             projectId: string
             environment: string
@@ -188,6 +225,7 @@ export function useUpdateSecret() {
             name: string
             value: string
             projectDEK: Uint8Array
+            metadata?: Record<string, unknown>
         }) => {
             const payload = new TextEncoder().encode(JSON.stringify({ name, value }))
             const { ciphertext, nonce } = await encrypt(payload, projectDEK)
@@ -200,9 +238,42 @@ export function useUpdateSecret() {
                 body: {
                     ciphertext: toBase64(ciphertext),
                     nonce: toBase64(nonce),
+                    ...(metadata && Object.keys(metadata).length > 0 ? { metadata: metadata as never } : {}),
                 },
             })
             if (error || !data) throw new Error("Failed to update secret")
+            return data
+        },
+        onSuccess: async (_, { projectId, environment }) => {
+            await qc.invalidateQueries({ queryKey: [...queryKeys.secrets.list(projectId), environment] })
+        },
+    })
+}
+
+/** Merge-update plaintext metadata only (no ciphertext rotation). */
+export function usePatchSecretMetadata() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationKey: mutationKeys.secrets.patchMetadata,
+        mutationFn: async ({
+            projectId,
+            environment,
+            nameHash,
+            patch,
+        }: {
+            projectId: string
+            environment: string
+            nameHash: string
+            patch: Record<string, unknown>
+        }) => {
+            const { data, error } = await api().PATCH("/secrets/{nameHash}/metadata", {
+                params: {
+                    path: { nameHash: toUrlSafeBase64(nameHash) },
+                    query: { project_id: projectId, environment },
+                },
+                body: patch as never,
+            })
+            if (error || !data) throw new Error("Failed to update metadata")
             return data
         },
         onSuccess: async (_, { projectId, environment }) => {

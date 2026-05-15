@@ -3,6 +3,7 @@ import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { authClient } from "../auth-client"
 import slugify from "slug"
+import type { $InferEnumInput } from "better-auth"
 
 export function orgsQueryOptions(opts?: {
 	page?: number
@@ -29,11 +30,11 @@ export function orgQueryOptions(orgId: string) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.detail(orgId),
 		queryFn: async ({ signal }) => {
-			const { data, error } = await api().GET("/orgs/{orgID}", {
-				params: { path: { orgID: orgId } },
-				signal,
+			const { data, error } = await authClient.organization.getFullOrganization({
+				query: { organizationId: orgId, membersLimit: 0 },
+				fetchOptions: { signal },
 			})
-			if (error || !data) throw new Error("Failed to fetch organization")
+			if (error || !data) throw new Error(error.message || "Failed to fetch organization")
 			return data
 		},
 		staleTime: 30_000,
@@ -43,22 +44,23 @@ export function orgQueryOptions(orgId: string) {
 export function orgMembersQueryOptions(
 	orgId: string,
 	opts?: {
-		page?: number
-		per_page?: number
-		sort_by?: string
-		sort_dir?: "asc" | "desc"
-		search?: string
-		role?: string
+		limit?: string | number;
+		offset?: string | number;
+		sortBy?: string;
+		sortDir?: "asc" | "desc";
+		filterField?: string;
+		filterValue?: string;
+		filterOperator?: $InferEnumInput<{ eq: "eq"; ne: "ne"; gt: "gt"; gte: "gte"; lt: "lt"; lte: "lte"; in: "in"; not_in: "not_in"; contains: "contains"; starts_with: "starts_with"; ends_with: "ends_with"; }>	
 	},
 ) {
 	return queryOptions({
 		queryKey: queryKeys.orgs.members(orgId, opts),
 		queryFn: async ({ signal }) => {
-			const { data, error } = await api().GET("/orgs/{orgID}/members", {
-				params: { path: { orgID: orgId }, query: { ...opts } },
-				signal,
+			const { data, error } = await authClient.organization.listMembers({
+				query: { organizationId: orgId, ...opts },
+				fetchOptions: { signal },
 			})
-			if (error || !data) throw new Error(error?.error || "Failed to fetch members")
+			if (error || !data) throw new Error(error.message || "Failed to fetch members")
 			return data
 		},
 		staleTime: 30_000,

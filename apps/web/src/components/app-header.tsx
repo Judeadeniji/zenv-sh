@@ -1,5 +1,6 @@
-import { SidebarTrigger } from "#/components/ui/sidebar"
-import { Separator } from "#/components/ui/separator"
+import { useQuery } from "@tanstack/react-query"
+import { Link, useMatches, useParams } from "@tanstack/react-router"
+import { Loader2 } from "lucide-react"
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -8,32 +9,54 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "#/components/ui/breadcrumb"
-import { useQuery } from "@tanstack/react-query"
-import { orgsQueryOptions } from "#/lib/queries/orgs"
-import { projectsQueryOptions } from "#/lib/queries/projects"
-import { useNavStore, ENVIRONMENTS } from "#/lib/stores/nav"
+import { Button } from "#/components/ui/button"
+import { Separator } from "#/components/ui/separator"
+import { SidebarTrigger } from "#/components/ui/sidebar"
+import { authClient } from "#/lib/auth-client"
 import { useUpdatePreferences } from "#/lib/queries/preferences"
+import { projectsQueryOptions } from "#/lib/queries/projects"
 import { useAuthStore } from "#/lib/stores/auth"
-import { Link, useParams, useMatches } from "@tanstack/react-router"
+import { ENVIRONMENTS, useNavStore } from "#/lib/stores/nav"
+
+function queryErrorMessage(err: { message?: string } | null | undefined) {
+	if (!err) return "Something went wrong"
+	return err.message?.trim() || "Something went wrong"
+}
 
 export function AppHeader() {
 	const params = useParams({ strict: false }) as { orgId?: string; projectId?: string }
 	const matches = useMatches()
 	const crypto = useAuthStore((s) => s.crypto)
 
-	const { data: orgsData } = useQuery({
-		...orgsQueryOptions(),
-		enabled: !!crypto,
-	})
-	const orgList = orgsData?.organizations ?? []
-	const activeOrg = orgList.find((o) => o.id === params.orgId)
+	const {
+		data: activeOrg,
+		isPending: isOrgPending,
+		isRefetching: isOrgRefetching,
+		error: activeOrgError,
+		refetch: refetchActiveOrg,
+	} = authClient.useActiveOrganization()
 
-	const { data: projectsData } = useQuery({
-		...projectsQueryOptions(activeOrg?.id ?? ""),
-		enabled: !!activeOrg && !!crypto,
+	const orgId = activeOrg?.id
+
+	const {
+		data: projectsData,
+		isPending: isProjectsPending,
+		isFetching: isProjectsFetching,
+		error: projectsError,
+		refetch: refetchProjects,
+	} = useQuery({
+		...projectsQueryOptions(orgId ?? ""),
+		enabled: !!orgId && !!crypto,
 	})
-	const projectList = (projectsData as { projects?: { id: string; name: string }[] })?.projects ?? []
+	const projectList = projectsData?.projects ?? []
 	const activeProject = projectList.find((p) => p.id === params.projectId)
+
+	const projectLinkParams =
+		orgId && activeProject?.id ? { orgId, projectId: activeProject.id } : null
+
+	const showProjectCrumb = !!params.projectId && !!orgId && !!crypto
+	const projectsLoading = showProjectCrumb && isProjectsPending && !activeProject
+	const projectsFailed = showProjectCrumb && !!projectsError
 
 	// Derive current section from the last route match
 	const lastMatch = matches[matches.length - 1]
@@ -59,57 +82,135 @@ export function AppHeader() {
 
 			<Breadcrumb>
 				<BreadcrumbList>
-					{activeOrg && (
+					{isOrgPending && !activeOrg && !activeOrgError ? (
 						<BreadcrumbItem>
-							<BreadcrumbLink
-								render={(p) => (
-									<Link
-										{...p}
-										to="/orgs/$orgId"
-										params={{ orgId: activeOrg.id! }}
-									/>
-								)}
-							>
+							<span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+								<Loader2 className="size-3.5 animate-spin" aria-hidden />
+								<span className="sr-only">Loading organization</span>
+								<span
+									aria-hidden
+									className="max-w-40 truncate rounded bg-muted px-2 py-0.5 font-normal"
+								>
+									Organization
+								</span>
+							</span>
+						</BreadcrumbItem>
+					) : null}
+					{activeOrgError ? (
+						<BreadcrumbItem>
+							<span className="flex flex-wrap items-center gap-2 text-destructive text-sm">
+								<span
+									className="max-w-[min(18rem,50vw)] truncate"
+									title={queryErrorMessage(activeOrgError)}
+								>
+									{queryErrorMessage(activeOrgError)}
+								</span>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-7 shrink-0 px-2 text-xs"
+									disabled={isOrgRefetching}
+									onClick={() => {
+										void refetchActiveOrg()
+									}}
+								>
+									{isOrgRefetching ? (
+										<>
+											<Loader2 className="mr-1 size-3 animate-spin" aria-hidden />
+											Retrying
+										</>
+									) : (
+										"Retry"
+									)}
+								</Button>
+							</span>
+						</BreadcrumbItem>
+					) : null}
+					{orgId && activeOrg && !activeOrgError ? (
+						<BreadcrumbItem>
+							<BreadcrumbLink render={(p) => <Link {...p} to="/orgs/$orgId" params={{ orgId }} />}>
 								{activeOrg.name}
 							</BreadcrumbLink>
 						</BreadcrumbItem>
-					)}
-					{activeProject && (
+					) : null}
+					{showProjectCrumb ? (
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
-								{section ? (
-									<BreadcrumbLink
-										render={(p) => (
-											<Link
-												{...p}
-												to="/orgs/$orgId/projects/$projectId"
-												params={{ orgId: activeOrg!.id!, projectId: activeProject.id }}
-											/>
-										)}
-									>
-										{activeProject.name}
-									</BreadcrumbLink>
+								{projectsFailed ? (
+									<span className="flex flex-wrap items-center gap-2 text-destructive text-sm">
+										<span
+											className="max-w-[min(18rem,50vw)] truncate"
+											title={queryErrorMessage(projectsError)}
+										>
+											{queryErrorMessage(projectsError)}
+										</span>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-7 shrink-0 px-2 text-xs"
+											disabled={isProjectsFetching}
+											onClick={() => {
+												void refetchProjects()
+											}}
+										>
+											{isProjectsFetching ? (
+												<>
+													<Loader2 className="mr-1 size-3 animate-spin" aria-hidden />
+													Retrying
+												</>
+											) : (
+												"Retry"
+											)}
+										</Button>
+									</span>
+								) : projectsLoading ? (
+									<span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+										<Loader2 className="size-3.5 animate-spin" aria-hidden />
+										<span className="sr-only">Loading project</span>
+										<span
+											aria-hidden
+											className="max-w-40 truncate rounded bg-muted px-2 py-0.5 font-normal"
+										>
+											Project
+										</span>
+									</span>
+								) : activeProject ? (
+									section && projectLinkParams ? (
+										<BreadcrumbLink
+											render={(p) => (
+												<Link
+													{...p}
+													to="/orgs/$orgId/projects/$projectId"
+													params={projectLinkParams}
+												/>
+											)}
+										>
+											{activeProject.name}
+										</BreadcrumbLink>
+									) : (
+										<BreadcrumbPage>{activeProject.name}</BreadcrumbPage>
+									)
 								) : (
-									<BreadcrumbPage>{activeProject.name}</BreadcrumbPage>
+									<BreadcrumbPage className="text-muted-foreground">Project</BreadcrumbPage>
 								)}
 							</BreadcrumbItem>
 						</>
-					)}
-					{section && (
+					) : null}
+					{section ? (
 						<>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
 								<BreadcrumbPage>{section}</BreadcrumbPage>
 							</BreadcrumbItem>
 						</>
-					)}
+					) : null}
 				</BreadcrumbList>
 			</Breadcrumb>
 
-			<div className="ml-auto flex items-center gap-2">
-				{params.projectId && <EnvSwitcher />}
-			</div>
+			<div className="ml-auto flex items-center gap-2">{params.projectId && <EnvSwitcher />}</div>
 		</header>
 	)
 }
@@ -145,10 +246,11 @@ function EnvSwitcher() {
 						key={env}
 						type="button"
 						onClick={() => handleChange(env)}
-						className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-all ${isActive
+						className={`flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-all ${
+							isActive
 								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground"
-							}`}
+						}`}
 					>
 						<span className={`size-1.5 rounded-full ${ENV_DOT[env] ?? "bg-muted-foreground"}`} />
 						{ENV_SHORT[env] ?? env}

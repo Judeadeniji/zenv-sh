@@ -13,9 +13,10 @@ import { Alert, AlertDescription } from "#/components/ui/alert"
 import { useCreateSecret } from "#/lib/queries/secrets"
 import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
-import { createSecretSchema, type CreateSecretInput } from "#/lib/schemas/secrets"
+import { createSecretSchema, type CreateSecretInput, buildSecretMetadataPayload } from "#/lib/schemas/secrets"
 import { toast } from "sonner"
-import { AlertCircle, File, Upload, X } from "lucide-react"
+import { AlertCircle, File, Upload, X, ChevronDown } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "#/components/ui/collapsible"
 import { cn } from "#/lib/utils"
 
 type InputMode = "text" | "file"
@@ -35,8 +36,9 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	const [open, setOpen] = useState(false)
 	const [inputMode, setInputMode] = useState<InputMode>("text")
 	const [file, setFile] = useState<File | null>(null)
-	const [isDragging, setIsDragging] = useState(false)
 	const [fileError, setFileError] = useState<string | null>(null)
+	const [isDragging, setIsDragging] = useState(false)
+	const [metaOpen, setMetaOpen] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	const environment = useNavStore((s) => s.activeEnvironment)
@@ -45,7 +47,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 
 	const form = useForm<CreateSecretInput>({
 		resolver: zodResolver(createSecretSchema),
-		defaultValues: { inputMode: "text", name: "", value: "" },
+		defaultValues: { inputMode: "text", name: "", value: "", mime_type: "", description: "", tags_input: "" },
 	})
 
 
@@ -55,6 +57,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		setFile(null)
 		setFileError(null)
 		setIsDragging(false)
+		setMetaOpen(false)
 	}, [form])
 	
 	const handleModeSwitch = (mode: InputMode) => {
@@ -91,11 +94,17 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	const onSubmit = async (data: CreateSecretInput) => {
 		if (!projectDEK) { toast.error("No project DEK found"); return }
 	
+		const metadata = buildSecretMetadataPayload({
+			mime_type: data.mime_type,
+			description: data.description,
+			tags_input: data.tags_input,
+		})
+
 		if (data.inputMode === "file") {
 			if (!file) { setFileError("Select a file to encrypt"); return }
 			const valueBytes = new Uint8Array(await file.arrayBuffer())
 			create.mutate(
-				{ projectId, environment, projectDEK, name: data.name, value: valueBytes },
+				{ projectId, environment, projectDEK, name: data.name, value: valueBytes, metadata },
 				{
 					onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
 					onError: (err) => toast.error(err.message || "Failed to create secret"),
@@ -105,7 +114,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		}
 	
 		create.mutate(
-			{ projectId, environment, projectDEK, name: data.name, value: data.value },
+			{ projectId, environment, projectDEK, name: data.name, value: data.value, metadata },
 			{
 				onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
 				onError: (err) => toast.error(err.message || "Failed to create secret"),
@@ -121,6 +130,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 					<DialogTitle>Add a secret</DialogTitle>
 					<DialogDescription>
 						The value is encrypted on your device before being sent to the server.
+						Optional details below are stored in plaintext for search and tooling — never put secrets there.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -243,6 +253,48 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 							</>
 						)}
 					</div>
+
+					<Collapsible open={metaOpen} onOpenChange={setMetaOpen} className="rounded-md border bg-muted/20">
+						<CollapsibleTrigger
+							type="button"
+							className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+						>
+							<span>Server-visible details (optional)</span>
+							<ChevronDown className={cn("size-4 shrink-0 transition-transform", metaOpen && "rotate-180")} />
+						</CollapsibleTrigger>
+						<CollapsibleContent className="border-t px-3 pb-3 pt-1">
+							<div className="grid gap-3">
+								<div className="space-y-1">
+									<Label htmlFor="secret-mime" className="text-[11px] text-muted-foreground">MIME type hint</Label>
+									<Input
+										id="secret-mime"
+										placeholder="e.g. application/json, text/plain"
+										className="h-8 text-xs"
+										{...form.register("mime_type")}
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="secret-desc" className="text-[11px] text-muted-foreground">Description</Label>
+									<Textarea
+										id="secret-desc"
+										placeholder="What this secret is for (visible to zEnv operators)"
+										className="min-h-[72px] text-xs"
+										rows={3}
+										{...form.register("description")}
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="secret-tags" className="text-[11px] text-muted-foreground">Tags</Label>
+									<Input
+										id="secret-tags"
+										placeholder="Comma-separated, e.g. prod, database, rotation"
+										className="h-8 text-xs"
+										{...form.register("tags_input")}
+									/>
+								</div>
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
 
 					<DialogFooter>
 						<DialogClose>
