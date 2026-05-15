@@ -11,13 +11,14 @@ import (
 	"testing"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
+	"github.com/google/uuid"
 )
 
-var ts *testutil.TestServer
+var ts *test_util.TestServer
 
 func TestMain(m *testing.M) {
-	srv, cleanup := testutil.SetupServerForMain()
+	srv, cleanup := test_util.SetupServerForMain()
 	ts = srv
 	code := m.Run()
 	cleanup()
@@ -26,7 +27,7 @@ func TestMain(m *testing.M) {
 
 func TestE2E_FullSecretLifecycle(t *testing.T) {
 	// 1. Create identity user (simulates auth server signup).
-	user := testutil.CreateIdentityUser(t, ts.DB)
+	user := test_util.CreateIdentityUser(t, ts)
 
 	// 2. GET /v1/auth/me — vault not set up yet.
 	resp := doReq(t, "GET", ts.URL+"/v1/auth/me", nil, withBearer(user.SessionToken))
@@ -99,12 +100,10 @@ func TestE2E_FullSecretLifecycle(t *testing.T) {
 	// --- SDK flow: create project + token + secrets CRUD ---
 
 	// 8. Create project infrastructure (via DB — would normally be dashboard).
-	zu := testutil.CreateZenvUser(t, ts.DB,
-		"id-sdk-"+fmt.Sprintf("%d", os.Getpid()), // different identity for SDK
-		fmt.Sprintf("sdk-%d@test.zenv.sh", os.Getpid()),
-	)
-	_, projectID := testutil.CreateProject(t, ts.DB, zu.UserID)
-	svcToken := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
+	sdkUser := test_util.CreateIdentityUser(t, ts)
+	_ = test_util.CreateZenvUser(t, ts.DB, sdkUser.IdentityID, sdkUser.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(sdkUser.IdentityID))
+	svcToken := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
 
 	// 9. POST /v1/sdk/secrets — create.
 	nameHash := base64.StdEncoding.EncodeToString(amnesia.GenerateKey())
@@ -171,10 +170,10 @@ func TestE2E_FullSecretLifecycle(t *testing.T) {
 }
 
 func TestE2E_ReadOnlyTokenCannotWrite(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
-	zu := testutil.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zu.UserID)
-	roToken := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read")
+	user := test_util.CreateIdentityUser(t, ts)
+	_ = test_util.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(user.IdentityID))
+	roToken := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read")
 
 	// Read should work.
 	resp := doReq(t, "GET",
@@ -213,7 +212,7 @@ func withBearer(token string) reqOption {
 
 func withCookie(token string) reqOption {
 	return func(r *http.Request) {
-		r.AddCookie(testutil.SessionCookie(token))
+		r.AddCookie(test_util.SessionCookie(token))
 	}
 }
 

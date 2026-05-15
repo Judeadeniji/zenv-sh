@@ -8,13 +8,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
 )
 
-var ts *testutil.TestServer
+var ts *test_util.TestServer
 
 func TestMain(m *testing.M) {
-	srv, cleanup := testutil.SetupServerForMain()
+	srv, cleanup := test_util.SetupServerForMain()
 	ts = srv
 	code := m.Run()
 	cleanup()
@@ -70,7 +70,7 @@ func doReqWithCookie(t *testing.T, method, url string, body interface{}, token s
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
-		req.AddCookie(testutil.SessionCookie(token))
+		req.AddCookie(test_util.SessionCookie(token))
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

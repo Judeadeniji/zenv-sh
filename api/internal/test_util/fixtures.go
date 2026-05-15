@@ -1,4 +1,4 @@
-package testutil
+package test_util
 
 import (
 	"crypto/sha256"
@@ -22,42 +22,40 @@ type IdentityUser struct {
 	SessionToken string
 }
 
-// CreateIdentityUser inserts a user + session into the identity provider tables.
-func CreateIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
+// CreateIdentityUser registers a fake Better Auth session on the test auth mock.
+func CreateIdentityUser(t *testing.T, ts *TestServer) IdentityUser {
 	t.Helper()
+	if ts.Auth == nil {
+		t.Fatal("CreateIdentityUser: ts.Auth is nil")
+	}
 
 	id := uuid.New().String()
 	email := fmt.Sprintf("test-%s@test.zenv.sh", uuid.New().String()[:8])
 	token := "tok-" + uuid.New().String()
 
-	_, err := table.Users.INSERT(
+	ts.Auth.RegisterSession(token, id, email, "Test User", time.Now().Add(24*time.Hour))
+
+	authUID, err := uuid.Parse(id)
+	if err != nil {
+		t.Fatalf("parse identity id: %v", err)
+	}
+	now := time.Now().UTC()
+	if _, err := table.Users.INSERT(
 		table.Users.ID,
 		table.Users.Name,
 		table.Users.Email,
+		table.Users.EmailVerified,
+		table.Users.CreatedAt,
+		table.Users.UpdatedAt,
 	).VALUES(
-		id,
+		authUID,
 		"Test User",
 		email,
-	).Exec(db)
-	if err != nil {
-		t.Fatalf("insert identity user: %v", err)
-	}
-
-	_, err = table.Sessions.INSERT(
-		table.Sessions.ID,
-		table.Sessions.Token,
-		table.Sessions.UserID,
-		table.Sessions.ExpiresAt,
-		table.Sessions.UpdatedAt,
-	).VALUES(
-		uuid.New().String(),
-		token,
-		id,
-		time.Now().Add(24*time.Hour),
-		time.Now(),
-	).Exec(db)
-	if err != nil {
-		t.Fatalf("insert identity session: %v", err)
+		Bool(false),
+		now,
+		now,
+	).Exec(ts.DB); err != nil {
+		t.Fatalf("insert users row: %v", err)
 	}
 
 	return IdentityUser{
@@ -68,19 +66,10 @@ func CreateIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
 }
 
 // CreateExpiredIdentityUser creates an identity user with an expired session.
-func CreateExpiredIdentityUser(t *testing.T, db *sql.DB) IdentityUser {
+func CreateExpiredIdentityUser(t *testing.T, ts *TestServer) IdentityUser {
 	t.Helper()
-	u := CreateIdentityUser(t, db)
-
-	// Update the session to be expired
-	_, err := table.Sessions.UPDATE(table.Sessions.ExpiresAt).
-		SET(time.Now().Add(-1 * time.Hour)).
-		WHERE(table.Sessions.Token.EQ(String(u.SessionToken))).
-		Exec(db)
-	if err != nil {
-		t.Fatalf("expire session: %v", err)
-	}
-
+	u := CreateIdentityUser(t, ts)
+	ts.Auth.RegisterSession(u.SessionToken, u.IdentityID, u.Email, "Test User", time.Now().Add(-1*time.Hour))
 	return u
 }
 
@@ -158,7 +147,8 @@ func CreateZenvUser(t *testing.T, db *sql.DB, identityID, email string) ZenvUser
 }
 
 // CreateProject creates an org + project + vault key.
-func CreateProject(t *testing.T, db *sql.DB, ownerID uuid.UUID) (orgID, projectID uuid.UUID) {
+// memberUserID must be the identity-provider user id (Better Auth users.id), not the vault identities.id row.
+func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, projectID uuid.UUID) {
 	t.Helper()
 
 	orgID = uuid.New()
@@ -184,7 +174,7 @@ func CreateProject(t *testing.T, db *sql.DB, ownerID uuid.UUID) (orgID, projectI
 	).VALUES(
 		uuid.New().String(),
 		orgID.String(),
-		ownerID,
+		memberUserID,
 		"admin",
 	).Exec(db)
 	if err != nil {

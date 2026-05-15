@@ -1,4 +1,4 @@
-package testutil
+package test_util
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/Judeadeniji/zenv-sh/api/internal/auth_client"
 	"github.com/Judeadeniji/zenv-sh/api/internal/config"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 	"github.com/Judeadeniji/zenv-sh/api/internal/server"
@@ -17,10 +18,12 @@ import (
 
 // TestServer holds the httptest server and supporting resources.
 type TestServer struct {
-	Server *httptest.Server
-	DB     *sql.DB
-	Redis  *redis.Client
-	URL    string
+	Server     *httptest.Server
+	DB         *sql.DB
+	Redis      *redis.Client
+	URL        string
+	Auth       *AuthMock
+	AuthClient *auth_client.Client
 }
 
 // SetupServer starts containers, runs migrations, and creates an httptest.Server
@@ -30,19 +33,27 @@ func SetupServer(t *testing.T) *TestServer {
 
 	db := SetupDB(t)
 	rdb := SetupRedis(t)
+	auth := NewAuthMock()
+	ac := auth_client.New(auth.AuthBaseURL())
 
 	cfg := &config.Config{
-		CORSOrigins: "*",
+		CORSOrigins:   "*",
+		AuthServerURL: auth.AuthBaseURL(),
 	}
 	router, _ := server.New(db, rdb, cfg)
 	srv := httptest.NewServer(router)
-	t.Cleanup(func() { srv.Close() })
+	t.Cleanup(func() {
+		srv.Close()
+		auth.Server.Close()
+	})
 
 	return &TestServer{
-		Server: srv,
-		DB:     db,
-		Redis:  rdb,
-		URL:    srv.URL,
+		Server:     srv,
+		DB:         db,
+		Redis:      rdb,
+		URL:        srv.URL,
+		Auth:       auth,
+		AuthClient: ac,
 	}
 }
 
@@ -51,22 +62,28 @@ func SetupServer(t *testing.T) *TestServer {
 func SetupServerForMain() (*TestServer, func()) {
 	db, dbCleanup := SetupDBForMain()
 	rdb, redisCleanup := SetupRedisForMain()
+	auth := NewAuthMock()
+	ac := auth_client.New(auth.AuthBaseURL())
 
 	cfg := &config.Config{
-		CORSOrigins: "*",
+		CORSOrigins:   "*",
+		AuthServerURL: auth.AuthBaseURL(),
 	}
 	router, _ := server.New(db, rdb, cfg)
 	srv := httptest.NewServer(router)
 
 	ts := &TestServer{
-		Server: srv,
-		DB:     db,
-		Redis:  rdb,
-		URL:    srv.URL,
+		Server:     srv,
+		DB:         db,
+		Redis:      rdb,
+		URL:        srv.URL,
+		Auth:       auth,
+		AuthClient: ac,
 	}
 
 	cleanup := func() {
 		srv.Close()
+		auth.Server.Close()
 		dbCleanup()
 		redisCleanup()
 	}

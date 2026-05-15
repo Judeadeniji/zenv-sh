@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
 )
 
 func TestMe_NoVaultSetup(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
+	identity := test_util.CreateIdentityUser(t, ts)
 
 	resp := doReq(t, "GET", ts.URL+"/v1/auth/me", nil, identity.SessionToken)
 	assertStatus(t, resp, 200)
@@ -33,8 +33,8 @@ func TestMe_NoVaultSetup(t *testing.T) {
 }
 
 func TestMe_WithVaultSetup(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
 	resp := doReq(t, "GET", ts.URL+"/v1/auth/me", nil, identity.SessionToken)
 	assertStatus(t, resp, 200)
@@ -64,7 +64,7 @@ func TestMe_NoSession(t *testing.T) {
 }
 
 func TestSetupVault_Success(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
+	identity := test_util.CreateIdentityUser(t, ts)
 
 	// Generate real crypto material.
 	vaultKey := "test-setup-vault-key"
@@ -115,8 +115,8 @@ func TestSetupVault_Success(t *testing.T) {
 }
 
 func TestSetupVault_Duplicate(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
 	// Try to set up vault again.
 	salt := amnesia.GenerateSalt()
@@ -142,7 +142,7 @@ func TestSetupVault_Duplicate(t *testing.T) {
 }
 
 func TestSetupVault_MissingFields(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
+	identity := test_util.CreateIdentityUser(t, ts)
 
 	// Omit salt.
 	reqBody := jsonBody{
@@ -158,7 +158,7 @@ func TestSetupVault_MissingFields(t *testing.T) {
 }
 
 func TestSetupVault_InvalidKeyType(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
+	identity := test_util.CreateIdentityUser(t, ts)
 
 	reqBody := jsonBody{
 		"vault_key_type":      "biometric",
@@ -174,8 +174,8 @@ func TestSetupVault_InvalidKeyType(t *testing.T) {
 }
 
 func TestUnlock_CorrectKey(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	zenvUser := test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
 	// The unlock endpoint expects the raw auth key (base64-encoded), NOT the hash.
 	// The server hashes it with amnesia.HashAuthKey() and compares.
@@ -206,8 +206,8 @@ func TestUnlock_CorrectKey(t *testing.T) {
 }
 
 func TestUnlock_WrongKey(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
 	// Submit a random auth key that does not match.
 	reqBody := jsonBody{
@@ -219,7 +219,7 @@ func TestUnlock_WrongKey(t *testing.T) {
 }
 
 func TestUnlock_NoUser(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
+	identity := test_util.CreateIdentityUser(t, ts)
 	// No zEnv user created — only identity exists.
 
 	reqBody := jsonBody{

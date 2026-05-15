@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
+	"github.com/google/uuid"
 )
 
 // setupSecretCtx creates the full context for secret tests:
@@ -14,10 +15,10 @@ import (
 // Returns the service token (plaintext) and project ID.
 func setupSecretCtx(t *testing.T, env, permission string) (token string, projectID string) {
 	t.Helper()
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	_, pid := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
-	svcToken := testutil.CreateServiceToken(t, ts.DB, pid, env, permission)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, pid := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
+	svcToken := test_util.CreateServiceToken(t, ts.DB, pid, env, permission)
 	return svcToken, pid.String()
 }
 
@@ -65,6 +66,55 @@ func TestCreateSecret_Success(t *testing.T) {
 	}
 	if result.Version != 1 {
 		t.Errorf("version = %d, want 1", result.Version)
+	}
+}
+
+func TestCreateSecret_WithMetadata_ListAndPatch(t *testing.T) {
+	token, projectID := setupSecretCtx(t, "development", "read_write")
+	body := makeSecretBody(t, projectID, "development")
+	body["metadata"] = map[string]interface{}{
+		"mime_type":   "application/json",
+		"description": "connection string",
+		"tags":        []interface{}{"prod", "db"},
+	}
+
+	resp := doReq(t, "POST", ts.URL+"/v1/sdk/secrets", body, token)
+	assertStatus(t, resp, 201)
+	resp.Body.Close()
+
+	nameHashURL := nameHashToURL(t, body["name_hash"].(string))
+	listURL := fmt.Sprintf("%s/v1/sdk/secrets?project_id=%s&environment=development", ts.URL, projectID)
+	resp = doReq(t, "GET", listURL, nil, token)
+	assertStatus(t, resp, 200)
+	var list struct {
+		Secrets []struct {
+			NameHash string                 `json:"name_hash"`
+			Metadata map[string]interface{} `json:"metadata"`
+		} `json:"secrets"`
+	}
+	decodeJSON(t, resp, &list)
+	if len(list.Secrets) != 1 {
+		t.Fatalf("want 1 secret in list, got %d", len(list.Secrets))
+	}
+	if list.Secrets[0].NameHash != body["name_hash"].(string) {
+		t.Errorf("name_hash list mismatch")
+	}
+	if list.Secrets[0].Metadata["mime_type"] != "application/json" {
+		t.Errorf("mime_type = %v", list.Secrets[0].Metadata["mime_type"])
+	}
+
+	patchURL := fmt.Sprintf("%s/v1/sdk/secrets/%s/metadata?project_id=%s&environment=development", ts.URL, nameHashURL, projectID)
+	resp = doReq(t, "PATCH", patchURL, jsonBody{"description": "updated description"}, token)
+	assertStatus(t, resp, 200)
+	var patched struct {
+		Metadata map[string]interface{} `json:"metadata"`
+	}
+	decodeJSON(t, resp, &patched)
+	if patched.Metadata["description"] != "updated description" {
+		t.Errorf("patched description = %v", patched.Metadata["description"])
+	}
+	if patched.Metadata["mime_type"] != "application/json" {
+		t.Errorf("mime_type should be preserved, got %v", patched.Metadata["mime_type"])
 	}
 }
 
@@ -160,11 +210,11 @@ func TestListSecrets_Empty(t *testing.T) {
 
 func TestListSecrets_FiltersEnvironment(t *testing.T) {
 	// Create two tokens, one for dev and one for prod, both in the same project.
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	_, pid := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
-	devToken := testutil.CreateServiceToken(t, ts.DB, pid, "development", "read_write")
-	prodToken := testutil.CreateServiceToken(t, ts.DB, pid, "production", "read_write")
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, pid := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
+	devToken := test_util.CreateServiceToken(t, ts.DB, pid, "development", "read_write")
+	prodToken := test_util.CreateServiceToken(t, ts.DB, pid, "production", "read_write")
 	projectID := pid.String()
 
 	// Create a secret in dev.

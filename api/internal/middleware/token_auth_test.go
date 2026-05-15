@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
+	"github.com/google/uuid"
 )
 
 func TestTokenAuth_ValidToken(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
-	zu := testutil.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zu.UserID)
-	token := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
+	user := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(user.IdentityID))
+	token := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -99,10 +100,10 @@ func TestTokenAuth_NonZePrefix(t *testing.T) {
 }
 
 func TestRequireWrite_ReadOnlyToken(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
-	zu := testutil.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zu.UserID)
-	token := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read")
+	user := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(user.IdentityID))
+	token := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read")
 
 	req := httptest.NewRequest("POST", "/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -123,10 +124,10 @@ func TestRequireWrite_ReadOnlyToken(t *testing.T) {
 }
 
 func TestRequireWrite_ReadWriteToken(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
-	zu := testutil.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zu.UserID)
-	token := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
+	user := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, user.IdentityID, user.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(user.IdentityID))
+	token := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read_write")
 
 	req := httptest.NewRequest("POST", "/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)

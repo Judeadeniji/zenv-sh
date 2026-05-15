@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
+	"github.com/google/uuid"
 )
 
 // setupTokenCtx creates a full context for token tests:
@@ -16,12 +17,12 @@ import (
 // Returns the session token and project ID.
 func setupTokenCtx(t *testing.T) (sessionToken string, projectID string) {
 	t.Helper()
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	_, pid := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, pid := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
 
 	// Mark vault as unlocked in Redis.
-	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	err := idSession.SetVaultUnlocked(context.Background(), identity.SessionToken, time.Now().Add(24*time.Hour))
 	if err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
