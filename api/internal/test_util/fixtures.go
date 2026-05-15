@@ -152,14 +152,19 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 	t.Helper()
 
 	orgID = uuid.New()
+	now := time.Now().UTC()
 	_, err := table.Organizations.INSERT(
 		table.Organizations.ID,
 		table.Organizations.Name,
 		table.Organizations.Slug,
+		table.Organizations.CreatedAt,
+		table.Organizations.OwnerID,
 	).VALUES(
 		orgID.String(),
 		"TestOrg-"+uuid.New().String()[:8],
 		"test-org-"+uuid.New().String()[:8],
+		now,
+		memberUserID.String(),
 	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert org: %v", err)
@@ -171,11 +176,13 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 		table.Members.OrganizationID,
 		table.Members.UserID,
 		table.Members.Role,
+		table.Members.CreatedAt,
 	).VALUES(
 		uuid.New().String(),
 		orgID.String(),
-		memberUserID,
+		memberUserID.String(),
 		"admin",
+		now,
 	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert member: %v", err)
@@ -186,10 +193,12 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 		table.Projects.ID,
 		table.Projects.OrganizationID,
 		table.Projects.Name,
+		table.Projects.CreatedAt,
 	).VALUES(
 		projectID,
 		orgID.String(),
 		"TestProj-"+uuid.New().String()[:8],
+		now,
 	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert project: %v", err)
@@ -209,11 +218,13 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 		table.ProjectVaultKeys.ProjectID,
 		table.ProjectVaultKeys.ProjectSalt,
 		table.ProjectVaultKeys.WrappedProjectDek,
+		table.ProjectVaultKeys.CreatedAt,
 	).VALUES(
 		uuid.New(),
 		projectID,
 		projectSalt,
 		wrappedPDEKFull,
+		now,
 	).Exec(db)
 	if err != nil {
 		t.Fatalf("insert project vault key: %v", err)

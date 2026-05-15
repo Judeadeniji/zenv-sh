@@ -10,12 +10,12 @@ Goal: A developer can use zEnv for a real project end-to-end.
 - [x] Auth server — standalone identity server (email/password, OAuth, 2FA, orgs)
 - [x] CLI — secrets, tokens, projects, orgs, login, whoami, config
 - [x] @zenv/sdk — TypeScript SDK with Standard Schema support
-- [x] 93 tests (handler, middleware, E2E integration, CLI config)
+- [x] Automated tests — Go (Amnesia, API handlers/middleware, E2E, CLI config) + Bun (`packages/amnesia`); CI diff-checks Go-generated crypto vectors against TS
 - [x] Developer dashboard (TanStack Start)
 - [x] DEK rotation — two-phase re-encryption (API + web UI)
 - [x] Server-synced user preferences (active environment, pinned projects)
 - [x] Dockerfiles + self-hosting guide
-- [x] Documentation site (Starlight)
+- [x] Documentation site (Astro + MDX, Tailwind)
 - [ ] Encryption API — encrypt/decrypt any data, not just secrets
 - [ ] Deploy SaaS (Fly.io + Neon + Upstash + Vercel)
 

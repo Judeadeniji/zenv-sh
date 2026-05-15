@@ -73,9 +73,9 @@ func TestE2E_FullSecretLifecycle(t *testing.T) {
 	resp = doReq(t, "POST", ts.URL+"/v1/auth/setup-vault", jsonBody(t, vaultBody), withBearer(user.SessionToken))
 	assertStatus(t, resp, 409)
 
-	// 6. POST /v1/auth/unlock — correct vault key.
+	// 6. POST /v1/auth/unlock — correct vault key (base64(authKeyHash) from setup, i.e. HashAuthKey(authKey)).
 	unlockBody := map[string]string{
-		"auth_key_hash": base64.StdEncoding.EncodeToString(authKey),
+		"auth_key_hash": base64.StdEncoding.EncodeToString(authKeyHash),
 	}
 	resp = doReq(t, "POST", ts.URL+"/v1/auth/unlock",
 		jsonBody(t, unlockBody),
@@ -89,7 +89,7 @@ func TestE2E_FullSecretLifecycle(t *testing.T) {
 
 	// 7. POST /v1/auth/unlock — wrong vault key.
 	wrongBody := map[string]string{
-		"auth_key_hash": base64.StdEncoding.EncodeToString(amnesia.GenerateKey()),
+		"auth_key_hash": base64.StdEncoding.EncodeToString(amnesia.HashAuthKey(amnesia.GenerateKey())),
 	}
 	resp = doReq(t, "POST", ts.URL+"/v1/auth/unlock",
 		jsonBody(t, wrongBody),

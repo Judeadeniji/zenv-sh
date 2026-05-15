@@ -25,14 +25,19 @@ func setupProjectCtx(t *testing.T) (sessionToken string, userID uuid.UUID, orgID
 
 	// Create org via Jet.
 	oid := uuid.New()
+	now := time.Now().UTC()
 	_, err := table.Organizations.INSERT(
 		table.Organizations.ID,
 		table.Organizations.Name,
 		table.Organizations.Slug,
+		table.Organizations.CreatedAt,
+		table.Organizations.OwnerID,
 	).VALUES(
 		oid.String(),
 		"TestOrg-"+uuid.New().String()[:8],
 		"test-org-"+uuid.New().String()[:8],
+		now,
+		identity.IdentityID,
 	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org: %v", err)
@@ -44,11 +49,13 @@ func setupProjectCtx(t *testing.T) (sessionToken string, userID uuid.UUID, orgID
 		table.Members.OrganizationID,
 		table.Members.UserID,
 		table.Members.Role,
+		table.Members.CreatedAt,
 	).VALUES(
 		uuid.New().String(),
 		oid.String(),
 		identity.IdentityID,
 		"admin",
+		now,
 	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org member: %v", err)

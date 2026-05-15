@@ -4503,7 +4503,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "auth_key_hash": {
-                    "description": "AuthKeyHash is HashAuthKey(vaultKey), used to verify the Vault Key on unlock, base64-encoded.",
+                    "description": "AuthKeyHash is base64(HashAuthKey(authKey)) — same proof stored at setup-vault (JSON field name is historical).",
                     "type": "string",
                     "example": "base64encodedstring=="
                 },
@@ -4656,7 +4656,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "auth_key_hash": {
-                    "description": "AuthKeyHash is the result of HashAuthKey(vaultKey), base64-encoded.\nNever send the raw Vault Key — only the derived hash.",
+                    "description": "AuthKeyHash must match setup-vault: base64(HashAuthKey(authKey)) where authKey is the\n32-byte auth material from DeriveKeys (Argon2id output bytes 32–63). Same value as setup's auth_key_hash field.",
                     "type": "string",
                     "example": "base64encodedstring=="
                 }
