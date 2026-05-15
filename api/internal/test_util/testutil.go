@@ -110,7 +110,9 @@ func syncDrizzleSchema(ctx context.Context, db *sql.DB) error {
 	}
 
 	if sessionsExists {
-		return nil
+		// Reused containers skip the migration loop below; apply any additive
+		// migrations that were added after the container was first created.
+		return ensureAdditiveMigrations(ctx, db)
 	}
 
 	cwd, _ := os.Getwd()
@@ -144,6 +146,42 @@ func syncDrizzleSchema(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
+	return nil
+}
+
+// ensureAdditiveMigrations patches reused test DBs that were migrated before
+// newer Drizzle files existed (syncDrizzleSchema short-circuits when sessions exists).
+func ensureAdditiveMigrations(ctx context.Context, db *sql.DB) error {
+	var hasMetadata bool
+	err := db.QueryRowContext(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'vault_items' AND column_name = 'metadata'
+		)`,
+	).Scan(&hasMetadata)
+	if err != nil {
+		return fmt.Errorf("check vault_items.metadata: %w", err)
+	}
+	if hasMetadata {
+		return nil
+	}
+	var hasVaultItems bool
+	if err := db.QueryRowContext(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = 'vault_items'
+		)`,
+	).Scan(&hasVaultItems); err != nil {
+		return fmt.Errorf("check vault_items table: %w", err)
+	}
+	if !hasVaultItems {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx,
+		`ALTER TABLE "vault_items" ADD COLUMN IF NOT EXISTS "metadata" jsonb DEFAULT '{}'::jsonb NOT NULL`,
+	); err != nil {
+		return fmt.Errorf("add vault_items.metadata: %w", err)
+	}
 	return nil
 }
 

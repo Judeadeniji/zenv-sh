@@ -69,8 +69,8 @@ func (h *AuthHandler) Lock(w http.ResponseWriter, r *http.Request) {
 
 // UnlockRequest is the request body for POST /auth/unlock.
 type UnlockRequest struct {
-	// AuthKeyHash is the result of HashAuthKey(vaultKey), base64-encoded.
-	// Never send the raw Vault Key — only the derived hash.
+	// AuthKeyHash must match setup-vault: base64(HashAuthKey(authKey)) where authKey is the
+	// 32-byte auth material from DeriveKeys (Argon2id output bytes 32–63). Same value as setup's auth_key_hash field.
 	AuthKeyHash string `json:"auth_key_hash" example:"base64encodedstring=="`
 }
 
@@ -168,7 +168,7 @@ type SetupVaultRequest struct {
 	VaultKeyType string `json:"vault_key_type" enums:"pin,passphrase" example:"passphrase"`
 	// Salt is the random salt used to derive the Key Encryption Key from the Vault Key, base64-encoded.
 	Salt string `json:"salt" example:"base64encodedstring=="`
-	// AuthKeyHash is HashAuthKey(vaultKey), used to verify the Vault Key on unlock, base64-encoded.
+	// AuthKeyHash is base64(HashAuthKey(authKey)) — same proof stored at setup-vault (JSON field name is historical).
 	AuthKeyHash string `json:"auth_key_hash" example:"base64encodedstring=="`
 	// WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.
 	WrappedDEK string `json:"wrapped_dek" example:"base64encodedstring=="`

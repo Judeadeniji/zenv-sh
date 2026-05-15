@@ -21,6 +21,11 @@ import (
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
 
+// sqlJSONB casts a JSON text literal to jsonb for inserts/updates (column is jsonb; jet String() is text).
+func sqlJSONB(json string) Expression {
+	return CAST(String(json)).AS("jsonb")
+}
+
 // SecretsHandler handles encrypted vault item CRUD.
 // The server never sees plaintext — it stores and returns opaque ciphertext.
 type SecretsHandler struct {
@@ -142,7 +147,7 @@ func (h *SecretsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.CreatedAt,
 		table.VaultItems.UpdatedAt,
 	).VALUES(
-		id, projectID, req.Environment, nameHash, ciphertext, nonce, 1, String(metaJSON), now, now,
+		id, projectID, req.Environment, nameHash, ciphertext, nonce, 1, sqlJSONB(metaJSON), now, now,
 	)
 
 	if _, err := insertStmt.Exec(h.db); err != nil {
@@ -415,7 +420,7 @@ func (h *SecretsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			Bytea(ciphertext),
 			Bytea(nonce),
 			table.VaultItems.Version.ADD(Int(1)),
-			String(string(mergedMeta)),
+			sqlJSONB(string(mergedMeta)),
 			TimestampzT(now),
 		).WHERE(
 			table.VaultItems.ID.EQ(UUID(current.ID)),
@@ -937,7 +942,7 @@ func (h *SecretsHandler) PatchMetadata(w http.ResponseWriter, r *http.Request) {
 		table.VaultItems.Metadata,
 		table.VaultItems.UpdatedAt,
 	).SET(
-		String(string(out)),
+		sqlJSONB(string(out)),
 		TimestampzT(now),
 	).WHERE(table.VaultItems.ID.EQ(UUID(current.ID))).
 		Exec(h.db); err != nil {
