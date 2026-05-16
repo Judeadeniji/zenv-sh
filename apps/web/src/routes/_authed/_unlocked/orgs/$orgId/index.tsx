@@ -287,7 +287,7 @@ function EmptyProjectsState({ orgId }: { orgId: string }) {
 				<FolderKey className="size-4 text-muted-foreground" />
 			</div>
 			<p className="mt-4 text-sm font-medium">No projects yet</p>
-			<p className="mt-1 max-w-[220px] text-center text-xs text-muted-foreground">
+			<p className="mt-1 max-w-55 text-center text-xs text-muted-foreground">
 				Projects hold your encrypted secrets, scoped by environment.
 			</p>
 			<CreateProjectDialog
