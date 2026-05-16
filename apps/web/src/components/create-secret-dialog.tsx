@@ -148,7 +148,10 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 						resetDialog()
 						toast.success(`Created ${data.name}`)
 					},
-					onError: (err) => toast.error(err.message || "Failed to create secret"),
+					onError: (err) => {
+						console.error(err)
+						toast.error(err.message || "Failed to create secret");
+					},
 				},
 			)
 			return
@@ -181,7 +184,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 					<DialogTitle>Add a secret</DialogTitle>
 					<DialogDescription>
 						The value is encrypted on your device before being sent to the server. Optional details
-						below are stored in plaintext for search and tooling — never put secrets there.
+						below are stored in plaintext for search and tooling, never put secrets there.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -329,7 +332,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 							type="button"
 							className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
 						>
-							<span>Server-visible details (optional)</span>
+							<span>Metadata (optional)</span>
 							<ChevronDown
 								className={cn("size-4 shrink-0 transition-transform", metaOpen && "rotate-180")}
 							/>
@@ -343,7 +346,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 									<Textarea
 										id="secret-desc"
 										placeholder="What this secret is for (visible to zEnv operators)"
-										className="min-h-[72px] text-xs"
+										className="min-h-18 text-xs"
 										rows={3}
 										{...form.register("description")}
 									/>

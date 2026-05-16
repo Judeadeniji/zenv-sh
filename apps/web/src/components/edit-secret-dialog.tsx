@@ -185,7 +185,7 @@ export function EditSecretDialog({
 								type="button"
 								className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
 							>
-								<span>Server-visible details</span>
+								<span>Metadata</span>
 								<ChevronDown
 									className={cn("size-4 shrink-0 transition-transform", metaOpen && "rotate-180")}
 								/>
@@ -198,7 +198,7 @@ export function EditSecretDialog({
 										</Label>
 										<Textarea
 											id="edit-desc"
-											className="min-h-[64px] text-xs"
+											className="min-h-16 text-xs"
 											rows={2}
 											{...form.register("description")}
 										/>
