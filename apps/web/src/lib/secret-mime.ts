@@ -27,7 +27,10 @@ export function inferMimeForCreateFile(file: File): Promise<string> {
 	})
 }
 
-export async function inferMimeForUpdateClient(secret: SecretMimeRow, newValue: string): Promise<string> {
+export async function inferMimeForUpdateClient(
+	secret: SecretMimeRow,
+	newValue: string,
+): Promise<string> {
 	if (secret.kind === "binary") {
 		return inferBinarySecretMimeServerFn({
 			data: { name: secret.name, metadataMime: secret.metadata?.mime_type },
@@ -37,7 +40,7 @@ export async function inferMimeForUpdateClient(secret: SecretMimeRow, newValue: 
 }
 
 /**
- * Resolved MIME for UI. Prefer `resolvedMime` from the server batch in `useDecryptedSecrets`.
+ * Resolved MIME for UI. Prefer `resolvedMime` from the server batch in `secretPayloadQueryOptions`.
  */
 export function resolveSecretMime(row: SecretMimeRow & { resolvedMime?: string }): string {
 	if (row.resolvedMime) return row.resolvedMime

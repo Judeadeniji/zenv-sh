@@ -1,5 +1,18 @@
-import { queryOptions, useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
-import { generateSalt, generateKey, wrapKey, unwrapKey, wrapWithPublicKey, unwrapWithPrivateKey } from "@zenv/amnesia"
+import {
+	queryOptions,
+	useMutation,
+	useQuery,
+	useQueryClient,
+	keepPreviousData,
+} from "@tanstack/react-query"
+import {
+	generateSalt,
+	generateKey,
+	wrapKey,
+	unwrapKey,
+	wrapWithPublicKey,
+	unwrapWithPrivateKey,
+} from "@zenv/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"
@@ -37,7 +50,7 @@ export function projectQueryOptions(projectId: string) {
 		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}", {
 				params: { path: { projectID: projectId } },
-				signal
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch project")
 			return data
@@ -45,7 +58,6 @@ export function projectQueryOptions(projectId: string) {
 		staleTime: 30_000,
 	})
 }
-
 
 /**
  * Create a project with client-side crypto material.
@@ -167,9 +179,12 @@ export function useProjectDEK(projectId: string) {
 			if (!crypto) throw new Error("Vault must be unlocked")
 
 			// 1. Get project vault key from key grant
-			const { data: grantData, error: grantErr } = await api().GET("/projects/{projectID}/key-grant", {
-				params: { path: { projectID: projectId } },
-			})
+			const { data: grantData, error: grantErr } = await api().GET(
+				"/projects/{projectID}/key-grant",
+				{
+					params: { path: { projectID: projectId } },
+				},
+			)
 			if (grantErr || !grantData) throw new Error("No key grant found")
 
 			const wrappedBytes = fromBase64(grantData.wrapped_project_vault_key!)
@@ -178,10 +193,13 @@ export function useProjectDEK(projectId: string) {
 			)
 
 			// 2. Get project crypto material (salt + wrapped DEK)
-			const { data: cryptoData, error: cryptoErr } = await api().GET("/projects/{projectID}/crypto", {
-				params: { path: { projectID: projectId } },
-				signal,
-			})
+			const { data: cryptoData, error: cryptoErr } = await api().GET(
+				"/projects/{projectID}/crypto",
+				{
+					params: { path: { projectID: projectId } },
+					signal,
+				},
+			)
 			if (cryptoErr || !cryptoData) throw new Error("Project crypto not found")
 
 			const cm = cryptoData
@@ -219,7 +237,7 @@ export function listKeyGrantsQueryOptions(projectId: string) {
 		queryFn: async ({ signal }) => {
 			const { data, error } = await api().GET("/projects/{projectID}/key-grants", {
 				params: { path: { projectID: projectId } },
-				signal
+				signal,
 			})
 			if (error || !data) throw new Error("Failed to fetch key grants")
 			return (data.members ?? []) as KeyGrantMember[]
@@ -240,10 +258,13 @@ export function useGrantAccess(projectId: string) {
 				params: { path: { projectID: projectId } },
 				body: { grants },
 			})
-			if (error) throw new Error((error as { message?: string }).message ?? "Failed to grant access")
+			if (error)
+				throw new Error((error as { message?: string }).message ?? "Failed to grant access")
 		},
 		onSuccess: async () => {
-			await qc.invalidateQueries({ queryKey: [...queryKeys.projects.detail(projectId), "key-grants"] })
+			await qc.invalidateQueries({
+				queryKey: [...queryKeys.projects.detail(projectId), "key-grants"],
+			})
 		},
 	})
 }

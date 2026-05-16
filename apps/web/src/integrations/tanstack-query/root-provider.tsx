@@ -12,7 +12,7 @@ export function getContext() {
 	return { queryClient }
 }
 
-export type MyRouteContext = ReturnType<typeof getContext>;
+export type MyRouteContext = ReturnType<typeof getContext>
 
 export function Provider({
 	children,

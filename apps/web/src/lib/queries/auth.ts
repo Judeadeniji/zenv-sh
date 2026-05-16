@@ -24,7 +24,7 @@ export const meQueryOptions = queryOptions({
 	queryFn: async () => {
 		const { data, error } = await api().GET("/auth/me")
 		if (error || !data) throw new Error(error.error || "Failed to fetch auth state")
-		return data;
+		return data
 	},
 	staleTime: 30_000,
 })

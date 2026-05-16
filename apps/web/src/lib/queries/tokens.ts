@@ -64,13 +64,7 @@ export function useRevokeToken() {
 	const qc = useQueryClient()
 	return useMutation({
 		mutationKey: mutationKeys.tokens.revoke,
-		mutationFn: async ({
-			projectId,
-			tokenId,
-		}: {
-			projectId: string
-			tokenId: string
-		}) => {
+		mutationFn: async ({ projectId, tokenId }: { projectId: string; tokenId: string }) => {
 			const { error } = await api().DELETE("/tokens/{tokenID}", {
 				params: { path: { tokenID: tokenId } },
 				query: { project_id: projectId },
@@ -89,12 +83,7 @@ export function useDestroyToken() {
 	const qc = useQueryClient()
 	return useMutation({
 		mutationKey: mutationKeys.tokens.destroy,
-		mutationFn: async ({
-			tokenId,
-		}: {
-			tokenId: string;
-			projectId: string;
-		}) => {
+		mutationFn: async ({ tokenId }: { tokenId: string; projectId: string }) => {
 			const { error } = await api().DELETE("/tokens/{tokenID}/destroy", {
 				params: {
 					path: { tokenID: tokenId },

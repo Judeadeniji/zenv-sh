@@ -44,13 +44,25 @@ export function orgQueryOptions(orgId: string) {
 export function orgMembersQueryOptions(
 	orgId: string,
 	opts?: {
-		limit?: string | number;
-		offset?: string | number;
-		sortBy?: string;
-		sortDir?: "asc" | "desc";
-		filterField?: string;
-		filterValue?: string;
-		filterOperator?: $InferEnumInput<{ eq: "eq"; ne: "ne"; gt: "gt"; gte: "gte"; lt: "lt"; lte: "lte"; in: "in"; not_in: "not_in"; contains: "contains"; starts_with: "starts_with"; ends_with: "ends_with"; }>	
+		limit?: string | number
+		offset?: string | number
+		sortBy?: string
+		sortDir?: "asc" | "desc"
+		filterField?: string
+		filterValue?: string
+		filterOperator?: $InferEnumInput<{
+			eq: "eq"
+			ne: "ne"
+			gt: "gt"
+			gte: "gte"
+			lt: "lt"
+			lte: "lte"
+			in: "in"
+			not_in: "not_in"
+			contains: "contains"
+			starts_with: "starts_with"
+			ends_with: "ends_with"
+		}>
 	},
 ) {
 	return queryOptions({
@@ -73,11 +85,11 @@ export function orgInvitationQueries(orgId: string) {
 		queryFn: async ({ signal }) => {
 			const data = await authClient.organization.listInvitations({
 				query: { organizationId: orgId },
-				fetchOptions: { signal, throw: true }
-			});
+				fetchOptions: { signal, throw: true },
+			})
 
-			return data;
-		}
+			return data
+		},
 	})
 }
 
@@ -90,8 +102,8 @@ export function useCreateOrg() {
 				name,
 				slug: slugify(name),
 				metadata: {
-					'__zenv-org': true,
-				}
+					"__zenv-org": true,
+				},
 			})
 			if (error || !data) throw new Error(error.message || "Failed to create organization")
 			return data
@@ -106,12 +118,12 @@ export function useAddMember() {
 	const qc = useQueryClient()
 	return useMutation({
 		mutationKey: mutationKeys.orgs.addMember,
-		mutationFn: async ({ orgId, email, role }: { orgId: string; email: string, role: string }) => {
+		mutationFn: async ({ orgId, email, role }: { orgId: string; email: string; role: string }) => {
 			const { data, error } = await api().POST("/orgs/{orgID}/members", {
 				params: { path: { orgID: orgId } },
 				body: { email, role },
 			})
-			if (error || !data) throw new Error(error.error ||"Failed to add member")
+			if (error || !data) throw new Error(error.error || "Failed to add member")
 			return data
 		},
 		onSuccess: async (_, { orgId }) => {
@@ -128,7 +140,7 @@ export function useRemoveMember() {
 			const { error } = await api().DELETE("/orgs/{orgID}/members/{memberID}", {
 				params: { path: { orgID: orgId, memberID: memberId } },
 			})
-			if (error) throw new Error(error.error ||"Failed to remove member")
+			if (error) throw new Error(error.error || "Failed to remove member")
 		},
 		onSuccess: async (_, { orgId }) => {
 			// Prefix matching queryKeys.orgs.all covers the list and details

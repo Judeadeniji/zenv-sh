@@ -38,10 +38,9 @@ export async function deriveKeysAsync(
 	}
 
 	return new Promise((resolve, reject) => {
-		const worker = new Worker(
-			new URL("./derive-keys.worker.ts", import.meta.url),
-			{ type: "module" },
-		)
+		const worker = new Worker(new URL("./derive-keys.worker.ts", import.meta.url), {
+			type: "module",
+		})
 
 		worker.onmessage = (e: MessageEvent<{ kek: string; authKey: string }>) => {
 			resolve({

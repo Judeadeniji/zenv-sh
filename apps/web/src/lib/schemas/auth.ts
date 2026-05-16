@@ -22,19 +22,23 @@ export const passphraseSchema = z.object({
 	passphrase: z.string().min(12, "Passphrase must be at least 12 characters"),
 })
 
-export const confirmPinSchema = pinSchema.extend({
-	confirmPin: z.string(),
-}).refine((data) => data.pin === data.confirmPin, {
-	message: "PINs don't match",
-	path: ["confirmPin"],
-})
+export const confirmPinSchema = pinSchema
+	.extend({
+		confirmPin: z.string(),
+	})
+	.refine((data) => data.pin === data.confirmPin, {
+		message: "PINs don't match",
+		path: ["confirmPin"],
+	})
 
-export const confirmPassphraseSchema = passphraseSchema.extend({
-	confirmPassphrase: z.string(),
-}).refine((data) => data.passphrase === data.confirmPassphrase, {
-	message: "Passphrases don't match",
-	path: ["confirmPassphrase"],
-})
+export const confirmPassphraseSchema = passphraseSchema
+	.extend({
+		confirmPassphrase: z.string(),
+	})
+	.refine((data) => data.passphrase === data.confirmPassphrase, {
+		message: "Passphrases don't match",
+		path: ["confirmPassphrase"],
+	})
 
 export type LoginInput = z.infer<typeof loginSchema>
 export type SignupInput = z.infer<typeof signupSchema>

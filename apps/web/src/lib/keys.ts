@@ -8,8 +8,10 @@ export const queryKeys = {
 		all: ["orgs"] as const,
 		list: (params?: Record<string, unknown>) => [...queryKeys.orgs.all, "list", params] as const,
 		detail: (orgId: string) => ["orgs", orgId] as const,
-		members: (orgId: string, params?: Record<string, unknown>) => ["orgs", orgId, "members", params] as const,
-		invitations: (orgId: string, params?: Record<string, unknown>) => ["orgs", orgId, "invitations", params] as const
+		members: (orgId: string, params?: Record<string, unknown>) =>
+			["orgs", orgId, "members", params] as const,
+		invitations: (orgId: string, params?: Record<string, unknown>) =>
+			["orgs", orgId, "invitations", params] as const,
 	},
 	projects: {
 		list: (orgId: string, params?: Record<string, unknown>) => ["projects", orgId, params] as const,
@@ -17,18 +19,25 @@ export const queryKeys = {
 		stats: (projectId: string) => ["project", projectId, "stats"] as const,
 	},
 	secrets: {
-		list: (projectId: string, params?: Record<string, unknown>) => ["secrets", projectId, params] as const,
+		list: (projectId: string, params?: Record<string, unknown>) =>
+			["secrets", projectId, params] as const,
 		detail: (projectId: string, nameHash: string) => ["secrets", projectId, nameHash] as const,
-		versions: (projectId: string, nameHash: string) => ["secrets", projectId, nameHash, "versions"] as const,
+		/** Decrypted payload for one secret (lazy fetch; share prefix with list for invalidation). */
+		payload: (projectId: string, environment: string, nameHash: string) =>
+			[...queryKeys.secrets.list(projectId), environment, "payload", nameHash] as const,
+		versions: (projectId: string, nameHash: string) =>
+			["secrets", projectId, nameHash, "versions"] as const,
 	},
 	tokens: {
-		list: (projectId: string, params?: Record<string, unknown>) => ["tokens", projectId, params] as const,
+		list: (projectId: string, params?: Record<string, unknown>) =>
+			["tokens", projectId, params] as const,
 	},
 	members: {
 		list: (orgId: string, params?: Record<string, unknown>) => ["members", orgId, params] as const,
 	},
 	audit: {
-		list: (projectId: string, params?: Record<string, unknown>) => ["audit", projectId, params] as const,
+		list: (projectId: string, params?: Record<string, unknown>) =>
+			["audit", projectId, params] as const,
 	},
 	recovery: {
 		status: ["recovery", "status"] as const,

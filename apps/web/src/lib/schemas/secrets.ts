@@ -61,7 +61,12 @@ export type CreateTokenInput = z.infer<typeof createTokenSchema>
 
 export const inviteMemberSchema = z.object({
 	email: z.email("Enter a valid email"),
-	role: z.string().refine((r) => ["admin", "senior_dev", "dev", "contractor", "ci_bot"].includes(r), "Invalid role"),
+	role: z
+		.string()
+		.refine(
+			(r) => ["admin", "senior_dev", "dev", "contractor", "ci_bot"].includes(r),
+			"Invalid role",
+		),
 })
 
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>

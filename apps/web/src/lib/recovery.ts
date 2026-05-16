@@ -54,7 +54,10 @@ export async function entropyToWrappingKey(entropy: Uint8Array): Promise<Uint8Ar
 /**
  * Wrap DEK with recovery entropy → nonce||ciphertext blob for server storage.
  */
-export async function wrapDekForRecovery(dek: Uint8Array, entropy: Uint8Array): Promise<Uint8Array> {
+export async function wrapDekForRecovery(
+	dek: Uint8Array,
+	entropy: Uint8Array,
+): Promise<Uint8Array> {
 	const key = await entropyToWrappingKey(entropy)
 	const { ciphertext, nonce } = await wrapKey(dek, key)
 	const out = new Uint8Array(nonce.length + ciphertext.length)
@@ -68,7 +71,10 @@ export async function wrapDekForRecovery(dek: Uint8Array, entropy: Uint8Array): 
  * Works with both 12-word (new) and 24-word (legacy) kits.
  * Throws if the entropy is wrong.
  */
-export async function unwrapDekFromRecovery(blob: Uint8Array, entropy: Uint8Array): Promise<Uint8Array> {
+export async function unwrapDekFromRecovery(
+	blob: Uint8Array,
+	entropy: Uint8Array,
+): Promise<Uint8Array> {
 	const key = await entropyToWrappingKey(entropy)
 	const nonce = blob.slice(0, 12)
 	const ciphertext = blob.slice(12)
