@@ -2,7 +2,7 @@ import { FileIcon } from "@untitledui/file-icons"
 import { mimeToFileIconType, resolveSecretMime, type SecretMimeRow } from "#/lib/secret-mime"
 
 type Props = Partial<SecretMimeRow> & {
-	/** From `useDecryptedSecrets` server batch. */
+	/** From lazy `secretPayloadQuery` MIME batch (`resolveSecretMimeBatchServerFn`). */
 	resolvedMime?: string
 	/** When set, skips resolution and only picks an icon for this MIME string. */
 	forcedMime?: string

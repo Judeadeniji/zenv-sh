@@ -42,9 +42,18 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 	const { data: members } = useKeyGrantMembers(projectId)
 
 	// Count secrets across all environments
-	const { data: devData } = useQuery({ ...secretsQueryOptions(projectId, "development"), staleTime: 30_000 })
-	const { data: stgData } = useQuery({ ...secretsQueryOptions(projectId, "staging"), staleTime: 30_000 })
-	const { data: prdData } = useQuery({ ...secretsQueryOptions(projectId, "production"), staleTime: 30_000 })
+	const { data: devData } = useQuery({
+		...secretsQueryOptions(projectId, "development"),
+		staleTime: 30_000,
+	})
+	const { data: stgData } = useQuery({
+		...secretsQueryOptions(projectId, "staging"),
+		staleTime: 30_000,
+	})
+	const { data: prdData } = useQuery({
+		...secretsQueryOptions(projectId, "production"),
+		staleTime: 30_000,
+	})
 
 	const devCount = ((devData as { secrets?: unknown[] })?.secrets ?? []).length
 	const stgCount = ((stgData as { secrets?: unknown[] })?.secrets ?? []).length
@@ -105,8 +114,8 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 								Rotate Encryption Keys
 							</DialogTitle>
 							<DialogDescription>
-								Re-encrypt all secrets with a fresh Data Encryption Key. Use this if you suspect
-								key compromise or as a routine security measure.
+								Re-encrypt all secrets with a fresh Data Encryption Key. Use this if you suspect key
+								compromise or as a routine security measure.
 							</DialogDescription>
 						</DialogHeader>
 
@@ -123,7 +132,9 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 								<div className="flex justify-between">
 									<span className="text-muted-foreground">Environments</span>
 									<span className="font-medium">
-										{[devCount > 0 && "dev", stgCount > 0 && "staging", prdCount > 0 && "prod"].filter(Boolean).join(", ") || "none"}
+										{[devCount > 0 && "dev", stgCount > 0 && "staging", prdCount > 0 && "prod"]
+											.filter(Boolean)
+											.join(", ") || "none"}
 									</span>
 								</div>
 							</div>
@@ -131,14 +142,17 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 							<Alert variant="warning">
 								<Shield />
 								<AlertDescription className="text-xs">
-									All decryption and re-encryption happens in your browser. The server never sees plaintext secrets.
+									All decryption and re-encryption happens in your browser. The server never sees
+									plaintext secrets.
 								</AlertDescription>
 							</Alert>
 						</div>
 
 						<DialogFooter>
 							<DialogClose>
-								<Button variant="ghost" size="sm" type="button">Cancel</Button>
+								<Button variant="ghost" size="sm" type="button">
+									Cancel
+								</Button>
 							</DialogClose>
 							<Button
 								variant="solid"
@@ -168,7 +182,9 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 
 						<div className="space-y-4 py-4">
 							<Progress value={pct}>
-								<ProgressLabel>{progress.phase === "committing" ? "Finalizing" : "Progress"}</ProgressLabel>
+								<ProgressLabel>
+									{progress.phase === "committing" ? "Finalizing" : "Progress"}
+								</ProgressLabel>
 								<ProgressValue />
 							</Progress>
 
@@ -188,7 +204,8 @@ export function RotateDEKDialog({ projectId, trigger }: RotateDEKDialogProps) {
 							</DialogTitle>
 							<DialogDescription>
 								All {progress.total} secrets have been re-encrypted with a fresh DEK. Key grants
-								updated for {members?.length ?? 0} team member{(members?.length ?? 0) !== 1 ? "s" : ""}.
+								updated for {members?.length ?? 0} team member
+								{(members?.length ?? 0) !== 1 ? "s" : ""}.
 							</DialogDescription>
 						</DialogHeader>
 

@@ -3,8 +3,14 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useQuery } from "@tanstack/react-query"
 import {
-	Dialog, DialogTrigger, DialogContent, DialogHeader,
-	DialogTitle, DialogDescription, DialogFooter, DialogClose,
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
 } from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -14,7 +20,11 @@ import { Alert, AlertDescription } from "#/components/ui/alert"
 import { useCreateSecret } from "#/lib/queries/secrets"
 import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
-import { createSecretSchema, type CreateSecretInput, buildSecretMetadataPayload } from "#/lib/schemas/secrets"
+import {
+	createSecretSchema,
+	type CreateSecretInput,
+	buildSecretMetadataPayload,
+} from "#/lib/schemas/secrets"
 import { inferMimeForCreateFile, inferTextMime } from "#/lib/secret-mime"
 import { toast } from "sonner"
 import { AlertCircle, Upload, X, ChevronDown } from "lucide-react"
@@ -49,7 +59,15 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	const create = useCreateSecret()
 
 	const { data: guessedFileMime } = useQuery({
-		queryKey: ["create-secret-file-mime", file?.name, file?.size, file?.lastModified, file?.type, inputMode, open],
+		queryKey: [
+			"create-secret-file-mime",
+			file?.name,
+			file?.size,
+			file?.lastModified,
+			file?.type,
+			inputMode,
+			open,
+		],
 		queryFn: () => inferMimeForCreateFile(file!),
 		enabled: !!file && inputMode === "file" && open,
 		staleTime: 60_000,
@@ -60,7 +78,6 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		defaultValues: { inputMode: "text", name: "", value: "", description: "", tags_input: "" },
 	})
 
-
 	const resetDialog = useCallback(() => {
 		form.reset()
 		setInputMode("text")
@@ -69,7 +86,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		setIsDragging(false)
 		setMetaOpen(false)
 	}, [form])
-	
+
 	const handleModeSwitch = (mode: InputMode) => {
 		setInputMode(mode)
 		setFile(null)
@@ -77,7 +94,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		form.setValue("inputMode", mode) // keep RHF in sync
 		form.clearErrors()
 	}
-	
+
 	const acceptFile = (incoming: File) => {
 		if (incoming.size > 1_048_576) {
 			setFileError("File exceeds the 1 MB limit")
@@ -86,7 +103,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		setFile(incoming)
 		setFileError(null)
 	}
-	
+
 	const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const f = e.target.files?.[0]
 		if (f) acceptFile(f)
@@ -102,8 +119,11 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	}
 
 	const onSubmit = async (data: CreateSecretInput) => {
-		if (!projectDEK) { toast.error("No project DEK found"); return }
-	
+		if (!projectDEK) {
+			toast.error("No project DEK found")
+			return
+		}
+
 		const mime =
 			data.inputMode === "file" ? await inferMimeForCreateFile(file!) : inferTextMime(data.value)
 		const metadata = buildSecretMetadataPayload(
@@ -115,36 +135,53 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 		)
 
 		if (data.inputMode === "file") {
-			if (!file) { setFileError("Select a file to encrypt"); return }
+			if (!file) {
+				setFileError("Select a file to encrypt")
+				return
+			}
 			const valueBytes = new Uint8Array(await file.arrayBuffer())
 			create.mutate(
 				{ projectId, environment, projectDEK, name: data.name, value: valueBytes, metadata },
 				{
-					onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
+					onSuccess: () => {
+						setOpen(false)
+						resetDialog()
+						toast.success(`Created ${data.name}`)
+					},
 					onError: (err) => toast.error(err.message || "Failed to create secret"),
 				},
 			)
 			return
 		}
-	
+
 		create.mutate(
 			{ projectId, environment, projectDEK, name: data.name, value: data.value, metadata },
 			{
-				onSuccess: () => { setOpen(false); resetDialog(); toast.success(`Created ${data.name}`) },
+				onSuccess: () => {
+					setOpen(false)
+					resetDialog()
+					toast.success(`Created ${data.name}`)
+				},
 				onError: (err) => toast.error(err.message || "Failed to create secret"),
 			},
 		)
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetDialog() }}>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				setOpen(v)
+				if (!v) resetDialog()
+			}}
+		>
 			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Add a secret</DialogTitle>
 					<DialogDescription>
-						The value is encrypted on your device before being sent to the server.
-						Optional details below are stored in plaintext for search and tooling — never put secrets there.
+						The value is encrypted on your device before being sent to the server. Optional details
+						below are stored in plaintext for search and tooling — never put secrets there.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -157,7 +194,9 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 					)}
 
 					<div className="space-y-1.5">
-						<Label htmlFor="secret-name" className="text-xs">Name</Label>
+						<Label htmlFor="secret-name" className="text-xs">
+							Name
+						</Label>
 						<Input
 							id="secret-name"
 							placeholder="e.g. api-key, db/password, MY_SECRET"
@@ -223,9 +262,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 											<p className="text-xs text-muted-foreground">
 												{formatBytes(file.size)}
 												{" · "}
-												<span className="font-mono">
-													{guessedFileMime ?? "…"}
-												</span>
+												<span className="font-mono">{guessedFileMime ?? "…"}</span>
 											</p>
 										</div>
 										<Button
@@ -233,7 +270,10 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 											variant="ghost"
 											size="icon"
 											className="size-6 shrink-0"
-											onClick={() => { setFile(null); setFileError(null) }}
+											onClick={() => {
+												setFile(null)
+												setFileError(null)
+											}}
 											aria-label="Remove file"
 										>
 											<X className="size-3.5" />
@@ -250,7 +290,10 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 											fileError && "border-destructive/60",
 										)}
 										onClick={() => fileInputRef.current?.click()}
-										onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+										onDragOver={(e) => {
+											e.preventDefault()
+											setIsDragging(true)
+										}}
 										onDragLeave={() => setIsDragging(false)}
 										onDrop={handleDrop}
 									>
@@ -265,9 +308,7 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 									</button>
 								)}
 
-								{fileError && (
-									<p className="text-xs text-destructive">{fileError}</p>
-								)}
+								{fileError && <p className="text-xs text-destructive">{fileError}</p>}
 
 								<input
 									ref={fileInputRef}
@@ -279,18 +320,26 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 						)}
 					</div>
 
-					<Collapsible open={metaOpen} onOpenChange={setMetaOpen} className="rounded-md border bg-muted/20">
+					<Collapsible
+						open={metaOpen}
+						onOpenChange={setMetaOpen}
+						className="rounded-md border bg-muted/20"
+					>
 						<CollapsibleTrigger
 							type="button"
 							className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
 						>
 							<span>Server-visible details (optional)</span>
-							<ChevronDown className={cn("size-4 shrink-0 transition-transform", metaOpen && "rotate-180")} />
+							<ChevronDown
+								className={cn("size-4 shrink-0 transition-transform", metaOpen && "rotate-180")}
+							/>
 						</CollapsibleTrigger>
 						<CollapsibleContent className="border-t px-3 pb-3 pt-1">
 							<div className="grid gap-3">
 								<div className="space-y-1">
-									<Label htmlFor="secret-desc" className="text-[11px] text-muted-foreground">Description</Label>
+									<Label htmlFor="secret-desc" className="text-[11px] text-muted-foreground">
+										Description
+									</Label>
 									<Textarea
 										id="secret-desc"
 										placeholder="What this secret is for (visible to zEnv operators)"
@@ -300,7 +349,9 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 									/>
 								</div>
 								<div className="space-y-1">
-									<Label htmlFor="secret-tags" className="text-[11px] text-muted-foreground">Tags</Label>
+									<Label htmlFor="secret-tags" className="text-[11px] text-muted-foreground">
+										Tags
+									</Label>
 									<Input
 										id="secret-tags"
 										placeholder="Comma-separated, e.g. prod, database, rotation"
@@ -314,7 +365,9 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 
 					<DialogFooter>
 						<DialogClose>
-							<Button variant="ghost" size="sm" type="button">Cancel</Button>
+							<Button variant="ghost" size="sm" type="button">
+								Cancel
+							</Button>
 						</DialogClose>
 						<Button type="submit" variant="solid" size="sm" isLoading={create.isPending}>
 							Add secret

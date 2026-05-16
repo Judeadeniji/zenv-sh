@@ -1,7 +1,14 @@
 import { useState } from "react"
 import { Button } from "#/components/ui/button"
 import { Checkbox } from "#/components/ui/checkbox"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { generateRecoveryKitPDF } from "#/lib/recovery-pdf"
 import { Download, ShieldCheck, AlertTriangle } from "lucide-react"
@@ -13,7 +20,12 @@ interface RecoveryKitModalProps {
 	onDisableRecovery?: () => void
 }
 
-export function RecoveryKitModal({ email, mnemonic, onConfirm, onDisableRecovery }: RecoveryKitModalProps) {
+export function RecoveryKitModal({
+	email,
+	mnemonic,
+	onConfirm,
+	onDisableRecovery,
+}: RecoveryKitModalProps) {
 	const [downloaded, setDownloaded] = useState(false)
 	const [confirmed, setConfirmed] = useState(false)
 
@@ -81,9 +93,12 @@ export function RecoveryKitModal({ email, mnemonic, onConfirm, onDisableRecovery
 										onCheckedChange={(v) => setConfirmed(v === true)}
 										id="confirm-saved"
 									/>
-									<label htmlFor="confirm-saved" className="cursor-pointer text-xs leading-relaxed text-muted-foreground">
-										I have saved my Recovery Kit in a secure location. I understand that without it, I cannot recover my
-										vault if I forget my Vault Key.
+									<label
+										htmlFor="confirm-saved"
+										className="cursor-pointer text-xs leading-relaxed text-muted-foreground"
+									>
+										I have saved my Recovery Kit in a secure location. I understand that without it,
+										I cannot recover my vault if I forget my Vault Key.
 									</label>
 								</div>
 
@@ -114,11 +129,17 @@ export function RecoveryKitModal({ email, mnemonic, onConfirm, onDisableRecovery
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

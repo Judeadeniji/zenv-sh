@@ -33,7 +33,7 @@ export function RecoverySection({ action }: RecoverySectionProps) {
 		queryFn: async () => {
 			const { data, error } = await api().GET("/auth/recovery/status")
 			if (error || !data) throw new Error("Failed to fetch recovery status")
-			return data;
+			return data
 		},
 	})
 
@@ -75,7 +75,11 @@ function RecoveryKitRow({ hasKit }: { hasKit: boolean }) {
 			<div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
 				<div className="flex items-center gap-2">
 					<span className="text-sm">{hasKit ? "Kit configured" : "Not set up"}</span>
-					{hasKit ? <Badge variant="success">Active</Badge> : <Badge variant="warning">Missing</Badge>}
+					{hasKit ? (
+						<Badge variant="success">Active</Badge>
+					) : (
+						<Badge variant="warning">Missing</Badge>
+					)}
 				</div>
 				<Button
 					variant="outline"
@@ -172,7 +176,9 @@ function TrustedContactRow({
 					)}
 
 					<div className="space-y-1.5">
-						<Label htmlFor="contact-email" className="text-xs">Contact's email</Label>
+						<Label htmlFor="contact-email" className="text-xs">
+							Contact's email
+						</Label>
 						<Input
 							id="contact-email"
 							type="email"
@@ -184,7 +190,8 @@ function TrustedContactRow({
 							<p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
 						)}
 						<p className="text-xs text-muted-foreground">
-							This person must also have a zEnv account. They'll be notified when you request recovery.
+							This person must also have a zEnv account. They'll be notified when you request
+							recovery.
 						</p>
 					</div>
 
@@ -203,9 +210,16 @@ function TrustedContactRow({
 						<>
 							<div>
 								<p className="text-sm font-medium">{contactEmail}</p>
-								<p className="text-xs text-muted-foreground">Will be notified on recovery request.</p>
+								<p className="text-xs text-muted-foreground">
+									Will be notified on recovery request.
+								</p>
 							</div>
-							<Button variant="outline" size="xs" onClick={() => remove.mutate()} isLoading={remove.isPending}>
+							<Button
+								variant="outline"
+								size="xs"
+								onClick={() => remove.mutate()}
+								isLoading={remove.isPending}
+							>
 								Remove
 							</Button>
 						</>
@@ -232,7 +246,7 @@ function IncomingRequestsLinkRow() {
 		queryFn: async () => {
 			const { data, error } = await api().GET("/auth/recovery/incoming-requests")
 			if (error) return []
-			return (data ?? [])
+			return data ?? []
 		},
 		refetchInterval: 30_000,
 	})
@@ -249,11 +263,7 @@ function IncomingRequestsLinkRow() {
 					<span className="text-sm">Incoming requests</span>
 					{pendingCount > 0 && <Badge variant="warning">{pendingCount}</Badge>}
 				</div>
-				<Button
-					variant="outline"
-					size="xs"
-					render={<Link to="/recovery-requests" />}
-				>
+				<Button variant="outline" size="xs" render={<Link to="/recovery-requests" />}>
 					<EyeIcon />
 				</Button>
 			</div>
@@ -292,12 +302,18 @@ function NoRecoveryRow({ disabled }: { disabled: boolean }) {
 			<div className="space-y-3">
 				<div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
 					<div>
-						<p className="text-sm font-medium">{disabled ? "Recovery disabled" : "Recovery enabled"}</p>
+						<p className="text-sm font-medium">
+							{disabled ? "Recovery disabled" : "Recovery enabled"}
+						</p>
 						<p className="text-xs text-muted-foreground">
 							{disabled ? "No recovery methods available." : "Kit and Trusted Contact can be used."}
 						</p>
 					</div>
-					<Switch checked={disabled} onCheckedChange={() => toggle.mutate()} disabled={toggle.isPending} />
+					<Switch
+						checked={disabled}
+						onCheckedChange={() => toggle.mutate()}
+						disabled={toggle.isPending}
+					/>
 				</div>
 
 				{disabled && (

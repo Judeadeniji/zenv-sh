@@ -70,23 +70,24 @@ export function AppSidebar() {
 	const orgId = params.orgId
 	const projectId = params.projectId
 
-	const orgList = orgsData || [];
+	const orgList = orgsData || []
 	const activeOrg = orgList.find((o) => o.id === orgId) ?? orgList[0]
 
 	const { data: projectsData, isLoading: projectsLoading } = useQuery({
 		...projectsQueryOptions(activeOrg?.id ?? ""),
 		enabled: !!activeOrg && !!crypto,
 	})
-	const projectList = ((projectsData)?.projects ?? []) as { id: string, name: string }[]
+	const projectList = (projectsData?.projects ?? []) as { id: string; name: string }[]
 
 	const pinnedIds = useNavStore((s) => s.pinnedProjects)
 	const pinProject = useNavStore((s) => s.pinProject)
 	const unpinProject = useNavStore((s) => s.unpinProject)
 	const updatePrefs = useUpdatePreferences()
 
-	const pinned = pinnedIds
-		.map((id) => projectList.find((p) => p.id === id))
-		.filter(Boolean) as { id: string; name: string }[]
+	const pinned = pinnedIds.map((id) => projectList.find((p) => p.id === id)).filter(Boolean) as {
+		id: string
+		name: string
+	}[]
 	const unpinned = projectList.filter((p) => !pinnedIds.includes(p.id!))
 	const hasPins = pinned.length > 0
 
@@ -101,7 +102,7 @@ export function AppSidebar() {
 		updatePrefs.mutate({ pinned_projects: next })
 	}
 
-	const initials = getInitials(me?.name || me?.email || '?')
+	const initials = getInitials(me?.name || me?.email || "?")
 
 	const projectItems = activeOrg && projectId ? getProjectItems(activeOrg.id, projectId) : []
 	const orgItems = activeOrg ? getOrgItems(activeOrg.id, projectId) : []
@@ -112,7 +113,7 @@ export function AppSidebar() {
 		queryFn: async () => {
 			const { data, error } = await api().GET("/auth/recovery/incoming-requests")
 			if (error) return []
-			return (data ?? [])
+			return data ?? []
 		},
 		enabled: !!crypto,
 		refetchInterval: 30_000,
@@ -123,9 +124,10 @@ export function AppSidebar() {
 		await api().POST("/auth/lock", {})
 		useAuthStore.getState().lock()
 		navigate({
-			to: "/unlock", search: {
-				redirect: location.pathname
-			}
+			to: "/unlock",
+			search: {
+				redirect: location.pathname,
+			},
 		})
 	}
 
@@ -302,19 +304,19 @@ export function AppSidebar() {
 									</SidebarMenuItem>
 								))}
 								<SidebarMenuItem>
-								<SidebarMenuButton
-									tooltip="Recovery Requests"
-									render={(props) => <Link {...props} to="/recovery-requests" />}
-								>
-									<UserStarIcon />
-									<span className="flex-1">Recovery Requests</span>
-									{pendingIncomingCount > 0 && state !== "collapsed" && (
-										<Badge variant="warning" className="ml-auto">
-											{pendingIncomingCount}
-										</Badge>
-									)}
-								</SidebarMenuButton>
-							</SidebarMenuItem>
+									<SidebarMenuButton
+										tooltip="Recovery Requests"
+										render={(props) => <Link {...props} to="/recovery-requests" />}
+									>
+										<UserStarIcon />
+										<span className="flex-1">Recovery Requests</span>
+										{pendingIncomingCount > 0 && state !== "collapsed" && (
+											<Badge variant="warning" className="ml-auto">
+												{pendingIncomingCount}
+											</Badge>
+										)}
+									</SidebarMenuButton>
+								</SidebarMenuItem>
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>
@@ -395,10 +397,7 @@ function ProjectItem({
 				isActive={isActive}
 				tooltip={project.name}
 				render={
-					<Link
-						to="/orgs/$orgId/projects/$projectId"
-						params={{ orgId, projectId: project.id }}
-					/>
+					<Link to="/orgs/$orgId/projects/$projectId" params={{ orgId, projectId: project.id }} />
 				}
 			>
 				<FolderKey />

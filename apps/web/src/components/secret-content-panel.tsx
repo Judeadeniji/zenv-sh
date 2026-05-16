@@ -73,8 +73,17 @@ export function SecretContentPanel({
 						>
 							{textRevealed ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
 						</Button>
-						<Button variant="ghost" size="icon-sm" type="button" onClick={() => onCopy(secret.value, "value")}>
-							{copied === "value" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							type="button"
+							onClick={() => onCopy(secret.value, "value")}
+						>
+							{copied === "value" ? (
+								<Check className="size-3 text-success" />
+							) : (
+								<Copy className="size-3" />
+							)}
 						</Button>
 					</div>
 				</div>
@@ -90,11 +99,19 @@ export function SecretContentPanel({
 	if (preview && blobUrl && secret.binary) {
 		if (mime.startsWith("image/")) {
 			previewBody = (
-				<img src={blobUrl} alt="" className="max-h-48 max-w-full rounded-md border object-contain" />
+				<img
+					src={blobUrl}
+					alt=""
+					className="max-h-48 max-w-full rounded-md border object-contain"
+				/>
 			)
 		} else if (mime === "application/pdf") {
 			previewBody = (
-				<iframe title="PDF preview" src={blobUrl} className="h-64 w-full rounded-md border bg-muted" />
+				<iframe
+					title="PDF preview"
+					src={blobUrl}
+					className="h-64 w-full rounded-md border bg-muted"
+				/>
 			)
 		} else if (mime.startsWith("video/")) {
 			previewBody = (
@@ -150,14 +167,27 @@ export function SecretContentPanel({
 					>
 						Download
 					</a>
-					<Button variant="ghost" size="sm" type="button" onClick={() => onCopy(secret.value, "value")}>
-						{copied === "value" ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+					<Button
+						variant="ghost"
+						size="sm"
+						type="button"
+						onClick={() => onCopy(secret.value, "value")}
+					>
+						{copied === "value" ? (
+							<Check className="size-3.5 text-success" />
+						) : (
+							<Copy className="size-3.5" />
+						)}
 						Copy base64
 					</Button>
 				</div>
 			) : null}
 			{previewBody}
-			{!preview && <p className="text-xs text-muted-foreground">Preview is not available for this type. Download the file to open it.</p>}
+			{!preview && (
+				<p className="text-xs text-muted-foreground">
+					Preview is not available for this type. Download the file to open it.
+				</p>
+			)}
 		</div>
 	)
 }

@@ -89,9 +89,17 @@ function ProfileRow({ name, email }: { name: string; email: string }) {
 				)}
 
 				<div className="space-y-1.5">
-					<Label htmlFor="profile-name" className="text-xs">Name</Label>
-					<Input id="profile-name" {...form.register("name")} feedback={form.formState.errors.name ? "error" : undefined} />
-					{form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
+					<Label htmlFor="profile-name" className="text-xs">
+						Name
+					</Label>
+					<Input
+						id="profile-name"
+						{...form.register("name")}
+						feedback={form.formState.errors.name ? "error" : undefined}
+					/>
+					{form.formState.errors.name && (
+						<p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+					)}
 				</div>
 
 				<div className="space-y-1.5">
@@ -100,7 +108,13 @@ function ProfileRow({ name, email }: { name: string; email: string }) {
 					<p className="text-xs text-muted-foreground">Contact support to change your email.</p>
 				</div>
 
-				<Button type="submit" variant="solid" size="sm" isLoading={update.isPending} disabled={!form.formState.isDirty}>
+				<Button
+					type="submit"
+					variant="solid"
+					size="sm"
+					isLoading={update.isPending}
+					disabled={!form.formState.isDirty}
+				>
 					Save changes
 				</Button>
 			</form>
@@ -129,7 +143,10 @@ function PasswordRow() {
 	})
 
 	return (
-		<SettingsRow title="Password" description="Change the password used to sign in to your account.">
+		<SettingsRow
+			title="Password"
+			description="Change the password used to sign in to your account."
+		>
 			<form onSubmit={form.handleSubmit((d) => change.mutate(d))} className="space-y-4">
 				{change.isSuccess && (
 					<Alert variant="success">
@@ -145,7 +162,9 @@ function PasswordRow() {
 				)}
 
 				<div className="space-y-1.5">
-					<Label htmlFor="current-password" className="text-xs">Current password</Label>
+					<Label htmlFor="current-password" className="text-xs">
+						Current password
+					</Label>
 					<PasswordInput
 						id="current-password"
 						placeholder="Enter current password"
@@ -153,13 +172,17 @@ function PasswordRow() {
 						feedback={form.formState.errors.currentPassword ? "error" : undefined}
 					/>
 					{form.formState.errors.currentPassword && (
-						<p className="text-xs text-destructive">{form.formState.errors.currentPassword.message}</p>
+						<p className="text-xs text-destructive">
+							{form.formState.errors.currentPassword.message}
+						</p>
 					)}
 				</div>
 
 				<div className="grid gap-4 sm:grid-cols-2">
 					<div className="space-y-1.5">
-						<Label htmlFor="new-password" className="text-xs">New password</Label>
+						<Label htmlFor="new-password" className="text-xs">
+							New password
+						</Label>
 						<PasswordInput
 							id="new-password"
 							placeholder="New password"
@@ -167,12 +190,16 @@ function PasswordRow() {
 							feedback={form.formState.errors.newPassword ? "error" : undefined}
 						/>
 						{form.formState.errors.newPassword && (
-							<p className="text-xs text-destructive">{form.formState.errors.newPassword.message}</p>
+							<p className="text-xs text-destructive">
+								{form.formState.errors.newPassword.message}
+							</p>
 						)}
 					</div>
 
 					<div className="space-y-1.5">
-						<Label htmlFor="confirm-password" className="text-xs">Confirm password</Label>
+						<Label htmlFor="confirm-password" className="text-xs">
+							Confirm password
+						</Label>
 						<PasswordInput
 							id="confirm-password"
 							placeholder="Confirm password"
@@ -180,7 +207,9 @@ function PasswordRow() {
 							feedback={form.formState.errors.confirmPassword ? "error" : undefined}
 						/>
 						{form.formState.errors.confirmPassword && (
-							<p className="text-xs text-destructive">{form.formState.errors.confirmPassword.message}</p>
+							<p className="text-xs text-destructive">
+								{form.formState.errors.confirmPassword.message}
+							</p>
 						)}
 					</div>
 				</div>
@@ -218,19 +247,32 @@ function LinkedAccountsRow() {
 	]
 
 	return (
-		<SettingsRow title="Linked accounts" description="Connect third-party accounts for faster sign in.">
+		<SettingsRow
+			title="Linked accounts"
+			description="Connect third-party accounts for faster sign in."
+		>
 			<div className="space-y-3">
 				{providers.map((provider) => {
-					const linked = accounts?.some((a: { providerId?: string }) => a.providerId === provider.id)
+					const linked = accounts?.some(
+						(a: { providerId?: string }) => a.providerId === provider.id,
+					)
 					return (
-						<div key={provider.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
+						<div
+							key={provider.id}
+							className="flex items-center justify-between rounded-md border border-border px-3 py-2.5"
+						>
 							<div className="flex items-center gap-2.5">
 								<provider.icon className="size-4 text-muted-foreground" />
 								<span className="text-sm">{provider.label}</span>
 								{linked && <Badge variant="success">Connected</Badge>}
 							</div>
 							{!linked && (
-								<Button variant="outline" size="xs" onClick={() => link.mutate(provider.id)} isLoading={link.isPending}>
+								<Button
+									variant="outline"
+									size="xs"
+									onClick={() => link.mutate(provider.id)}
+									isLoading={link.isPending}
+								>
 									Connect
 								</Button>
 							)}
@@ -241,4 +283,3 @@ function LinkedAccountsRow() {
 		</SettingsRow>
 	)
 }
-
