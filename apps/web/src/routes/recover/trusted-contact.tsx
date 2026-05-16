@@ -1,7 +1,14 @@
 import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
@@ -24,7 +31,7 @@ function TrustedContactRecoveryPage() {
 		queryFn: async () => {
 			const { data, error } = await api().GET("/auth/recovery/request")
 			if (error) return null
-			return data;
+			return data
 		},
 	})
 
@@ -33,7 +40,7 @@ function TrustedContactRecoveryPage() {
 		queryFn: async () => {
 			const { data, error } = await api().GET("/auth/recovery/status")
 			if (error) throw new Error("Failed to fetch recovery status")
-			return data;
+			return data
 		},
 	})
 
@@ -105,7 +112,8 @@ function TrustedContactRecoveryPage() {
 									<Alert variant="warning">
 										<AlertCircle />
 										<AlertDescription>
-											No trusted contact configured. You can set one up in Settings after unlocking your vault.
+											No trusted contact configured. You can set one up in Settings after unlocking
+											your vault.
 										</AlertDescription>
 									</Alert>
 								)}
@@ -113,7 +121,8 @@ function TrustedContactRecoveryPage() {
 								{status?.has_contact && !request && (
 									<div className="space-y-3">
 										<p className="text-sm text-muted-foreground">
-											Your trusted contact is <span className="font-medium text-foreground">{status.contact_email}</span>.
+											Your trusted contact is{" "}
+											<span className="font-medium text-foreground">{status.contact_email}</span>.
 											Initiating recovery starts a 72-hour waiting period.
 										</p>
 										<Button
@@ -132,13 +141,16 @@ function TrustedContactRecoveryPage() {
 									<div className="space-y-3">
 										<div className="flex items-center gap-2 text-sm">
 											<Clock className="size-4 text-muted-foreground" />
-											<span>Status: <span className="font-medium">{request.status}</span></span>
+											<span>
+												Status: <span className="font-medium">{request.status}</span>
+											</span>
 										</div>
 
 										{request.status === "pending" && (
 											<>
 												<p className="text-xs text-muted-foreground">
-													Eligible at: {request.eligible_at ? formatDateTime(request.eligible_at) : "—"}
+													Eligible at:{" "}
+													{request.eligible_at ? formatDateTime(request.eligible_at) : "—"}
 												</p>
 												<Button
 													variant="outline"
@@ -177,11 +189,17 @@ function TrustedContactRecoveryPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

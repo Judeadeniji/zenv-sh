@@ -125,8 +125,15 @@
 	--shadow-action-card: 0px 1px 4px 0px rgba(0, 0, 0, 0.12), 0px 4px 8px 0px rgba(0, 0, 0, 0.12);
 	--shadow-input: 0px 0px 1px 0px var(--border-alpha-100);
 	--shadow-focus-ring: 0px 0px 0px 3px var(--primary-alpha-200);
-	--shadow-button: 0px 1px 1px 0px rgba(255, 255, 255, 0.07) inset, 0px 2px 3px 0px rgba(34, 42, 53, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.24);
-	--shadow-button-outline: 0px 2px 3px -1px rgba(0, 0, 0, 0.08), 0px 1px 0px 0px rgba(0, 0, 0, 0.02);
+	--shadow-button:
+		0px 1px 1px 0px rgba(255, 255, 255, 0.07) inset, 0px 2px 3px 0px rgba(34, 42, 53, 0.2), 0px 1px 1px 0px rgba(
+			0,
+			0,
+			0,
+			0.24
+		);
+	--shadow-button-outline:
+		0px 2px 3px -1px rgba(0, 0, 0, 0.08), 0px 1px 0px 0px rgba(0, 0, 0, 0.02);
 	--shadow-badge: 0px 2px 0px -1px rgba(0, 0, 0, 0.04);
 	--shadow-table: 0px 0px 2px 0px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(25, 28, 33, 0.12);
 
@@ -208,7 +215,13 @@
 	--shadow-card-content: 0px 0px 2px 0px rgba(0, 0, 0, 0.2), 0px 1px 2px 0px rgba(0, 0, 0, 0.16);
 	--shadow-menu: 0px 5px 15px 0px rgba(0, 0, 0, 0.3), 0px 15px 35px -5px rgba(0, 0, 0, 0.4);
 	--shadow-focus-ring: 0px 0px 0px 3px var(--primary-alpha-200);
-	--shadow-button: 0px 1px 1px 0px rgba(255, 255, 255, 0.04) inset, 0px 2px 3px 0px rgba(0, 0, 0, 0.4), 0px 1px 1px 0px rgba(0, 0, 0, 0.5);
+	--shadow-button:
+		0px 1px 1px 0px rgba(255, 255, 255, 0.04) inset, 0px 2px 3px 0px rgba(0, 0, 0, 0.4), 0px 1px 1px 0px rgba(
+			0,
+			0,
+			0,
+			0.5
+		);
 	--shadow-button-outline: 0px 2px 3px -1px rgba(0, 0, 0, 0.2), 0px 1px 0px 0px rgba(0, 0, 0, 0.08);
 
 	--success: oklch(0.7 0.17 150);

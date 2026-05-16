@@ -7,7 +7,11 @@ import { Alert, AlertDescription } from "#/components/ui/alert"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { CreateTokenDialog } from "#/components/create-token-dialog"
-import { projectQueryOptions, projectStatsQueryOptions, useProjectKey } from "#/lib/queries/projects"
+import {
+	projectQueryOptions,
+	projectStatsQueryOptions,
+	useProjectKey,
+} from "#/lib/queries/projects"
 import { tokensQueryOptions } from "#/lib/queries/tokens"
 import { auditQueryOptions } from "#/lib/queries/audit"
 import { useNavStore, ENVIRONMENTS } from "#/lib/stores/nav"
@@ -43,7 +47,6 @@ function ProjectDashboard() {
 
 	return (
 		<div className="w-full">
-
 			{/* ── Header ── */}
 			<ProjectHeader projectId={projectId} name={name} />
 
@@ -117,10 +120,11 @@ function ProjectHeader({ projectId, name }: { projectId: string; name: string })
 					className="group mt-1 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
 				>
 					<span>{projectId}</span>
-					{copied
-						? <Check className="size-3 text-primary" />
-						: <Copy className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
-					}
+					{copied ? (
+						<Check className="size-3 text-primary" />
+					) : (
+						<Copy className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
+					)}
 				</button>
 			</div>
 
@@ -128,7 +132,11 @@ function ProjectHeader({ projectId, name }: { projectId: string; name: string })
 				<CreateSecretDialog
 					projectId={projectId}
 					trigger={
-						<Button variant="outline" size="sm" className="h-8 gap-1.5 border-border text-xs font-normal">
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-8 gap-1.5 border-border text-xs font-normal"
+						>
 							<Plus className="size-3.5" />
 							Secret
 						</Button>
@@ -151,7 +159,12 @@ function ProjectHeader({ projectId, name }: { projectId: string; name: string })
 /* ── Stat pill ── */
 
 function StatPill({
-	label, value, to, orgId, projectId, icon,
+	label,
+	value,
+	to,
+	orgId,
+	projectId,
+	icon,
 }: {
 	label: string
 	value: number
@@ -213,16 +226,24 @@ function EnvironmentTabs({
 							}`}
 						>
 							<div className="flex items-center gap-2.5">
-								<div className={`size-1.5 rounded-full ${ENV_COLORS[env] ?? "bg-muted-foreground"}`} />
-								<span className={`text-sm capitalize ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+								<div
+									className={`size-1.5 rounded-full ${ENV_COLORS[env] ?? "bg-muted-foreground"}`}
+								/>
+								<span
+									className={`text-sm capitalize ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}
+								>
 									{env}
 								</span>
 							</div>
 							<div className="flex items-center gap-2">
-								<span className={`font-mono text-sm tabular-nums ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+								<span
+									className={`font-mono text-sm tabular-nums ${isActive ? "text-foreground" : "text-muted-foreground"}`}
+								>
 									{count}
 								</span>
-								<ChevronRight className={`size-3 opacity-0 transition-opacity group-hover:opacity-60 ${isActive ? "opacity-60" : ""}`} />
+								<ChevronRight
+									className={`size-3 opacity-0 transition-opacity group-hover:opacity-60 ${isActive ? "opacity-60" : ""}`}
+								/>
 							</div>
 						</Link>
 					)
@@ -260,7 +281,11 @@ function ProjectKeySection({ projectId }: { projectId: string }) {
 								onClick={handleCopyEnvLine}
 								className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							>
-								{envCopied ? <Check className="size-3 text-primary" /> : <Copy className="size-3" />}
+								{envCopied ? (
+									<Check className="size-3 text-primary" />
+								) : (
+									<Copy className="size-3" />
+								)}
 								Copy env line
 							</button>
 						)}
@@ -382,7 +407,9 @@ function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string
 
 			<div className="overflow-hidden rounded-lg border border-border">
 				{isLoading ? (
-					<div className="flex justify-center py-8"><Spinner /></div>
+					<div className="flex justify-center py-8">
+						<Spinner />
+					</div>
 				) : logs.length === 0 ? (
 					<p className="py-10 text-center text-xs text-muted-foreground">No activity yet</p>
 				) : (
@@ -391,8 +418,12 @@ function RecentActivity({ orgId, projectId }: { orgId: string; projectId: string
 							key={log.id}
 							className={`flex items-center gap-3 px-4 py-2.5 ${i < logs.length - 1 ? "border-b border-border" : ""}`}
 						>
-							<div className={`size-1.5 shrink-0 rounded-full ${ACTION_RESULT_DOT[log.result!] ?? "bg-muted-foreground"}`} />
-							<code className="flex-1 truncate font-mono text-xs text-foreground">{log.action}</code>
+							<div
+								className={`size-1.5 shrink-0 rounded-full ${ACTION_RESULT_DOT[log.result!] ?? "bg-muted-foreground"}`}
+							/>
+							<code className="flex-1 truncate font-mono text-xs text-foreground">
+								{log.action}
+							</code>
 							<span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
 								{log.created_at ? formatRelativeTime(log.created_at) : "—"}
 							</span>
@@ -432,7 +463,9 @@ function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string 
 
 			<div className="overflow-hidden rounded-lg border border-border">
 				{isLoading ? (
-					<div className="flex justify-center py-8"><Spinner /></div>
+					<div className="flex justify-center py-8">
+						<Spinner />
+					</div>
 				) : tokens.length === 0 ? (
 					<p className="py-10 text-center text-xs text-muted-foreground">No tokens yet</p>
 				) : (
@@ -445,7 +478,9 @@ function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string 
 							<span className="flex-1 truncate text-sm">{token.name}</span>
 							<div className="flex items-center gap-1.5">
 								<EnvDot env={token.environment} />
-								<span className="text-[11px] capitalize text-muted-foreground">{token.environment}</span>
+								<span className="text-[11px] capitalize text-muted-foreground">
+									{token.environment}
+								</span>
 							</div>
 							<span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
 								{token.permission === "read_write" ? "rw" : "r"}
@@ -462,7 +497,9 @@ function TokenOverview({ orgId, projectId }: { orgId: string; projectId: string 
 
 function SectionHeader({ label, noMargin }: { label: string; noMargin?: boolean }) {
 	return (
-		<h2 className={`text-xs font-medium uppercase tracking-widest text-muted-foreground ${noMargin ? "" : "mb-3"}`}>
+		<h2
+			className={`text-xs font-medium uppercase tracking-widest text-muted-foreground ${noMargin ? "" : "mb-3"}`}
+		>
 			{label}
 		</h2>
 	)

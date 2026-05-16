@@ -7,7 +7,14 @@ import { Input } from "#/components/ui/input"
 import { PasswordInput } from "#/components/ui/password-input"
 import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
 import { GitHubIcon, GoogleIcon } from "#/components/oauth-icons"
 import { authClient } from "#/lib/auth-client"
@@ -61,7 +68,9 @@ function LoginPage() {
 									z
 								</div>
 								<CardTitle>Sign in to zEnv</CardTitle>
-								<CardDescription className="text-xs">Welcome back! Please sign in to continue</CardDescription>
+								<CardDescription className="text-xs">
+									Welcome back! Please sign in to continue
+								</CardDescription>
 							</CardHeader>
 
 							<CardContent className="px-6 pt-4 pb-6">
@@ -82,7 +91,10 @@ function LoginPage() {
 									<Separator className="flex-1" />
 								</div>
 
-								<form onSubmit={form.handleSubmit((data) => signIn.mutate(data))} className="grid gap-3">
+								<form
+									onSubmit={form.handleSubmit((data) => signIn.mutate(data))}
+									className="grid gap-3"
+								>
 									{signIn.error && (
 										<Alert variant="danger">
 											<AlertCircle />
@@ -91,7 +103,9 @@ function LoginPage() {
 									)}
 
 									<div className="space-y-1.5">
-										<Label htmlFor="email" className="text-xs">Email address</Label>
+										<Label htmlFor="email" className="text-xs">
+											Email address
+										</Label>
 										<Input
 											id="email"
 											type="email"
@@ -101,12 +115,16 @@ function LoginPage() {
 											autoFocus
 										/>
 										{form.formState.errors.email && (
-											<p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+											<p className="text-xs text-destructive">
+												{form.formState.errors.email.message}
+											</p>
 										)}
 									</div>
 
 									<div className="space-y-1.5">
-										<Label htmlFor="password" className="text-xs">Password</Label>
+										<Label htmlFor="password" className="text-xs">
+											Password
+										</Label>
 										<PasswordInput
 											id="password"
 											placeholder="Enter your password"
@@ -114,11 +132,19 @@ function LoginPage() {
 											feedback={form.formState.errors.password ? "error" : undefined}
 										/>
 										{form.formState.errors.password && (
-											<p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
+											<p className="text-xs text-destructive">
+												{form.formState.errors.password.message}
+											</p>
 										)}
 									</div>
 
-									<Button type="submit" variant="solid" loadingText="Please, wait..." isLoading={signIn.isPending} className="mt-1 w-full">
+									<Button
+										type="submit"
+										variant="solid"
+										loadingText="Please, wait..."
+										isLoading={signIn.isPending}
+										className="mt-1 w-full"
+									>
 										Continue
 										<ArrowRight />
 									</Button>
@@ -139,11 +165,17 @@ function LoginPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

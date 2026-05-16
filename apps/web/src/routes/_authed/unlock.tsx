@@ -6,7 +6,14 @@ import { z } from "zod"
 import { Button } from "#/components/ui/button"
 import { PasswordInput } from "#/components/ui/password-input"
 import { Label } from "#/components/ui/label"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "#/components/ui/input-otp"
 import { useAuthStore } from "#/lib/stores/auth"
@@ -14,7 +21,7 @@ import { meQueryOptions, useUnlockVault } from "#/lib/queries/auth"
 import { authClient } from "#/lib/auth-client"
 import { api } from "#/lib/api-client"
 import { AlertCircle, Lock } from "lucide-react"
-import { type KeyType } from "@zenv/amnesia";
+import type { KeyType } from "@zenv/amnesia"
 
 const searchSchema = z.object({
 	redirect: z.string().optional(),
@@ -38,7 +45,8 @@ function UnlockPage() {
 	const { redirect: redirectTo } = Route.useSearch()
 
 	// Sanitize redirect — never redirect back to unlock itself
-	const destination = redirectTo && redirectTo !== "/unlock" && redirectTo !== "/vault-setup" ? redirectTo : "/"
+	const destination =
+		redirectTo && redirectTo !== "/unlock" && redirectTo !== "/vault-setup" ? redirectTo : "/"
 
 	// Get me from React Query (server-safe) — NOT Zustand
 	const { data: me } = useQuery(meQueryOptions)
@@ -86,9 +94,7 @@ function UnlockPage() {
 									<Lock className="size-4" />
 								</div>
 								<CardTitle>Unlock your vault</CardTitle>
-								{me?.email && (
-									<CardDescription className="text-xs">{me.email}</CardDescription>
-								)}
+								{me?.email && <CardDescription className="text-xs">{me.email}</CardDescription>}
 							</CardHeader>
 
 							<CardContent className="px-6 pt-4 pb-6">
@@ -139,7 +145,9 @@ function UnlockPage() {
 										/>
 									) : (
 										<div className="space-y-1.5">
-											<Label htmlFor="vault-key" className="text-xs">Passphrase</Label>
+											<Label htmlFor="vault-key" className="text-xs">
+												Passphrase
+											</Label>
 											<PasswordInput
 												id="vault-key"
 												placeholder="Enter your passphrase"
@@ -194,11 +202,17 @@ function UnlockPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

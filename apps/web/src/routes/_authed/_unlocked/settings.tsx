@@ -14,7 +14,7 @@ type Tab = (typeof tabs)[number]
 
 const searchSchema = z.object({
 	tab: z.enum(tabs),
-	action: z.string()
+	action: z.string(),
 })
 
 export const Route = createFileRoute("/_authed/_unlocked/settings")({
@@ -48,9 +48,7 @@ function SettingsPage() {
 			<div className="hidden md:block">
 				<Tabs
 					value={activeTab}
-					onValueChange={(v) =>
-						navigate({ to: "/settings", search: { tab: v as Tab } })
-					}
+					onValueChange={(v) => navigate({ to: "/settings", search: { tab: v as Tab } })}
 				>
 					<TabsList variant="line" className="mb-8">
 						{navItems.map((item) => (

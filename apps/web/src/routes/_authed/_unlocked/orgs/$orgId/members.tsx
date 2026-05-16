@@ -7,7 +7,13 @@ import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Avatar } from "#/components/ui/avatar"
 import { Spinner } from "#/components/ui/spinner"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from "#/components/ui/sheet"
 import { DataTable } from "#/components/data-table"
 import { SearchInput } from "#/components/search-input"
 import { InviteMemberDialog } from "#/components/invite-member-dialog"
@@ -17,15 +23,31 @@ import { Users, UserPlus, Trash2 } from "lucide-react"
 import { getInitials } from "#/lib/utils"
 import { formatDateTime } from "#/lib/format"
 
-const searchSchema = z.object({
-	limit: z.number().default(50),
-	offset: z.number().default(0),
-	sortBy: z.string().default("createdAt"),
-	sortDir: z.enum(["asc", "desc"]).default("desc"),
-	filterField: z.string().default(""),
-	filterValue: z.string().default(""),
-	filterOperator: z.enum(["eq", "ne", "gt", "gte", "lt", "lte", "in", "not_in", "contains", "starts_with", "ends_with"]).default("eq"),
-}).partial();
+const searchSchema = z
+	.object({
+		limit: z.number().default(50),
+		offset: z.number().default(0),
+		sortBy: z.string().default("createdAt"),
+		sortDir: z.enum(["asc", "desc"]).default("desc"),
+		filterField: z.string().default(""),
+		filterValue: z.string().default(""),
+		filterOperator: z
+			.enum([
+				"eq",
+				"ne",
+				"gt",
+				"gte",
+				"lt",
+				"lte",
+				"in",
+				"not_in",
+				"contains",
+				"starts_with",
+				"ends_with",
+			])
+			.default("eq"),
+	})
+	.partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/members")({
 	validateSearch: searchSchema,
@@ -42,17 +64,17 @@ function MembersPage() {
 	const removeMember = useRemoveMember()
 	const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null)
 
-	const members = data?.members ?? [];
+	const members = data?.members ?? []
 
-	type MemberRow = typeof members[number];
+	type MemberRow = (typeof members)[number]
 
 	const columns: ColumnDef<MemberRow, unknown>[] = [
 		{
 			accessorKey: "name",
 			header: "Member",
 			cell: ({ row }) => {
-				const m = row.original.user;
-				const isMe = m.email === me?.email;
+				const m = row.original.user
+				const isMe = m.email === me?.email
 				return (
 					<div className="flex items-center gap-3">
 						<Avatar size="sm" fallback={getInitials(m.name, m.email)} />
@@ -114,7 +136,9 @@ function MembersPage() {
 		return (
 			<div>
 				<PageHeader />
-				<div className="flex items-center justify-center py-20"><Spinner /></div>
+				<div className="flex items-center justify-center py-20">
+					<Spinner />
+				</div>
 			</div>
 		)
 	}
@@ -125,7 +149,11 @@ function MembersPage() {
 				<PageHeader />
 				<InviteMemberDialog
 					orgId={orgId}
-					trigger={<Button type="button" size="sm"><UserPlus /> Invite</Button>}
+					trigger={
+						<Button type="button" size="sm">
+							<UserPlus /> Invite
+						</Button>
+					}
 				/>
 			</div>
 
@@ -134,7 +162,10 @@ function MembersPage() {
 					placeholder="Search members..."
 					value={search.filterValue}
 					onChange={(val) => {
-						navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+						navigate({
+							search: (prev) => ({ ...prev, search: val || undefined, page: 1 }),
+							replace: true,
+						})
 					}}
 				/>
 			</div>
@@ -149,12 +180,21 @@ function MembersPage() {
 				emptyAction={
 					<InviteMemberDialog
 						orgId={orgId}
-						trigger={<Button type="button" size="sm"><UserPlus /> Invite a member</Button>}
+						trigger={
+							<Button type="button" size="sm">
+								<UserPlus /> Invite a member
+							</Button>
+						}
 					/>
 				}
 			/>
 
-			<Sheet open={!!selectedMember} onOpenChange={(open) => { if (!open) setSelectedMember(null) }}>
+			<Sheet
+				open={!!selectedMember}
+				onOpenChange={(open) => {
+					if (!open) setSelectedMember(null)
+				}}
+			>
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{selectedMember?.user.name || "Unnamed"}</SheetTitle>
