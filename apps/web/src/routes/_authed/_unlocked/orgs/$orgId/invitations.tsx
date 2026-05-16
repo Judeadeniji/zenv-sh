@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
 import type { ColumnDef } from "@tanstack/react-table"
@@ -7,237 +7,260 @@ import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Avatar } from "#/components/ui/avatar"
 import { Spinner } from "#/components/ui/spinner"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from "#/components/ui/sheet"
 import { DataTable } from "#/components/data-table"
-import { SearchInput } from "#/components/search-input"
 import { InviteMemberDialog } from "#/components/invite-member-dialog"
-import { orgMembersQueryOptions, useRemoveMember } from "#/lib/queries/orgs"
-import { meQueryOptions } from "#/lib/queries/auth"
-import { Users, UserPlus, Trash2 } from "lucide-react"
+import { orgInvitationQueries, useRemoveMember } from "#/lib/queries/orgs"
+import { Mail, UserPlus, Trash2, Clock } from "lucide-react"
 import { getInitials } from "#/lib/utils"
+import type { InvitationStatus } from "better-auth/plugins"
 
-const searchSchema = z.object({
-  page: z.number().default(1),
-  per_page: z.number().default(50),
-  search: z.string().default(""),
-  role: z.string().default(""),
-  sort_by: z.string().default("created_at"),
-  sort_dir: z.enum(["asc", "desc"]).default("desc"),
-}).partial();
+const searchSchema = z
+	.object({
+		page: z.number().default(1),
+		per_page: z.number().default(50),
+		search: z.string().default(""),
+		role: z.string().default(""),
+		sort_by: z.string().default("createdAt"),
+		sort_dir: z.enum(["asc", "desc"]).default("desc"),
+	})
+	.partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/invitations")({
-  validateSearch: searchSchema,
-  component: InvitationsPage,
+	validateSearch: searchSchema,
+	component: InvitationsPage,
 })
 
-interface MemberRow {
-  id: string
-  user_id?: string
-  email?: string
-  name?: string
-  role?: string
-  created_at?: string
+interface InvitationRow {
+	id: string
+	organizationId: string
+	email: string
+	role: "admin" | "member" | "owner"
+	status: InvitationStatus
+	inviterId: string
+	expiresAt: Date | string
+	createdAt: Date | string
 }
 
 function InvitationsPage() {
-  const { orgId } = Route.useParams()
-  const search = Route.useSearch()
-  const navigate = useNavigate({ from: Route.fullPath })
+	const { orgId } = Route.useParams()
+	const { data: invitations, isLoading } = useQuery(orgInvitationQueries(orgId))
+	const [selectedInvitation, setSelectedInvitation] = useState<InvitationRow | null>(null)
 
-  const { data: me } = useQuery(meQueryOptions)
-  const { data, isLoading } = useQuery(orgMembersQueryOptions(orgId, search))
-  const removeMember = useRemoveMember()
-  const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null)
+	const columns: ColumnDef<InvitationRow, unknown>[] = [
+		{
+			accessorKey: "email",
+			header: "Invitee",
+			cell: ({ row }) => {
+				const inv = row.original
+				return (
+					<div className="flex items-center gap-3">
+						<Avatar size="sm" fallback={getInitials(undefined, inv.email)} />
+						<div>
+							<p className="text-sm font-medium">{inv.email}</p>
+							<p className="text-xs text-muted-foreground flex items-center gap-1">
+								<Clock className="size-3" />
+								Invited {new Date(inv.createdAt).toLocaleDateString()}
+							</p>
+						</div>
+					</div>
+				)
+			},
+		},
+		{
+			accessorKey: "status",
+			header: "Status",
+			cell: ({ row }) => {
+				const status = row.original.status
+				const variants: Record<string, "neutral" | "primary" | "danger" | "warning"> = {
+					pending: "warning",
+					accepted: "primary",
+					rejected: "danger",
+					expired: "neutral",
+				}
+				return <Badge variant={variants[status] ?? "neutral"}>{status}</Badge>
+			},
+		},
+		{
+			accessorKey: "role",
+			header: "Role",
+			cell: ({ row }) => (
+				<Badge variant={row.original.role === "admin" ? "primary" : "neutral"}>
+					{row.original.role}
+				</Badge>
+			),
+		},
+		{
+			id: "actions",
+			header: "",
+			cell: ({ row }) => <RowActions orgId={orgId} invitation={row.original} />,
+		},
+	]
 
-  const members: MemberRow[] = (data as { members?: MemberRow[] })?.members ?? []
+	if (isLoading) {
+		return (
+			<div>
+				<PageHeader />
+				<div className="flex items-center justify-center py-20">
+					<Spinner />
+				</div>
+			</div>
+		)
+	}
 
-  const columns: ColumnDef<MemberRow, unknown>[] = [
-    {
-      accessorKey: "name",
-      header: "Member",
-      cell: ({ row }) => {
-        const m = row.original
-        const isMe = m.email === me?.email
-        return (
-          <div className="flex items-center gap-3">
-            <Avatar size="sm" fallback={getInitials(m.name, m.email)} />
-            <div>
-              <p className="text-sm font-medium">
-                {m.name || "Unnamed"}
-                {isMe && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
-              </p>
-              <p className="text-xs text-muted-foreground">{m.email}</p>
-            </div>
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "role",
-      header: "Role",
-      cell: ({ row }) => (
-        <Badge variant={row.original.role === "admin" ? "primary" : "neutral"}>
-          {row.original.role}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "created_at",
-      header: "Joined",
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
-          {row.original.created_at ? new Date(row.original.created_at).toLocaleDateString() : "—"}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => {
-        const isMe = row.original.email === me?.email
-        if (isMe) return null
-        return (
-          <div className="text-right">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation()
-                removeMember.mutate({ orgId, memberId: row.original.id })
-              }}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        )
-      },
-    },
-  ]
+	return (
+		<div>
+			<div className="mb-6 flex items-center justify-between">
+				<PageHeader />
+				<InviteMemberDialog
+					orgId={orgId}
+					trigger={
+						<Button type="button" size="sm">
+							<UserPlus /> Invite
+						</Button>
+					}
+				/>
+			</div>
 
-  if (isLoading) {
-    return (
-      <div>
-        <PageHeader />
-        <div className="flex items-center justify-center py-20"><Spinner /></div>
-      </div>
-    )
-  }
+			<DataTable
+				columns={columns}
+				data={invitations ?? []}
+				onRowClick={(row) => setSelectedInvitation(row.original)}
+				emptyIcon={<Mail />}
+				emptyTitle="No pending invitations"
+				emptyDescription="When you invite team members, their pending status will appear here until they accept."
+				emptyAction={
+					<InviteMemberDialog
+						orgId={orgId}
+						trigger={
+							<Button type="button" size="sm">
+								<UserPlus /> Send an invitation
+							</Button>
+						}
+					/>
+				}
+			/>
 
-  return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <PageHeader />
-        <InviteMemberDialog
-          orgId={orgId}
-          trigger={<Button type="button" size="sm"><UserPlus /> Invite</Button>}
-        />
-      </div>
+			<InvitationDetailsSheet
+				orgId={orgId}
+				invitation={selectedInvitation}
+				onClose={() => setSelectedInvitation(null)}
+			/>
+		</div>
+	)
+}
 
-      <div className="mb-4 flex items-center gap-3">
-        <SearchInput
-          placeholder="Search members..."
-          value={search.search}
-          onChange={(val) => {
-            navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
-          }}
-        />
-        <Select
-          value={search.role ?? "all"}
-          onValueChange={(val) => {
-            navigate({
-              search: (prev) => ({
-                ...prev,
-                role: val === "all" ? undefined : (val as string),
-                page: 1,
-              }),
-              replace: true,
-            })
-          }}
-        >
-          <SelectTrigger className="w-32.5">
-            <SelectValue placeholder="All roles" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All roles</SelectItem>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="member">Member</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+/**
+ * Extracted Actions component to handle mutation logic cleanly within the table
+ */
+function RowActions({ orgId, invitation }: { orgId: string; invitation: InvitationRow }) {
+	const removeMember = useRemoveMember()
+	return (
+		<div className="text-right">
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				className="text-muted-foreground hover:text-destructive"
+				onClick={(e) => {
+					e.stopPropagation()
+					removeMember.mutate({ orgId, memberId: invitation.id })
+				}}
+			>
+				<Trash2 className="size-3.5" />
+			</Button>
+		</div>
+	)
+}
 
-      <DataTable
-        columns={columns}
-        data={members}
-        pagination={data?.meta ? {
-          page: data.meta.page ?? 1,
-          totalPages: data.meta.total_pages ?? 1,
-          total: data.meta.total ?? 0,
-          onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
-        } : undefined}
-        onRowClick={(row) => setSelectedMember(row.original)}
-        emptyIcon={<Users />}
-        emptyTitle="Just you for now"
-        emptyDescription="Invite team members to collaborate. Everyone sets up their own vault — no one can see anyone else's Vault Key."
-        emptyAction={
-          <InviteMemberDialog
-            orgId={orgId}
-            trigger={<Button type="button" size="sm"><UserPlus /> Invite a member</Button>}
-          />
-        }
-      />
+/**
+ * Extracted Sheet Component
+ */
+interface InvitationDetailsSheetProps {
+	orgId: string
+	invitation: InvitationRow | null
+	onClose: () => void
+}
 
-      <Sheet open={!!selectedMember} onOpenChange={(open) => { if (!open) setSelectedMember(null) }}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>{selectedMember?.name || "Unnamed"}</SheetTitle>
-            <SheetDescription>{selectedMember?.email}</SheetDescription>
-          </SheetHeader>
-          {selectedMember && (
-            <div className="space-y-4 px-6 py-4">
-              <div>
-                <span className="text-xs font-medium text-muted-foreground">Role</span>
-                <p className="mt-1">
-                  <Badge variant={selectedMember.role === "admin" ? "primary" : "neutral"}>
-                    {selectedMember.role}
-                  </Badge>
-                </p>
-              </div>
-              <div>
-                <span className="text-xs font-medium text-muted-foreground">Joined</span>
-                <p className="mt-1 text-sm">
-                  {selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : "—"}
-                </p>
-              </div>
-              {selectedMember.email !== me?.email && (
-                <div className="pt-2">
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      removeMember.mutate({ orgId, memberId: selectedMember.id })
-                      setSelectedMember(null)
-                    }}
-                    isLoading={removeMember.isPending}
-                  >
-                    <Trash2 /> Remove member
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-    </div>
-  )
+function InvitationDetailsSheet({ orgId, invitation, onClose }: InvitationDetailsSheetProps) {
+	const removeMember = useRemoveMember()
+
+	return (
+		<Sheet
+			open={!!invitation}
+			onOpenChange={(open) => {
+				if (!open) onClose()
+			}}
+		>
+			<SheetContent>
+				<SheetHeader>
+					<SheetTitle>Invitation Details</SheetTitle>
+					<SheetDescription>{invitation?.email}</SheetDescription>
+				</SheetHeader>
+				{invitation && (
+					<div className="space-y-4 px-6 py-4">
+						<div>
+							<span className="text-xs font-medium text-muted-foreground">Status</span>
+							<p className="mt-1">
+								<Badge variant={invitation.status === "pending" ? "warning" : "neutral"}>
+									{invitation.status}
+								</Badge>
+							</p>
+						</div>
+						<div>
+							<span className="text-xs font-medium text-muted-foreground">Role</span>
+							<p className="mt-1">
+								<Badge variant={invitation.role === "admin" ? "primary" : "neutral"}>
+									{invitation.role}
+								</Badge>
+							</p>
+						</div>
+						<div>
+							<span className="text-xs font-medium text-muted-foreground">Sent On</span>
+							<p className="mt-1 text-sm">{new Date(invitation.createdAt).toLocaleString()}</p>
+						</div>
+						<div>
+							<span className="text-xs font-medium text-muted-foreground">Expires</span>
+							<p className="mt-1 text-sm text-muted-foreground">
+								{new Date(invitation.expiresAt).toLocaleString()}
+							</p>
+						</div>
+						<div className="pt-2">
+							<Button
+								variant="danger"
+								size="sm"
+								onClick={() => {
+									removeMember.mutate(
+										{ orgId, memberId: invitation.id },
+										{
+											onSuccess: () => onClose(),
+										},
+									)
+								}}
+								isLoading={removeMember.isPending}
+							>
+								<Trash2 /> Revoke Invitation
+							</Button>
+						</div>
+					</div>
+				)}
+			</SheetContent>
+		</Sheet>
+	)
 }
 
 function PageHeader() {
-  return (
-    <div>
-      <h1 className="text-lg font-semibold">Members</h1>
-      <p className="mt-1 text-sm text-muted-foreground">People in your organization.</p>
-    </div>
-  )
+	return (
+		<div>
+			<h1 className="text-lg font-semibold">Invitations</h1>
+			<p className="mt-1 text-sm text-muted-foreground">
+				Manage pending requests for people to join your organization.
+			</p>
+		</div>
+	)
 }

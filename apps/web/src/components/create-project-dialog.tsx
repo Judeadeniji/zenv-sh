@@ -2,7 +2,16 @@ import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
@@ -43,7 +52,16 @@ export function CreateProjectDialog({ orgId, trigger }: CreateProjectDialogProps
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { form.reset(); create.reset() } }}>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				setOpen(v)
+				if (!v) {
+					form.reset()
+					create.reset()
+				}
+			}}
+		>
 			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
@@ -62,7 +80,9 @@ export function CreateProjectDialog({ orgId, trigger }: CreateProjectDialogProps
 					)}
 
 					<div className="space-y-1.5">
-						<Label htmlFor="project-name" className="text-xs">Project name</Label>
+						<Label htmlFor="project-name" className="text-xs">
+							Project name
+						</Label>
 						<Input
 							id="project-name"
 							placeholder="my-app"
@@ -73,12 +93,16 @@ export function CreateProjectDialog({ orgId, trigger }: CreateProjectDialogProps
 						{form.formState.errors.name && (
 							<p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
 						)}
-						<p className="text-xs text-muted-foreground">Lowercase letters, numbers, and hyphens.</p>
+						<p className="text-xs text-muted-foreground">
+							Lowercase letters, numbers, and hyphens.
+						</p>
 					</div>
 
 					<DialogFooter>
 						<DialogClose>
-							<Button variant="ghost" size="sm" type="button">Cancel</Button>
+							<Button variant="ghost" size="sm" type="button">
+								Cancel
+							</Button>
 						</DialogClose>
 						<Button type="submit" variant="solid" size="sm" isLoading={create.isPending}>
 							Create project

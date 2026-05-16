@@ -1,5 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { ActionCard } from "#/components/ui/card"
 import { KeyRound, Users, ShieldAlert } from "lucide-react"
 
@@ -67,11 +74,17 @@ function RecoverPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

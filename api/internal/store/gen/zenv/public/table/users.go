@@ -17,20 +17,18 @@ type usersTable struct {
 	postgres.Table
 
 	// Columns
-	ID                 postgres.ColumnString
-	Email              postgres.ColumnString
-	AuthKeyHash        postgres.ColumnBytea
-	VaultKeyType       postgres.ColumnString
-	Salt               postgres.ColumnBytea
-	WrappedDek         postgres.ColumnBytea
-	PublicKey          postgres.ColumnBytea
-	WrappedPrivateKey  postgres.ColumnBytea
-	CreatedAt          postgres.ColumnTimestampz
-	UpdatedAt          postgres.ColumnTimestampz
-	IdentityID         postgres.ColumnString
-	RecoveryWrappedDek postgres.ColumnBytea
-	RecoveryDisabled   postgres.ColumnBool
-	Preferences        postgres.ColumnString
+	ID               postgres.ColumnString
+	Name             postgres.ColumnString
+	Email            postgres.ColumnString
+	EmailVerified    postgres.ColumnBool
+	Image            postgres.ColumnString
+	CreatedAt        postgres.ColumnTimestamp
+	UpdatedAt        postgres.ColumnTimestamp
+	Role             postgres.ColumnString
+	Banned           postgres.ColumnBool
+	BanReason        postgres.ColumnString
+	BanExpires       postgres.ColumnTimestamp
+	TwoFactorEnabled postgres.ColumnBool
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -72,43 +70,39 @@ func newUsersTable(schemaName, tableName, alias string) *UsersTable {
 
 func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 	var (
-		IDColumn                 = postgres.StringColumn("id")
-		EmailColumn              = postgres.StringColumn("email")
-		AuthKeyHashColumn        = postgres.ByteaColumn("auth_key_hash")
-		VaultKeyTypeColumn       = postgres.StringColumn("vault_key_type")
-		SaltColumn               = postgres.ByteaColumn("salt")
-		WrappedDekColumn         = postgres.ByteaColumn("wrapped_dek")
-		PublicKeyColumn          = postgres.ByteaColumn("public_key")
-		WrappedPrivateKeyColumn  = postgres.ByteaColumn("wrapped_private_key")
-		CreatedAtColumn          = postgres.TimestampzColumn("created_at")
-		UpdatedAtColumn          = postgres.TimestampzColumn("updated_at")
-		IdentityIDColumn         = postgres.StringColumn("identity_id")
-		RecoveryWrappedDekColumn = postgres.ByteaColumn("recovery_wrapped_dek")
-		RecoveryDisabledColumn   = postgres.BoolColumn("recovery_disabled")
-		PreferencesColumn        = postgres.StringColumn("preferences")
-		allColumns               = postgres.ColumnList{IDColumn, EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn, PreferencesColumn}
-		mutableColumns           = postgres.ColumnList{EmailColumn, AuthKeyHashColumn, VaultKeyTypeColumn, SaltColumn, WrappedDekColumn, PublicKeyColumn, WrappedPrivateKeyColumn, CreatedAtColumn, UpdatedAtColumn, IdentityIDColumn, RecoveryWrappedDekColumn, RecoveryDisabledColumn, PreferencesColumn}
-		defaultColumns           = postgres.ColumnList{IDColumn, VaultKeyTypeColumn, CreatedAtColumn, UpdatedAtColumn, RecoveryDisabledColumn, PreferencesColumn}
+		IDColumn               = postgres.StringColumn("id")
+		NameColumn             = postgres.StringColumn("name")
+		EmailColumn            = postgres.StringColumn("email")
+		EmailVerifiedColumn    = postgres.BoolColumn("email_verified")
+		ImageColumn            = postgres.StringColumn("image")
+		CreatedAtColumn        = postgres.TimestampColumn("created_at")
+		UpdatedAtColumn        = postgres.TimestampColumn("updated_at")
+		RoleColumn             = postgres.StringColumn("role")
+		BannedColumn           = postgres.BoolColumn("banned")
+		BanReasonColumn        = postgres.StringColumn("ban_reason")
+		BanExpiresColumn       = postgres.TimestampColumn("ban_expires")
+		TwoFactorEnabledColumn = postgres.BoolColumn("two_factor_enabled")
+		allColumns             = postgres.ColumnList{IDColumn, NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn, TwoFactorEnabledColumn}
+		mutableColumns         = postgres.ColumnList{NameColumn, EmailColumn, EmailVerifiedColumn, ImageColumn, CreatedAtColumn, UpdatedAtColumn, RoleColumn, BannedColumn, BanReasonColumn, BanExpiresColumn, TwoFactorEnabledColumn}
+		defaultColumns         = postgres.ColumnList{IDColumn, EmailVerifiedColumn, CreatedAtColumn, UpdatedAtColumn, BannedColumn, TwoFactorEnabledColumn}
 	)
 
 	return usersTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:                 IDColumn,
-		Email:              EmailColumn,
-		AuthKeyHash:        AuthKeyHashColumn,
-		VaultKeyType:       VaultKeyTypeColumn,
-		Salt:               SaltColumn,
-		WrappedDek:         WrappedDekColumn,
-		PublicKey:          PublicKeyColumn,
-		WrappedPrivateKey:  WrappedPrivateKeyColumn,
-		CreatedAt:          CreatedAtColumn,
-		UpdatedAt:          UpdatedAtColumn,
-		IdentityID:         IdentityIDColumn,
-		RecoveryWrappedDek: RecoveryWrappedDekColumn,
-		RecoveryDisabled:   RecoveryDisabledColumn,
-		Preferences:        PreferencesColumn,
+		ID:               IDColumn,
+		Name:             NameColumn,
+		Email:            EmailColumn,
+		EmailVerified:    EmailVerifiedColumn,
+		Image:            ImageColumn,
+		CreatedAt:        CreatedAtColumn,
+		UpdatedAt:        UpdatedAtColumn,
+		Role:             RoleColumn,
+		Banned:           BannedColumn,
+		BanReason:        BanReasonColumn,
+		BanExpires:       BanExpiresColumn,
+		TwoFactorEnabled: TwoFactorEnabledColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

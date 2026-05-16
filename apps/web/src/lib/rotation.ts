@@ -85,7 +85,12 @@ export async function rotateProjectDEK({
 				},
 			})
 
-			const items = (bulkData as { secrets?: { id: string; name_hash: string; ciphertext: string; nonce: string }[] })?.secrets ?? []
+			const items =
+				(
+					bulkData as {
+						secrets?: { id: string; name_hash: string; ciphertext: string; nonce: string }[]
+					}
+				)?.secrets ?? []
 			for (const item of items) {
 				allSecrets.push({ ...item, environment: env })
 			}

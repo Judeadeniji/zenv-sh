@@ -42,16 +42,22 @@ export function AppearanceSection() {
 	const setStoreTheme = useNavStore((s) => s.setTheme)
 	const updatePrefs = useUpdatePreferences()
 
-	const select = useCallback((value: ThemeMode) => {
-		setMode(value)
-		applyTheme(value)
-		setStoreTheme(value)
-		updatePrefs.mutate({ theme: value })
-	}, [setStoreTheme, updatePrefs])
+	const select = useCallback(
+		(value: ThemeMode) => {
+			setMode(value)
+			applyTheme(value)
+			setStoreTheme(value)
+			updatePrefs.mutate({ theme: value })
+		},
+		[setStoreTheme, updatePrefs],
+	)
 
 	return (
 		<div>
-			<SettingsRow title="Theme" description="Choose how zEnv looks. Select a theme or let it follow your system preference.">
+			<SettingsRow
+				title="Theme"
+				description="Choose how zEnv looks. Select a theme or let it follow your system preference."
+			>
 				<div className="grid grid-cols-3 gap-3">
 					{themes.map((theme) => {
 						const active = mode === theme.value
@@ -74,7 +80,14 @@ export function AppearanceSection() {
 								)}
 								<ThemePreview mode={theme.value} active={active} />
 								<div>
-									<p className={cn("text-xs font-medium", active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>
+									<p
+										className={cn(
+											"text-xs font-medium",
+											active
+												? "text-foreground"
+												: "text-muted-foreground group-hover:text-foreground",
+										)}
+									>
 										{theme.label}
 									</p>
 									<p className="mt-0.5 text-[10px] text-muted-foreground">{theme.description}</p>
@@ -94,7 +107,11 @@ function ThemePreview({ mode, active }: { mode: ThemeMode; active: boolean }) {
 	const isSystem = mode === "auto"
 
 	// Colors for the mini UI preview
-	const bg = isDark ? "bg-zinc-900" : isLight ? "bg-white" : "bg-gradient-to-r from-white to-zinc-900"
+	const bg = isDark
+		? "bg-zinc-900"
+		: isLight
+			? "bg-white"
+			: "bg-gradient-to-r from-white to-zinc-900"
 	const sidebar = isDark ? "bg-zinc-800" : isLight ? "bg-zinc-100" : ""
 	const line = isDark ? "bg-zinc-700" : isLight ? "bg-zinc-200" : "bg-zinc-300"
 	const accent = isDark ? "bg-blue-500" : isLight ? "bg-blue-500" : "bg-blue-500"

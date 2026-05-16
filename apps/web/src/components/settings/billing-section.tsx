@@ -8,9 +8,21 @@ import { CreditCard, Receipt, ArrowUpRight } from "lucide-react"
 
 const TIERS = {
 	free: { name: "Free", price: "$0/mo", projects: 1, secrets: 25, users: 1 },
-	developer: { name: "Developer", price: "$15/mo", projects: "Unlimited", secrets: "1,000", users: 5 },
+	developer: {
+		name: "Developer",
+		price: "$15/mo",
+		projects: "Unlimited",
+		secrets: "1,000",
+		users: 5,
+	},
 	team: { name: "Team", price: "$50/mo", projects: "Unlimited", secrets: "Unlimited", users: 15 },
-	enterprise: { name: "Enterprise", price: "Custom", projects: "Unlimited", secrets: "Unlimited", users: "Unlimited" },
+	enterprise: {
+		name: "Enterprise",
+		price: "Custom",
+		projects: "Unlimited",
+		secrets: "Unlimited",
+		users: "Unlimited",
+	},
 } as const
 
 // ── Component ──
@@ -52,13 +64,15 @@ function PlanRow({ tier, tierKey }: { tier: (typeof TIERS)[keyof typeof TIERS]; 
 					</div>
 					<div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
 						<div>
-							<span className="font-medium text-foreground">{tier.projects}</span> project{tier.projects === 1 ? "" : "s"}
+							<span className="font-medium text-foreground">{tier.projects}</span> project
+							{tier.projects === 1 ? "" : "s"}
 						</div>
 						<div>
 							<span className="font-medium text-foreground">{tier.secrets}</span> secrets
 						</div>
 						<div>
-							<span className="font-medium text-foreground">{tier.users}</span> user{tier.users === 1 ? "" : "s"}
+							<span className="font-medium text-foreground">{tier.users}</span> user
+							{tier.users === 1 ? "" : "s"}
 						</div>
 					</div>
 				</div>
@@ -123,13 +137,18 @@ function UsageBar({ label, current, max }: { label: string; current: number; max
 
 function PaymentRow() {
 	return (
-		<SettingsRow title="Payment method" description="Manage your card on file for subscription billing.">
+		<SettingsRow
+			title="Payment method"
+			description="Manage your card on file for subscription billing."
+		>
 			<div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
 				<div className="flex items-center gap-2.5">
 					<CreditCard className="size-4 text-muted-foreground" />
 					<span className="text-sm text-muted-foreground">No payment method on file</span>
 				</div>
-				<Button variant="outline" size="xs">Add card</Button>
+				<Button variant="outline" size="xs">
+					Add card
+				</Button>
 			</div>
 		</SettingsRow>
 	)

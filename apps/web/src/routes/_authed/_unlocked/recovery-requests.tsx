@@ -4,16 +4,37 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { fromBase64 } from "#/lib/encoding"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Alert, AlertDescription } from "#/components/ui/alert"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "#/components/ui/dialog"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "#/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "#/components/ui/dialog"
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "#/components/ui/sheet"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select"
 import { Textarea } from "#/components/ui/textarea"
 import { DataTable } from "#/components/data-table"
 import { SearchInput } from "#/components/search-input"
@@ -67,14 +88,17 @@ function RecoveryRequestsPage() {
 
 	const approve = useMutation({
 		mutationKey: mutationKeys.recovery.approve,
-		mutationFn: async ({ requestId, recoveryPayload }: { requestId: string; recoveryPayload: string }) => {
-			const { error } = await api().POST(
-				"/auth/recovery/request/{id}/approve",
-				{
-					params: { path: { id: requestId } },
-					body: { recovery_payload: recoveryPayload },
-				},
-			)
+		mutationFn: async ({
+			requestId,
+			recoveryPayload,
+		}: {
+			requestId: string
+			recoveryPayload: string
+		}) => {
+			const { error } = await api().POST("/auth/recovery/request/{id}/approve", {
+				params: { path: { id: requestId } },
+				body: { recovery_payload: recoveryPayload },
+			})
 			if (error) throw new Error(error.error || "Failed to approve request")
 		},
 		onSuccess: async () => {
@@ -97,8 +121,12 @@ function RecoveryRequestsPage() {
 			header: "Requester",
 			cell: ({ row }) => (
 				<div className="min-w-0">
-					<p className="truncate text-sm font-medium">{row.original.requester_name || row.original.requester_email}</p>
-					<p className="text-xs text-muted-foreground">ID: {row.original.request_id.slice(0, 8)}…</p>
+					<p className="truncate text-sm font-medium">
+						{row.original.requester_name || row.original.requester_email}
+					</p>
+					<p className="text-xs text-muted-foreground">
+						ID: {row.original.request_id.slice(0, 8)}…
+					</p>
 				</div>
 			),
 		},
@@ -110,7 +138,9 @@ function RecoveryRequestsPage() {
 				const isEligible = Date.now() >= eligibleAt.getTime()
 				return (
 					<Badge
-						variant={row.original.status === "approved" ? "success" : isEligible ? "warning" : "neutral"}
+						variant={
+							row.original.status === "approved" ? "success" : isEligible ? "warning" : "neutral"
+						}
 					>
 						{row.original.status === "approved" ? "Approved" : isEligible ? "Eligible" : "Waiting"}
 					</Badge>
@@ -204,7 +234,12 @@ function RecoveryRequestsPage() {
 				emptyDescription="If you’re a trusted contact, requests will show up here when someone initiates recovery."
 			/>
 
-			<Sheet open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null) }}>
+			<Sheet
+				open={!!selected}
+				onOpenChange={(open) => {
+					if (!open) setSelected(null)
+				}}
+			>
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{selected?.requester_email ?? "Recovery request"}</SheetTitle>
@@ -261,7 +296,9 @@ function RequestDetailSheet({
 			<div>
 				<label className="text-xs font-medium text-muted-foreground">Status</label>
 				<p className="mt-1">
-					<Badge variant={request.status === "approved" ? "success" : canApprove ? "warning" : "neutral"}>
+					<Badge
+						variant={request.status === "approved" ? "success" : canApprove ? "warning" : "neutral"}
+					>
 						{request.status === "approved" ? "Approved" : canApprove ? "Eligible" : "Pending"}
 					</Badge>
 				</p>
@@ -282,9 +319,7 @@ function RequestDetailSheet({
 			{request.status === "approved" ? (
 				<Alert variant="success">
 					<CheckCircle2 />
-					<AlertDescription>
-						Approved. The requester can now complete recovery.
-					</AlertDescription>
+					<AlertDescription>Approved. The requester can now complete recovery.</AlertDescription>
 				</Alert>
 			) : (
 				<div className="pt-2">
@@ -293,9 +328,7 @@ function RequestDetailSheet({
 							if (!open) form.reset({ recovery_payload: "" })
 						}}
 					>
-						<DialogTrigger
-							render={<Button variant="solid" size="sm" disabled={!canApprove} />}
-						>
+						<DialogTrigger render={<Button variant="solid" size="sm" disabled={!canApprove} />}>
 							Approve request
 						</DialogTrigger>
 						<DialogContent>
@@ -320,7 +353,9 @@ function RequestDetailSheet({
 										{...form.register("recovery_payload")}
 									/>
 									{form.formState.errors.recovery_payload && (
-										<p className="text-xs text-destructive">{form.formState.errors.recovery_payload.message}</p>
+										<p className="text-xs text-destructive">
+											{form.formState.errors.recovery_payload.message}
+										</p>
 									)}
 								</div>
 
@@ -335,9 +370,7 @@ function RequestDetailSheet({
 									<Button type="submit" variant="solid" isLoading={approvePending}>
 										Approve
 									</Button>
-									<DialogClose render={<Button type="button" variant="ghost" />}>
-										Close
-									</DialogClose>
+									<DialogClose render={<Button type="button" variant="ghost" />}>Close</DialogClose>
 								</DialogFooter>
 							</form>
 						</DialogContent>
@@ -350,4 +383,3 @@ function RequestDetailSheet({
 		</div>
 	)
 }
-

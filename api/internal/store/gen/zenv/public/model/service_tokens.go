@@ -17,8 +17,8 @@ type ServiceTokens struct {
 	ProjectID   uuid.UUID
 	Name        string
 	TokenHash   []byte
-	Environment string
-	Permission  string
+	Environment Environment
+	Permission  Permission
 	CreatedBy   *uuid.UUID
 	ExpiresAt   *time.Time
 	RevokedAt   *time.Time

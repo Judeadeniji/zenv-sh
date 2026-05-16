@@ -10,17 +10,8 @@ import { NewVaultKeyForm } from "#/components/NewVaultKeyForm"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { useAuthStore } from "#/lib/stores/auth"
 import { api } from "#/lib/api-client"
-import {
-	wordsToEntropy,
-	unwrapDekFromRecovery,
-	MNEMONIC_WORD_COUNT,
-} from "#/lib/recovery"
-import {
-	hashAuthKey,
-	wrapKey,
-	generateSalt,
-	type KeyType,
-} from "@zenv/amnesia"
+import { wordsToEntropy, unwrapDekFromRecovery, MNEMONIC_WORD_COUNT } from "#/lib/recovery"
+import { hashAuthKey, wrapKey, generateSalt, type KeyType } from "@zenv/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { toBase64, fromBase64, pack } from "#/lib/encoding"
 import { AlertCircle, CheckCircle, KeyRound } from "lucide-react"
@@ -51,16 +42,16 @@ function CurrentKeyRow({ keyType }: { keyType: string }) {
 			<div className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5">
 				<KeyRound className="size-4 text-muted-foreground" />
 				<div>
-					<p className="text-sm font-medium">
-						{keyType === "pin" ? "PIN" : "Passphrase"}
-					</p>
+					<p className="text-sm font-medium">{keyType === "pin" ? "PIN" : "Passphrase"}</p>
 					<p className="text-xs text-muted-foreground">
 						{keyType === "pin"
 							? "6+ digit numeric PIN with aggressive Argon2id parameters."
 							: "12+ character passphrase with standard Argon2id parameters."}
 					</p>
 				</div>
-				<Badge variant="neutral" className="ml-auto">{keyType}</Badge>
+				<Badge variant="neutral" className="ml-auto">
+					{keyType}
+				</Badge>
 			</div>
 		</SettingsRow>
 	)
@@ -85,7 +76,7 @@ function ChangeKeyRow() {
 			const mnemonic = words.join(" ")
 			const entropy = wordsToEntropy(mnemonic)
 
-			// @ts-ignore types will be regenerated
+			// @ts-expect-error types will be regenerated
 			const { data, error: fetchErr } = await api().GET("/auth/recovery/kit")
 			if (fetchErr || !data) throw new Error("Failed to fetch recovery material")
 

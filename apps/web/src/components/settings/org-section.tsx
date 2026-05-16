@@ -98,12 +98,26 @@ function RenameRow({ orgId }: { orgId: string }) {
 				)}
 
 				<div className="space-y-1.5">
-					<Label htmlFor="org-name" className="text-xs">Name</Label>
-					<Input id="org-name" {...form.register("name")} feedback={form.formState.errors.name ? "error" : undefined} />
-					{form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
+					<Label htmlFor="org-name" className="text-xs">
+						Name
+					</Label>
+					<Input
+						id="org-name"
+						{...form.register("name")}
+						feedback={form.formState.errors.name ? "error" : undefined}
+					/>
+					{form.formState.errors.name && (
+						<p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+					)}
 				</div>
 
-				<Button type="submit" variant="solid" size="sm" isLoading={rename.isPending} disabled={!form.formState.isDirty}>
+				<Button
+					type="submit"
+					variant="solid"
+					size="sm"
+					isLoading={rename.isPending}
+					disabled={!form.formState.isDirty}
+				>
 					Save
 				</Button>
 			</form>
@@ -115,7 +129,8 @@ function RenameRow({ orgId }: { orgId: string }) {
 
 function MembersRow({ orgId }: { orgId: string }) {
 	const { data: membersData } = useQuery(orgMembersQueryOptions(orgId))
-	const members = (membersData as { members?: { id: string; email: string; role: string }[] })?.members ?? []
+	const members =
+		(membersData as { members?: { id: string; email: string; role: string }[] })?.members ?? []
 
 	return (
 		<SettingsRow
@@ -127,7 +142,10 @@ function MembersRow({ orgId }: { orgId: string }) {
 					<p className="text-sm text-muted-foreground">No members yet.</p>
 				) : (
 					members.slice(0, 5).map((member) => (
-						<div key={member.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+						<div
+							key={member.id}
+							className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+						>
 							<span className="text-sm">{member.email}</span>
 							<Badge variant={member.role === "owner" ? "primary" : "neutral"}>
 								{member.role === "owner" && <Crown className="mr-1 size-3" />}
@@ -139,7 +157,11 @@ function MembersRow({ orgId }: { orgId: string }) {
 				{members.length > 5 && (
 					<p className="text-xs text-muted-foreground">and {members.length - 5} more...</p>
 				)}
-				<Button variant="outline" size="xs" render={<Link to="/orgs/$orgId/members" params={{ orgId }} search={{}} />}>
+				<Button
+					variant="outline"
+					size="xs"
+					render={<Link to="/orgs/$orgId/members" params={{ orgId }} search={{}} />}
+				>
 					Manage members
 				</Button>
 			</div>
@@ -197,7 +219,8 @@ function DangerRow({ orgId }: { orgId: string }) {
 					<DialogHeader>
 						<DialogTitle>Delete {orgName}?</DialogTitle>
 						<DialogDescription>
-							This is permanent. All projects, secrets, service tokens, and audit logs will be destroyed.
+							This is permanent. All projects, secrets, service tokens, and audit logs will be
+							destroyed.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -206,14 +229,23 @@ function DangerRow({ orgId }: { orgId: string }) {
 							<Label htmlFor="delete-confirm" className="text-xs">
 								Type <span className="font-mono font-semibold">{orgName}</span> to confirm
 							</Label>
-							<Input id="delete-confirm" placeholder={orgName} {...form.register("confirmation")} autoComplete="off" />
+							<Input
+								id="delete-confirm"
+								placeholder={orgName}
+								{...form.register("confirmation")}
+								autoComplete="off"
+							/>
 						</div>
 
 						<DialogFooter>
-							<DialogClose render={<Button variant="ghost" size="sm" />}>
-								Cancel
-							</DialogClose>
-							<Button type="submit" variant="danger" size="sm" disabled={!confirmationMatch} isLoading={deleteOrg.isPending}>
+							<DialogClose render={<Button variant="ghost" size="sm" />}>Cancel</DialogClose>
+							<Button
+								type="submit"
+								variant="danger"
+								size="sm"
+								disabled={!confirmationMatch}
+								isLoading={deleteOrg.isPending}
+							>
 								Delete permanently
 							</Button>
 						</DialogFooter>

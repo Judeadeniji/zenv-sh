@@ -8,17 +8,43 @@ import { Spinner } from "#/components/ui/spinner"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Badge } from "#/components/ui/badge"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { SettingsRow, SettingsDivider } from "#/components/settings/settings-row"
-import { projectQueryOptions, useProjectKey, useDeleteProject, listKeyGrantsQueryOptions, useGrantAccess, type KeyGrantMember } from "#/lib/queries/projects"
+import {
+	projectQueryOptions,
+	useProjectKey,
+	useDeleteProject,
+	listKeyGrantsQueryOptions,
+	useGrantAccess,
+	type KeyGrantMember,
+} from "#/lib/queries/projects"
 import { RotateDEKDialog } from "#/components/rotate-dek-dialog"
 import { fromBase64, toBase64 } from "#/lib/encoding"
-import { AlertCircle, Copy, Check, RefreshCw, ShieldCheck, ShieldOff, UserCheck } from "lucide-react"
+import {
+	AlertCircle,
+	Copy,
+	Check,
+	RefreshCw,
+	ShieldCheck,
+	ShieldOff,
+	UserCheck,
+} from "lucide-react"
 import { formatDateTime } from "#/lib/format"
 
-export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings")({
-	component: ProjectSettingsPage,
-})
+export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/settings")(
+	{
+		component: ProjectSettingsPage,
+	},
+)
 
 function ProjectSettingsPage() {
 	const { orgId, projectId } = Route.useParams()
@@ -30,9 +56,7 @@ function ProjectSettingsPage() {
 		<div>
 			<div className="mb-2">
 				<h1 className="text-xl font-semibold tracking-tight">Project Settings</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Configuration for {name}.
-				</p>
+				<p className="mt-1 text-sm text-muted-foreground">Configuration for {name}.</p>
 			</div>
 
 			<GeneralSection projectId={projectId} name={name} createdAt={createdAt} />
@@ -48,7 +72,15 @@ function ProjectSettingsPage() {
 	)
 }
 
-function GeneralSection({ projectId, name, createdAt }: { projectId: string; name: string; createdAt?: string }) {
+function GeneralSection({
+	projectId,
+	name,
+	createdAt,
+}: {
+	projectId: string
+	name: string
+	createdAt?: string
+}) {
 	const [copied, setCopied] = useState(false)
 
 	const handleCopy = () => {
@@ -64,7 +96,9 @@ function GeneralSection({ projectId, name, createdAt }: { projectId: string; nam
 				<div>
 					<label className="text-xs font-medium text-muted-foreground">Project ID</label>
 					<div className="mt-1 flex items-center gap-2">
-						<code className="flex-1 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs select-all">{projectId}</code>
+						<code className="flex-1 rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs select-all">
+							{projectId}
+						</code>
 						<Button variant="outline" size="icon-sm" onClick={handleCopy}>
 							{copied ? <Check className="text-success" /> : <Copy />}
 						</Button>
@@ -91,7 +125,10 @@ function ProjectKeyRow({ projectId }: { projectId: string }) {
 
 	if (!revealed) {
 		return (
-			<SettingsRow title="Project Key" description="Used by the CLI/SDK to decrypt secrets. Set as ZENV_PROJECT_KEY.">
+			<SettingsRow
+				title="Project Key"
+				description="Used by the CLI/SDK to decrypt secrets. Set as ZENV_PROJECT_KEY."
+			>
 				<Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
 					Reveal
 				</Button>
@@ -100,7 +137,10 @@ function ProjectKeyRow({ projectId }: { projectId: string }) {
 	}
 
 	return (
-		<SettingsRow title="Project Key" description="Used by the CLI/SDK to decrypt secrets. Set as ZENV_PROJECT_KEY.">
+		<SettingsRow
+			title="Project Key"
+			description="Used by the CLI/SDK to decrypt secrets. Set as ZENV_PROJECT_KEY."
+		>
 			{isLoading && <Spinner />}
 			{error && (
 				<Alert variant="danger">
@@ -170,8 +210,12 @@ function AccessManagementSection({ projectId }: { projectId: string }) {
 		try {
 			const publicKey = fromBase64(member.public_key)
 			const wrapped = wrapWithPublicKey(new TextEncoder().encode(projectKey), publicKey)
-			grantAccess.mutate([{ user_id: member.user_id, wrapped_project_vault_key: toBase64(wrapped) }])
-		} catch { /* ignore */ }
+			grantAccess.mutate([
+				{ user_id: member.user_id, wrapped_project_vault_key: toBase64(wrapped) },
+			])
+		} catch {
+			/* ignore */
+		}
 	}
 
 	return (
@@ -190,29 +234,34 @@ function AccessManagementSection({ projectId }: { projectId: string }) {
 			{members && members.length > 0 && (
 				<div className="space-y-2">
 					{members.map((m: KeyGrantMember) => (
-						<div key={m.user_id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+						<div
+							key={m.user_id}
+							className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+						>
 							<div className="flex items-center gap-2 min-w-0">
-								{m.has_grant
-									? <ShieldCheck className="size-3.5 shrink-0 text-success" />
-									: <ShieldOff className="size-3.5 shrink-0 text-muted-foreground" />
-								}
+								{m.has_grant ? (
+									<ShieldCheck className="size-3.5 shrink-0 text-success" />
+								) : (
+									<ShieldOff className="size-3.5 shrink-0 text-muted-foreground" />
+								)}
 								<span className="truncate text-sm">{m.email}</span>
 							</div>
 							<div className="flex items-center gap-2 ml-3">
-								{m.has_grant
-									? <Badge variant="success" className="text-[10px]">Granted</Badge>
-									: (
-										<Button
-											variant="outline"
-											size="xs"
-											disabled={!projectKey || grantAccess.isPending}
-											onClick={() => handleGrantOne(m)}
-										>
-											<UserCheck className="size-3" />
-											Grant
-										</Button>
-									)
-								}
+								{m.has_grant ? (
+									<Badge variant="success" className="text-[10px]">
+										Granted
+									</Badge>
+								) : (
+									<Button
+										variant="outline"
+										size="xs"
+										disabled={!projectKey || grantAccess.isPending}
+										onClick={() => handleGrantOne(m)}
+									>
+										<UserCheck className="size-3" />
+										Grant
+									</Button>
+								)}
 							</div>
 						</div>
 					))}
@@ -242,7 +291,15 @@ function AccessManagementSection({ projectId }: { projectId: string }) {
 	)
 }
 
-function DangerZone({ orgId, projectId, name }: { orgId: string; projectId: string; name: string }) {
+function DangerZone({
+	orgId,
+	projectId,
+	name,
+}: {
+	orgId: string
+	projectId: string
+	name: string
+}) {
 	const [confirmOpen, setConfirmOpen] = useState(false)
 	const [confirmText, setConfirmText] = useState("")
 	const navigate = useNavigate()
@@ -275,19 +332,29 @@ function DangerZone({ orgId, projectId, name }: { orgId: string; projectId: stri
 						</p>
 					</div>
 					<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-						<DialogTrigger render={<Button variant="danger" size="sm">Delete project</Button>} />
+						<DialogTrigger
+							render={
+								<Button variant="danger" size="sm">
+									Delete project
+								</Button>
+							}
+						/>
 						<DialogContent>
 							<DialogHeader>
 								<DialogTitle>Delete {name}?</DialogTitle>
 								<DialogDescription>
-									This action cannot be undone. All secrets, service tokens, and key grants
-									in this project will be permanently deleted.
+									This action cannot be undone. All secrets, service tokens, and key grants in this
+									project will be permanently deleted.
 								</DialogDescription>
 							</DialogHeader>
 
 							<div className="py-2">
 								<label className="text-xs font-medium text-muted-foreground">
-									Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{name}</code> to confirm
+									Type{" "}
+									<code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">
+										{name}
+									</code>{" "}
+									to confirm
 								</label>
 								<Input
 									className="mt-1.5"
@@ -300,7 +367,9 @@ function DangerZone({ orgId, projectId, name }: { orgId: string; projectId: stri
 
 							<DialogFooter>
 								<DialogClose>
-									<Button variant="ghost" size="sm" type="button">Cancel</Button>
+									<Button variant="ghost" size="sm" type="button">
+										Cancel
+									</Button>
 								</DialogClose>
 								<Button
 									variant="danger"

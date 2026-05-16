@@ -8,7 +8,14 @@ import { Input } from "#/components/ui/input"
 import { PasswordInput } from "#/components/ui/password-input"
 import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
 import { GitHubIcon, GoogleIcon } from "#/components/oauth-icons"
 import { authClient } from "#/lib/auth-client"
@@ -93,7 +100,10 @@ function SignupPage() {
 										<Separator className="flex-1" />
 									</div>
 
-									<form onSubmit={form.handleSubmit((data) => signUp.mutate(data))} className="grid gap-3">
+									<form
+										onSubmit={form.handleSubmit((data) => signUp.mutate(data))}
+										className="grid gap-3"
+									>
 										{signUp.error && (
 											<Alert variant="danger">
 												<AlertCircle />
@@ -102,7 +112,9 @@ function SignupPage() {
 										)}
 
 										<div className="space-y-1.5">
-											<Label htmlFor="name" className="text-xs">Full name</Label>
+											<Label htmlFor="name" className="text-xs">
+												Full name
+											</Label>
 											<Input
 												id="name"
 												placeholder="Enter your full name"
@@ -111,12 +123,16 @@ function SignupPage() {
 												autoFocus
 											/>
 											{form.formState.errors.name && (
-												<p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+												<p className="text-xs text-destructive">
+													{form.formState.errors.name.message}
+												</p>
 											)}
 										</div>
 
 										<div className="space-y-1.5">
-											<Label htmlFor="email" className="text-xs">Email address</Label>
+											<Label htmlFor="email" className="text-xs">
+												Email address
+											</Label>
 											<Input
 												id="email"
 												type="email"
@@ -125,12 +141,16 @@ function SignupPage() {
 												feedback={form.formState.errors.email ? "error" : undefined}
 											/>
 											{form.formState.errors.email && (
-												<p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+												<p className="text-xs text-destructive">
+													{form.formState.errors.email.message}
+												</p>
 											)}
 										</div>
 
 										<div className="space-y-1.5">
-											<Label htmlFor="password" className="text-xs">Password</Label>
+											<Label htmlFor="password" className="text-xs">
+												Password
+											</Label>
 											<PasswordInput
 												id="password"
 												placeholder="Enter your password"
@@ -138,13 +158,19 @@ function SignupPage() {
 												feedback={form.formState.errors.password ? "error" : undefined}
 											/>
 											{form.formState.errors.password && (
-												<p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
+												<p className="text-xs text-destructive">
+													{form.formState.errors.password.message}
+												</p>
 											)}
 										</div>
 
-										<Button type="submit" variant="solid" isLoading={signUp.isPending}
-										loadingText="Please, wait..."
-										className="mt-1 w-full">
+										<Button
+											type="submit"
+											variant="solid"
+											isLoading={signUp.isPending}
+											loadingText="Please, wait..."
+											className="mt-1 w-full"
+										>
 											Continue
 											<ArrowRight />
 										</Button>
@@ -167,7 +193,8 @@ function SignupPage() {
 					<div className="max-w-md">
 						<Quote className="mb-6 size-8 text-muted-foreground/40" />
 						<blockquote className="text-xl font-medium leading-relaxed tracking-tight text-foreground">
-							Zero-knowledge means we can finally give developers access to production secrets without losing sleep. zEnv is the missing piece.
+							Zero-knowledge means we can finally give developers access to production secrets
+							without losing sleep. zEnv is the missing piece.
 						</blockquote>
 						<div className="mt-8 flex items-center gap-3">
 							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
@@ -185,11 +212,17 @@ function SignupPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

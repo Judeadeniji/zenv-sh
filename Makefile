@@ -41,16 +41,13 @@ dev-up:
 dev-down:
 	docker compose down -v
 
-# --- Migrations ---
+# --- Migrations (Drizzle SQL under apps/auth/drizzle) ---
 migrate:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest \
-		-path ./api/migrations \
-		-database "$(DATABASE_URL)" up
+	go run ./api/cmd/apply-drizzle
 
 migrate-down:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest \
-		-path ./api/migrations \
-		-database "$(DATABASE_URL)" down 1
+	@echo "migrate-down is not supported for Drizzle-applied schema; restore from backup or reset the database." >&2
+	@exit 1
 
 # --- Go-Jet codegen ---
 jet-gen:

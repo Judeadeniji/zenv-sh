@@ -18,4 +18,5 @@ type ProjectVaultKeys struct {
 	ProjectSalt       []byte
 	WrappedProjectDek []byte
 	CreatedAt         time.Time
+	DekVersion        int32
 }

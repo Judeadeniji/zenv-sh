@@ -16,7 +16,7 @@ type RecoveryRequests struct {
 	ID                uuid.UUID `sql:"primary_key"`
 	UserID            uuid.UUID
 	ContactUserID     uuid.UUID
-	Status            string
+	Status            RecoveryStatus
 	RecoveryPublicKey *[]byte
 	RecoveryPayload   *[]byte
 	RequestedAt       time.Time

@@ -3,7 +3,16 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { encrypt, hashName } from "@zenv/amnesia"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Textarea } from "#/components/ui/textarea"
 import { Label } from "#/components/ui/label"
@@ -35,7 +44,10 @@ function parseEnv(content: string): { name: string; value: string }[] {
 		const name = trimmed.slice(0, eqIndex).trim()
 		let value = trimmed.slice(eqIndex + 1).trim()
 		// Strip surrounding quotes
-		if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+		if (
+			(value.startsWith('"') && value.endsWith('"')) ||
+			(value.startsWith("'") && value.endsWith("'"))
+		) {
 			value = value.slice(1, -1)
 		}
 		if (name) entries.push({ name, value })
@@ -76,7 +88,9 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 		for (const entry of entries) {
 			try {
 				const nameHashBytes = await hashName(entry.name, projectDEK)
-				const payload = new TextEncoder().encode(JSON.stringify({ name: entry.name, value: entry.value }))
+				const payload = new TextEncoder().encode(
+					JSON.stringify({ name: entry.name, value: entry.value }),
+				)
 				const { ciphertext, nonce } = await encrypt(payload, projectDEK)
 
 				const { error: apiErr } = await api().POST("/secrets", {
@@ -125,13 +139,17 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 					<div className="space-y-3 py-2">
 						<div className="flex items-center gap-2 text-sm">
 							<Check className="size-4 text-success" />
-							<span>{result.success} secret{result.success !== 1 ? "s" : ""} imported</span>
+							<span>
+								{result.success} secret{result.success !== 1 ? "s" : ""} imported
+							</span>
 						</div>
 						{result.failed > 0 && (
 							<p className="text-xs text-destructive">{result.failed} failed (may already exist)</p>
 						)}
 						<DialogFooter>
-							<Button variant="solid" size="sm" onClick={() => handleClose(false)}>Done</Button>
+							<Button variant="solid" size="sm" onClick={() => handleClose(false)}>
+								Done
+							</Button>
 						</DialogFooter>
 					</div>
 				) : (
@@ -144,7 +162,9 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 						)}
 
 						<div className="space-y-1.5">
-							<Label htmlFor="env-content" className="text-xs">Content</Label>
+							<Label htmlFor="env-content" className="text-xs">
+								Content
+							</Label>
 							<Textarea
 								id="env-content"
 								placeholder={"api-key=sk_live_...\ndb-password=s3cret\n# Comments are ignored"}
@@ -159,7 +179,9 @@ export function ImportSecretsDialog({ projectId, trigger }: ImportSecretsDialogP
 
 						<DialogFooter>
 							<DialogClose>
-								<Button variant="ghost" size="sm" type="button">Cancel</Button>
+								<Button variant="ghost" size="sm" type="button">
+									Cancel
+								</Button>
 							</DialogClose>
 							<Button
 								type="submit"

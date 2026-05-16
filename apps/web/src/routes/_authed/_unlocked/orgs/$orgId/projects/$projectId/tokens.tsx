@@ -2,16 +2,37 @@ import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Spinner } from "#/components/ui/spinner"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from "#/components/ui/sheet"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { Input } from "#/components/ui/input"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Separator } from "#/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select"
 import { DataTable } from "#/components/data-table"
 import { SearchInput } from "#/components/search-input"
 import { CreateTokenDialog } from "#/components/create-token-dialog"
@@ -19,14 +40,16 @@ import { tokensQueryOptions, useRevokeToken, useDestroyToken } from "#/lib/queri
 import { toast } from "sonner"
 import { FileKey, Plus, Trash2, AlertCircle } from "lucide-react"
 
-const searchSchema = z.object({
-	page: z.number().catch(1),
-	per_page: z.number().catch(50),
-	search: z.string().optional(),
-	status: z.enum(["active", "revoked", "all"]),
-	sort_by: z.string(),
-	sort_dir: z.enum(["asc", "desc"]),
-}).partial()
+const searchSchema = z
+	.object({
+		page: z.number().catch(1),
+		per_page: z.number().catch(50),
+		search: z.string().optional(),
+		status: z.enum(["active", "revoked", "all"]),
+		sort_by: z.string(),
+		sort_dir: z.enum(["asc", "desc"]),
+	})
+	.partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/tokens")({
 	validateSearch: searchSchema,
@@ -71,11 +94,12 @@ function TokensPage() {
 		{
 			id: "status",
 			header: "Status",
-			cell: ({ row }) => (
-				row.original.revoked_at
-					? <Badge variant="danger">Revoked</Badge>
-					: <Badge variant="success">Active</Badge>
-			),
+			cell: ({ row }) =>
+				row.original.revoked_at ? (
+					<Badge variant="danger">Revoked</Badge>
+				) : (
+					<Badge variant="success">Active</Badge>
+				),
 		},
 		{
 			accessorKey: "environment",
@@ -87,7 +111,9 @@ function TokensPage() {
 			header: "Last Used",
 			cell: ({ row }) => (
 				<span className="text-xs text-muted-foreground">
-					{row.original.last_used_at ? new Date(row.original.last_used_at).toLocaleDateString() : "Never"}
+					{row.original.last_used_at
+						? new Date(row.original.last_used_at).toLocaleDateString()
+						: "Never"}
 				</span>
 			),
 		},
@@ -110,7 +136,9 @@ function TokensPage() {
 		return (
 			<div>
 				<PageHeader />
-				<div className="flex items-center justify-center py-20"><Spinner /></div>
+				<div className="flex items-center justify-center py-20">
+					<Spinner />
+				</div>
 			</div>
 		)
 	}
@@ -121,7 +149,11 @@ function TokensPage() {
 				<PageHeader />
 				<CreateTokenDialog
 					projectId={projectId}
-					trigger={<Button type="button" size="sm"><Plus /> Create</Button>}
+					trigger={
+						<Button type="button" size="sm">
+							<Plus /> Create
+						</Button>
+					}
 				/>
 			</div>
 
@@ -130,7 +162,10 @@ function TokensPage() {
 					placeholder="Search tokens..."
 					value={search.search}
 					onChange={(val) => {
-						navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
+						navigate({
+							search: (prev) => ({ ...prev, search: val || undefined, page: 1 }),
+							replace: true,
+						})
 					}}
 				/>
 				<Select
@@ -160,12 +195,16 @@ function TokensPage() {
 			<DataTable
 				columns={columns}
 				data={tokens}
-				pagination={data?.meta ? {
-					page: data.meta.page ?? 1,
-					totalPages: data.meta.total_pages ?? 1,
-					total: data.meta.total ?? 0,
-					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
-				} : undefined}
+				pagination={
+					data?.meta
+						? {
+								page: data.meta.page ?? 1,
+								totalPages: data.meta.total_pages ?? 1,
+								total: data.meta.total ?? 0,
+								onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) }),
+							}
+						: undefined
+				}
 				onRowClick={(row) => setSelectedToken(row.original)}
 				emptyIcon={<FileKey />}
 				emptyTitle="No service tokens"
@@ -173,12 +212,21 @@ function TokensPage() {
 				emptyAction={
 					<CreateTokenDialog
 						projectId={projectId}
-						trigger={<Button type="button" size="sm"><Plus /> Create a token</Button>}
+						trigger={
+							<Button type="button" size="sm">
+								<Plus /> Create a token
+							</Button>
+						}
 					/>
 				}
 			/>
 
-			<Sheet open={!!selectedToken} onOpenChange={(open) => { if (!open) setSelectedToken(null) }}>
+			<Sheet
+				open={!!selectedToken}
+				onOpenChange={(open) => {
+					if (!open) setSelectedToken(null)
+				}}
+			>
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{selectedToken?.name}</SheetTitle>
@@ -197,7 +245,11 @@ function TokensPage() {
 	)
 }
 
-function TokenDetailSheet({ projectId, token, onRevoked }: {
+function TokenDetailSheet({
+	projectId,
+	token,
+	onRevoked,
+}: {
 	projectId: string
 	token: TokenRow
 	onRevoked: () => void
@@ -258,10 +310,11 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 			<div>
 				<label className="text-xs font-medium text-muted-foreground">Status</label>
 				<p className="mt-1">
-					{token.revoked_at
-						? <Badge variant="danger">Revoked</Badge>
-						: <Badge variant="success">Active</Badge>
-					}
+					{token.revoked_at ? (
+						<Badge variant="danger">Revoked</Badge>
+					) : (
+						<Badge variant="success">Active</Badge>
+					)}
 				</p>
 			</div>
 			<div>
@@ -285,18 +338,29 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 								</p>
 							</div>
 							<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-								<DialogTrigger render={<Button variant="danger" size="sm">Revoke</Button>} />
+								<DialogTrigger
+									render={
+										<Button variant="danger" size="sm">
+											Revoke
+										</Button>
+									}
+								/>
 								<DialogContent>
 									<DialogHeader>
 										<DialogTitle>Revoke {token.name}?</DialogTitle>
 										<DialogDescription>
-											This will immediately and permanently revoke the token. Any application using it will lose access.
+											This will immediately and permanently revoke the token. Any application using
+											it will lose access.
 										</DialogDescription>
 									</DialogHeader>
 
 									<div className="py-2">
 										<label className="text-xs font-medium text-muted-foreground">
-											Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{token.name}</code> to confirm
+											Type{" "}
+											<code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">
+												{token.name}
+											</code>{" "}
+											to confirm
 										</label>
 										<Input
 											className="mt-1.5"
@@ -309,7 +373,9 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 
 									<DialogFooter>
 										<DialogClose>
-											<Button variant="ghost" size="sm" type="button">Cancel</Button>
+											<Button variant="ghost" size="sm" type="button">
+												Cancel
+											</Button>
 										</DialogClose>
 										<Button
 											variant="danger"
@@ -347,18 +413,29 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 								</p>
 							</div>
 							<Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-								<DialogTrigger render={<Button variant="danger" size="sm">Delete</Button>} />
+								<DialogTrigger
+									render={
+										<Button variant="danger" size="sm">
+											Delete
+										</Button>
+									}
+								/>
 								<DialogContent>
 									<DialogHeader>
 										<DialogTitle>Delete {token.name}?</DialogTitle>
 										<DialogDescription>
-											This will permanently remove the token record from the database. This action cannot be undone.
+											This will permanently remove the token record from the database. This action
+											cannot be undone.
 										</DialogDescription>
 									</DialogHeader>
 
 									<div className="py-2">
 										<label className="text-xs font-medium text-muted-foreground">
-											Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{token.name}</code> to confirm
+											Type{" "}
+											<code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">
+												{token.name}
+											</code>{" "}
+											to confirm
 										</label>
 										<Input
 											className="mt-1.5"
@@ -371,7 +448,9 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 
 									<DialogFooter>
 										<DialogClose>
-											<Button variant="ghost" size="sm" type="button">Cancel</Button>
+											<Button variant="ghost" size="sm" type="button">
+												Cancel
+											</Button>
 										</DialogClose>
 										<Button
 											variant="danger"
@@ -400,10 +479,7 @@ function TokenDetailSheet({ projectId, token, onRevoked }: {
 	)
 }
 
-function DestroyTokenButton({ projectId, token }: {
-	projectId: string
-	token: TokenRow
-}) {
+function DestroyTokenButton({ projectId, token }: { projectId: string; token: TokenRow }) {
 	const [confirmOpen, setConfirmOpen] = useState(false)
 	const [confirmText, setConfirmText] = useState("")
 	const destroy = useDestroyToken()
@@ -422,7 +498,16 @@ function DestroyTokenButton({ projectId, token }: {
 	}
 
 	return (
-		<Dialog open={confirmOpen} onOpenChange={(v) => { setConfirmOpen(v); if (!v) { setConfirmText(""); destroy.reset() } }}>
+		<Dialog
+			open={confirmOpen}
+			onOpenChange={(v) => {
+				setConfirmOpen(v)
+				if (!v) {
+					setConfirmText("")
+					destroy.reset()
+				}
+			}}
+		>
 			<DialogTrigger
 				render={
 					<Button
@@ -440,13 +525,18 @@ function DestroyTokenButton({ projectId, token }: {
 				<DialogHeader>
 					<DialogTitle>Delete {token.name}?</DialogTitle>
 					<DialogDescription>
-						This will permanently remove the token record from the database. This action cannot be undone.
+						This will permanently remove the token record from the database. This action cannot be
+						undone.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="py-2">
 					<label className="text-xs font-medium text-muted-foreground">
-						Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{token.name}</code> to confirm
+						Type{" "}
+						<code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">
+							{token.name}
+						</code>{" "}
+						to confirm
 					</label>
 					<Input
 						className="mt-1.5"
@@ -459,7 +549,9 @@ function DestroyTokenButton({ projectId, token }: {
 
 				<DialogFooter>
 					<DialogClose>
-						<Button variant="ghost" size="sm" type="button">Cancel</Button>
+						<Button variant="ghost" size="sm" type="button">
+							Cancel
+						</Button>
 					</DialogClose>
 					<Button
 						variant="danger"
@@ -483,10 +575,7 @@ function DestroyTokenButton({ projectId, token }: {
 	)
 }
 
-function RevokeTokenButton({ projectId, token }: {
-	projectId: string
-	token: TokenRow
-}) {
+function RevokeTokenButton({ projectId, token }: { projectId: string; token: TokenRow }) {
 	const [confirmOpen, setConfirmOpen] = useState(false)
 	const [confirmText, setConfirmText] = useState("")
 	const revoke = useRevokeToken()
@@ -505,7 +594,16 @@ function RevokeTokenButton({ projectId, token }: {
 	}
 
 	return (
-		<Dialog open={confirmOpen} onOpenChange={(v) => { setConfirmOpen(v); if (!v) { setConfirmText(""); revoke.reset() } }}>
+		<Dialog
+			open={confirmOpen}
+			onOpenChange={(v) => {
+				setConfirmOpen(v)
+				if (!v) {
+					setConfirmText("")
+					revoke.reset()
+				}
+			}}
+		>
 			<DialogTrigger
 				render={
 					<Button
@@ -523,13 +621,18 @@ function RevokeTokenButton({ projectId, token }: {
 				<DialogHeader>
 					<DialogTitle>Revoke {token.name}?</DialogTitle>
 					<DialogDescription>
-						This will immediately and permanently revoke the token. Any application using it will lose access.
+						This will immediately and permanently revoke the token. Any application using it will
+						lose access.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="py-2">
 					<label className="text-xs font-medium text-muted-foreground">
-						Type <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">{token.name}</code> to confirm
+						Type{" "}
+						<code className="rounded bg-muted px-1 py-0.5 text-[11px] font-semibold">
+							{token.name}
+						</code>{" "}
+						to confirm
 					</label>
 					<Input
 						className="mt-1.5"
@@ -542,7 +645,9 @@ function RevokeTokenButton({ projectId, token }: {
 
 				<DialogFooter>
 					<DialogClose>
-						<Button variant="ghost" size="sm" type="button">Cancel</Button>
+						<Button variant="ghost" size="sm" type="button">
+							Cancel
+						</Button>
 					</DialogClose>
 					<Button
 						variant="danger"
@@ -570,7 +675,9 @@ function PageHeader() {
 	return (
 		<div>
 			<h1 className="text-lg font-semibold">Service Tokens</h1>
-			<p className="mt-1 text-sm text-muted-foreground">Programmatic access for your CI/CD pipelines and applications.</p>
+			<p className="mt-1 text-sm text-muted-foreground">
+				Programmatic access for your CI/CD pipelines and applications.
+			</p>
 		</div>
 	)
 }

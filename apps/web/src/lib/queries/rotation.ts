@@ -90,7 +90,7 @@ export function useCommitRotation() {
 		onSuccess: async (_, { projectId }) => {
 			await Promise.all([
 				qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) }),
-				qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) })
+				qc.invalidateQueries({ queryKey: queryKeys.secrets.list(projectId) }),
 			])
 		},
 	})
@@ -100,12 +100,9 @@ export function useCancelRotation() {
 	return useMutation({
 		mutationKey: mutationKeys.rotation.cancel,
 		mutationFn: async ({ projectId, rotationId }: { projectId: string; rotationId: string }) => {
-			const { error } = await api().DELETE(
-				"/projects/{projectID}/rotation/{rotationID}",
-				{
-					params: { path: { projectID: projectId, rotationID: rotationId } },
-				},
-			)
+			const { error } = await api().DELETE("/projects/{projectID}/rotation/{rotationID}", {
+				params: { path: { projectID: projectId, rotationID: rotationId } },
+			})
 			if (error) throw new Error(error.error || "Failed to cancel rotation")
 		},
 	})

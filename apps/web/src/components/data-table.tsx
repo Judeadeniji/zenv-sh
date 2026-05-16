@@ -9,15 +9,31 @@ import {
 	type ColumnFiltersState,
 	type Row,
 } from "@tanstack/react-table"
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "#/components/ui/table"
+import {
+	Table,
+	TableHeader,
+	TableBody,
+	TableHead,
+	TableRow,
+	TableCell,
+} from "#/components/ui/table"
 import { Button } from "#/components/ui/button"
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "#/components/ui/empty"
+import {
+	Empty,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+	EmptyDescription,
+	EmptyContent,
+} from "#/components/ui/empty"
 import { ChevronLeft, ChevronRight, SearchX } from "lucide-react"
 
 interface DataTableProps<TData> {
 	columns: ColumnDef<TData, unknown>[]
 	data: TData[]
 	onRowClick?: (row: Row<TData>) => void
+	onRowPointerEnter?: (row: Row<TData>) => void
+	onRowPointerLeave?: (row: Row<TData>) => void
 	emptyIcon?: React.ReactNode
 	emptyTitle?: string
 	emptyDescription?: string
@@ -36,6 +52,8 @@ export function DataTable<TData>({
 	columns,
 	data,
 	onRowClick,
+	onRowPointerEnter,
+	onRowPointerLeave,
 	emptyIcon,
 	emptyTitle = "No results",
 	emptyDescription = "No items match your search.",
@@ -62,10 +80,10 @@ export function DataTable<TData>({
 	const rows = table.getRowModel().rows
 
 	// Pagination state — server or client
-	const showPagination = isServerPaginated
-		? pagination.totalPages > 1
-		: table.getPageCount() > 1
-	const currentPage = isServerPaginated ? pagination.page : table.getState().pagination.pageIndex + 1
+	const showPagination = isServerPaginated ? pagination.totalPages > 1 : table.getPageCount() > 1
+	const currentPage = isServerPaginated
+		? pagination.page
+		: table.getState().pagination.pageIndex + 1
 	const totalPages = isServerPaginated ? pagination.totalPages : table.getPageCount()
 	const totalItems = isServerPaginated ? pagination.total : table.getFilteredRowModel().rows.length
 
@@ -78,13 +96,15 @@ export function DataTable<TData>({
 		else table.nextPage()
 	}
 	const canPrev = isServerPaginated ? pagination.page > 1 : table.getCanPreviousPage()
-	const canNext = isServerPaginated ? pagination.page < pagination.totalPages : table.getCanNextPage()
+	const canNext = isServerPaginated
+		? pagination.page < pagination.totalPages
+		: table.getCanNextPage()
 
 	return (
 		<div className="space-y-3">
 			{rows.length === 0 ? (
 				data.length === 0 ? (
-					<Empty className="min-h-60">
+					<Empty className="min-h-60 h-full">
 						<EmptyHeader>
 							{emptyIcon && <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>}
 							<EmptyContent>
@@ -97,7 +117,9 @@ export function DataTable<TData>({
 				) : (
 					<Empty className="min-h-40">
 						<EmptyHeader>
-							<EmptyMedia variant="icon"><SearchX /></EmptyMedia>
+							<EmptyMedia variant="icon">
+								<SearchX />
+							</EmptyMedia>
 							<EmptyContent>
 								<EmptyTitle>No results found</EmptyTitle>
 								<EmptyDescription>Try adjusting your search or filter.</EmptyDescription>
@@ -112,7 +134,9 @@ export function DataTable<TData>({
 							<TableRow key={headerGroup.id}>
 								{headerGroup.headers.map((header) => (
 									<TableHead key={header.id}>
-										{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+										{header.isPlaceholder
+											? null
+											: flexRender(header.column.columnDef.header, header.getContext())}
 									</TableHead>
 								))}
 							</TableRow>
@@ -125,6 +149,8 @@ export function DataTable<TData>({
 								data-state={row.getIsSelected() ? "selected" : undefined}
 								className={onRowClick ? "cursor-pointer" : ""}
 								onClick={() => onRowClick?.(row)}
+								onPointerEnter={() => onRowPointerEnter?.(row)}
+								onPointerLeave={() => onRowPointerLeave?.(row)}
 							>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id}>

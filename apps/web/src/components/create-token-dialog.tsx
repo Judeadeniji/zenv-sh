@@ -1,12 +1,27 @@
 import { useState } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "#/components/ui/select"
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from "#/components/ui/select"
 import { OneTimeDisplay } from "#/components/ui/one-time-display"
 import { useCreateToken } from "#/lib/queries/tokens"
 import { useNavStore } from "#/lib/stores/nav"
@@ -56,7 +71,13 @@ export function CreateTokenDialog({ projectId, trigger }: CreateTokenDialogProps
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true) }}>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				if (!v) handleClose()
+				else setOpen(true)
+			}}
+		>
 			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				{createdToken ? (
@@ -94,7 +115,9 @@ export function CreateTokenDialog({ projectId, trigger }: CreateTokenDialogProps
 							)}
 
 							<div className="space-y-1.5">
-								<Label htmlFor="token-name" className="text-xs">Name</Label>
+								<Label htmlFor="token-name" className="text-xs">
+									Name
+								</Label>
 								<Input
 									id="token-name"
 									placeholder="ci-deploy"
@@ -128,7 +151,9 @@ export function CreateTokenDialog({ projectId, trigger }: CreateTokenDialogProps
 
 							<DialogFooter>
 								<DialogClose>
-									<Button variant="ghost" size="sm" type="button">Cancel</Button>
+									<Button variant="ghost" size="sm" type="button">
+										Cancel
+									</Button>
 								</DialogClose>
 								<Button type="submit" variant="solid" size="sm" isLoading={create.isPending}>
 									Create token

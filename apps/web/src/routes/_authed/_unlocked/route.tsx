@@ -27,20 +27,13 @@ export const Route = createFileRoute("/_authed/_unlocked")({
 		// Onboarding guard — redirect to onboarding if user has zero orgs
 		// (skip if already on onboarding to avoid loop)
 		if (location.pathname !== "/onboarding") {
-			try {
-				const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions())
-				const orgList = (orgs as { organizations?: { id: string }[] }).organizations ?? []
-
-				if (orgList.length === 0) {
-					throw redirect({ to: "/onboarding" })
-				}
-			} catch (e) {
-				if (e && typeof e === "object" && "to" in e) throw e
-			}
+			const orgs = await context.queryClient.ensureQueryData(orgsQueryOptions())
+			if (orgs.length > 0) return
+			throw redirect({ to: "/onboarding" })
 		}
 
 		// Prefetch preferences so they're ready for hydration.
-		context.queryClient.ensureQueryData(preferencesQueryOptions).catch(() => { })
+		context.queryClient.ensureQueryData(preferencesQueryOptions).catch(() => {})
 	},
 	component: UnlockedLayout,
 })
@@ -55,9 +48,7 @@ function UnlockedLayout() {
 	// Snapshot path at mount time. useLocation() is reactive and would update
 	// to "/unlock" mid-navigation, causing the redirect destination to overwrite
 	// itself and produce /unlock?redirect=%2Funlock.
-	const savedPath = useRef(
-		typeof window !== "undefined" ? window.location.pathname : "/",
-	)
+	const savedPath = useRef(typeof window !== "undefined" ? window.location.pathname : "/")
 
 	// Guards the initial page-load / hydration case.
 	// beforeLoad only runs on navigations, not on SSR hydration.

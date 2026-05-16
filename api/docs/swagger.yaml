@@ -1,21 +1,8 @@
 basePath: /v1
 definitions:
-  api_internal_handler.AddMemberRequest:
-    properties:
-      email:
-        description: email — used by web; looked up to resolve UUID
-        type: string
-      role:
-        description: admin, senior_dev, dev, contractor, ci_bot
-        type: string
-      user_id:
-        description: UUID — used by CLI
-        type: string
-    type: object
   api_internal_handler.ApproveRecoveryRequest:
     properties:
       recovery_payload:
-        description: base64
         type: string
     type: object
   api_internal_handler.AuditLogEntry:
@@ -76,22 +63,35 @@ definitions:
   api_internal_handler.ChangeVaultKeyRequest:
     properties:
       current_auth_key_hash:
-        description: base64
+        description: CurrentAuthKeyHash is HashAuthKey(currentVaultKey), used to verify
+          the current Vault Key before rotation, base64-encoded.
+        example: base64encodedstring==
         type: string
       new_auth_key_hash:
-        description: base64
+        description: NewAuthKeyHash is HashAuthKey(newVaultKey), base64-encoded.
+        example: base64encodedstring==
         type: string
       new_salt:
-        description: base64
+        description: NewSalt is a freshly generated KDF salt for the new Key Encryption
+          Key, base64-encoded.
+        example: base64encodedstring==
         type: string
       new_vault_key_type:
-        description: '"pin" or "passphrase"'
+        description: NewVaultKeyType is the type of the new Vault Key. Must be "pin"
+          or "passphrase".
+        enum:
+        - pin
+        - passphrase
+        example: passphrase
         type: string
       new_wrapped_dek:
-        description: base64
+        description: NewWrappedDEK is the same DEK re-wrapped with the new KEK, base64-encoded.
+        example: base64encodedstring==
         type: string
       new_wrapped_private_key:
-        description: base64
+        description: NewWrappedPrivateKey is the private key re-wrapped with the new
+          DEK, base64-encoded.
+        example: base64encodedstring==
         type: string
     type: object
   api_internal_handler.CommitRotationRequest:
@@ -127,13 +127,6 @@ definitions:
         type: string
       new_wrapped_private_key:
         type: string
-      request_id:
-        type: string
-    type: object
-  api_internal_handler.CreateOrgRequest:
-    properties:
-      name:
-        type: string
     type: object
   api_internal_handler.CreateProjectRequest:
     properties:
@@ -157,7 +150,13 @@ definitions:
         description: base64 AES-256-GCM encrypted item JSON
         type: string
       environment:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment'
+      metadata:
+        description: Metadata is optional plaintext hints (MIME, description, tags).
+          Never put secret material here.
+        items:
+          type: integer
+        type: array
       name_hash:
         description: base64 HMAC-SHA256 of secret name
         type: string
@@ -239,12 +238,11 @@ definitions:
       requester_name:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus'
     type: object
   api_internal_handler.InitiateRecoveryRequest:
     properties:
       recovery_public_key:
-        description: base64
         type: string
     type: object
   api_internal_handler.KeyGrantMember:
@@ -270,24 +268,6 @@ definitions:
       members:
         items:
           $ref: '#/definitions/api_internal_handler.KeyGrantMember'
-        type: array
-    type: object
-  api_internal_handler.ListMembersResponse:
-    properties:
-      members:
-        items:
-          $ref: '#/definitions/api_internal_handler.MemberResponse'
-        type: array
-      meta:
-        $ref: '#/definitions/api_internal_handler.Meta'
-    type: object
-  api_internal_handler.ListOrgsResponse:
-    properties:
-      meta:
-        $ref: '#/definitions/api_internal_handler.Meta'
-      organizations:
-        items:
-          $ref: '#/definitions/api_internal_handler.OrgResponse'
         type: array
     type: object
   api_internal_handler.ListProjectsResponse:
@@ -320,33 +300,36 @@ definitions:
   api_internal_handler.MeResponse:
     properties:
       email:
+        description: Email is the user's email address from their identity provider.
+        example: user@example.com
         type: string
       name:
+        description: Name is the user's display name from their identity provider.
+        example: Jane Doe
         type: string
       salt:
-        description: base64
+        description: Salt is the KDF salt for the user's Key Encryption Key, base64-encoded.
+          Only present if vault is set up.
+        example: base64encodedstring==
         type: string
       vault_key_type:
-        type: string
+        allOf:
+        - $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType'
+        description: VaultKeyType is the type of Vault Key the user chose ("pin" or
+          "passphrase"). Only present if vault is set up.
+        enum:
+        - pin
+        - passphrase
+        example: passphrase
       vault_setup_complete:
+        description: VaultSetupComplete is true if the user has completed vault setup.
+        example: true
         type: boolean
       vault_unlocked:
+        description: VaultUnlocked is true if the user has completed both auth layers
+          in this session.
+        example: false
         type: boolean
-    type: object
-  api_internal_handler.MemberResponse:
-    properties:
-      email:
-        type: string
-      id:
-        type: string
-      joined_at:
-        type: string
-      name:
-        type: string
-      role:
-        type: string
-      user_id:
-        type: string
     type: object
   api_internal_handler.Meta:
     properties:
@@ -359,25 +342,15 @@ definitions:
       total_pages:
         type: integer
     type: object
-  api_internal_handler.OrgResponse:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      owner_id:
-        type: string
-    type: object
   api_internal_handler.ProjectCryptoResponse:
     properties:
       project_salt:
         description: base64
         type: string
       vault_key_type:
+        allOf:
+        - $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType'
         description: '"pin" or "passphrase"'
-        type: string
       wrapped_project_dek:
         description: base64
         type: string
@@ -411,7 +384,6 @@ definitions:
       email:
         type: string
       public_key:
-        description: base64
         type: string
     type: object
   api_internal_handler.RecoverWithKitRequest:
@@ -432,7 +404,6 @@ definitions:
   api_internal_handler.RecoveryKitResponse:
     properties:
       recovery_wrapped_dek:
-        description: base64
         type: string
     type: object
   api_internal_handler.RecoveryRequestStatusResponse:
@@ -446,7 +417,7 @@ definitions:
       requested_at:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus'
     type: object
   api_internal_handler.RecoveryStatusResponse:
     properties:
@@ -462,7 +433,6 @@ definitions:
   api_internal_handler.RegenerateKitRequest:
     properties:
       recovery_wrapped_dek:
-        description: base64
         type: string
     type: object
   api_internal_handler.RollbackRequest:
@@ -475,15 +445,34 @@ definitions:
       created_at:
         type: string
       environment:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment'
       id:
         type: string
+      metadata:
+        items:
+          type: integer
+        type: array
       name_hash:
         type: string
       updated_at:
         type: string
       version:
         type: integer
+    type: object
+  api_internal_handler.SecretMetadataMergeBody:
+    properties:
+      description:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      mime_type:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
     type: object
   api_internal_handler.SecretResponse:
     properties:
@@ -492,9 +481,13 @@ definitions:
       created_at:
         type: string
       environment:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment'
       id:
         type: string
+      metadata:
+        items:
+          type: integer
+        type: array
       name_hash:
         type: string
       nonce:
@@ -511,41 +504,62 @@ definitions:
       contact_email:
         type: string
       trusted_wrapped_dek:
-        description: base64
         type: string
     type: object
   api_internal_handler.SetupVaultRequest:
     properties:
       auth_key_hash:
-        description: base64
+        description: AuthKeyHash is base64(HashAuthKey(authKey)) — same proof stored
+          at setup-vault (JSON field name is historical).
+        example: base64encodedstring==
         type: string
       public_key:
-        description: base64
+        description: PublicKey is the user's raw Ed25519 public key, base64-encoded.
+        example: base64encodedstring==
         type: string
       recovery_disabled:
-        description: enterprise opt-in to disable recovery
+        description: RecoveryDisabled disables all recovery methods for this account.
+          Enterprise opt-in.
+        example: false
         type: boolean
       recovery_wrapped_dek:
-        description: base64, optional — DEK wrapped with recovery key
+        description: RecoveryWrappedDEK is the DEK wrapped with the recovery key,
+          base64-encoded. Optional.
+        example: base64encodedstring==
         type: string
       salt:
-        description: base64
+        description: Salt is the random salt used to derive the Key Encryption Key
+          from the Vault Key, base64-encoded.
+        example: base64encodedstring==
         type: string
       vault_key_type:
-        description: '"pin" or "passphrase"'
+        description: VaultKeyType is the type of Vault Key the user chose. Must be
+          "pin" or "passphrase".
+        enum:
+        - pin
+        - passphrase
+        example: passphrase
         type: string
       wrapped_dek:
-        description: base64
+        description: WrappedDEK is the Data Encryption Key wrapped with the Key Encryption
+          Key, base64-encoded.
+        example: base64encodedstring==
         type: string
       wrapped_private_key:
-        description: base64
+        description: WrappedPrivateKey is the user's Ed25519 private key wrapped with
+          the DEK, base64-encoded.
+        example: base64encodedstring==
         type: string
     type: object
   api_internal_handler.SetupVaultResponse:
     properties:
       user_id:
+        description: UserID is the newly created vault identity UUID.
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       vault_setup_complete:
+        description: VaultSetupComplete is always true on success.
+        example: true
         type: boolean
     type: object
   api_internal_handler.StageItem:
@@ -592,7 +606,7 @@ definitions:
       created_at:
         type: string
       environment:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment'
       expires_at:
         type: string
       id:
@@ -600,7 +614,7 @@ definitions:
       name:
         type: string
       permission:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission'
       project_id:
         type: string
       revoked_at:
@@ -609,19 +623,27 @@ definitions:
   api_internal_handler.UnlockRequest:
     properties:
       auth_key_hash:
-        description: base64
+        description: |-
+          AuthKeyHash must match setup-vault: base64(HashAuthKey(authKey)) where authKey is the
+          32-byte auth material from DeriveKeys (Argon2id output bytes 32–63). Same value as setup's auth_key_hash field.
+        example: base64encodedstring==
         type: string
     type: object
   api_internal_handler.UnlockResponse:
     properties:
       public_key:
-        description: base64
+        description: PublicKey is the user's raw Ed25519 public key, base64-encoded.
+        example: base64encodedstring==
         type: string
       wrapped_dek:
-        description: base64
+        description: WrappedDEK is the Data Encryption Key wrapped with the Key Encryption
+          Key, base64-encoded.
+        example: base64encodedstring==
         type: string
       wrapped_private_key:
-        description: base64
+        description: WrappedPrivateKey is the user's Ed25519 private key wrapped with
+          the DEK, base64-encoded.
+        example: base64encodedstring==
         type: string
     type: object
   api_internal_handler.UpdateSecretRequest:
@@ -629,6 +651,10 @@ definitions:
       ciphertext:
         description: base64
         type: string
+      metadata:
+        items:
+          type: integer
+        type: array
       nonce:
         description: base64
         type: string
@@ -642,8 +668,9 @@ definitions:
         description: base64
         type: string
       vault_key_type:
+        allOf:
+        - $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType'
         description: '"pin" or "passphrase"'
-        type: string
       wrapped_dek:
         description: base64
         type: string
@@ -670,13 +697,13 @@ definitions:
   api_internal_handler.WhoamiResponse:
     properties:
       environment:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment'
       organization_id:
         type: string
       organization_name:
         type: string
       permission:
-        type: string
+        $ref: '#/definitions/github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission'
       project_id:
         type: string
       project_name:
@@ -688,6 +715,46 @@ definitions:
       user_name:
         type: string
     type: object
+  github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment:
+    enum:
+    - development
+    - staging
+    - production
+    type: string
+    x-enum-varnames:
+    - Environment_Development
+    - Environment_Staging
+    - Environment_Production
+  github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission:
+    enum:
+    - read
+    - read_write
+    type: string
+    x-enum-varnames:
+    - Permission_Read
+    - Permission_ReadWrite
+  github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus:
+    enum:
+    - pending
+    - approved
+    - cancelled
+    - expired
+    - completed
+    type: string
+    x-enum-varnames:
+    - RecoveryStatus_Pending
+    - RecoveryStatus_Approved
+    - RecoveryStatus_Cancelled
+    - RecoveryStatus_Expired
+    - RecoveryStatus_Completed
+  github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType:
+    enum:
+    - pin
+    - passphrase
+    type: string
+    x-enum-varnames:
+    - VaultKeyType_Pin
+    - VaultKeyType_Passphrase
 host: api.zenv.sh
 info:
   contact: {}
@@ -744,6 +811,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - SessionAuth: []
       summary: List audit logs
@@ -761,8 +836,16 @@ paths:
             additionalProperties:
               type: integer
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -803,7 +886,19 @@ paths:
       - text/csv
       responses:
         "200":
-          description: OK
+          description: CSV stream (Content-Disposition attachment)
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - SessionAuth: []
       summary: Export audit logs as CSV
@@ -813,15 +908,104 @@ paths:
     put:
       consumes:
       - application/json
-      description: 'Rotate vault key: verify current auth key, store new crypto material.
-        O(1) — no item rows touched.'
+      description: Rotate the Vault Key. The client derives the old KEK, unwraps the
+        DEK, derives a new KEK from the new Vault Key, re-wraps the same DEK, and
+        submits the new crypto material. This is an O(1) operation — zero vault item
+        rows are touched. Requires the current Vault Key to be verified before rotation
+        is applied.
       parameters:
-      - description: Current auth proof + new crypto material
+      - description: Current auth proof and new crypto material
         in: body
         name: body
         required: true
         schema:
           $ref: '#/definitions/api_internal_handler.ChangeVaultKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Vault key rotated successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Missing required fields, invalid vault_key_type, or malformed
+            base64
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: No active session
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "403":
+          description: Wrong current Vault Key
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: Vault not set up
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Change vault key
+      tags:
+      - auth
+  /auth/lock:
+    post:
+      description: Clears the vault unlock record in Redis, requiring the user to
+        re-enter their Vault Key on next access. Safe to call even if already locked.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Vault locked successfully
+        "401":
+          description: No active session
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Lock vault
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated user's identity info, vault setup status,
+        and vault lock state. Use this to determine whether to show the vault setup
+        flow, the unlock prompt, or the main UI. The salt is returned so the client
+        can derive the KEK locally without an extra round trip.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current user state
+          schema:
+            $ref: '#/definitions/api_internal_handler.MeResponse'
+        "401":
+          description: No active session
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - SessionAuth: []
+      summary: Get auth state
+      tags:
+      - auth
+  /auth/recovery/disable:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Toggle recovery
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.DisableRecoveryRequest'
       produces:
       - application/json
       responses:
@@ -835,78 +1019,12 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "403":
-          description: Wrong current Vault Key
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Change vault key
-      tags:
-      - auth
-  /auth/lock:
-    post:
-      description: Removes the vault unlock record, requiring the user to re-enter
-        their Vault Key on next access.
-      responses:
-        "204":
-          description: No Content
-      security:
-      - SessionAuth: []
-      summary: Lock vault
-      tags:
-      - auth
-  /auth/me:
-    get:
-      description: Returns identity, vault setup status, and vault lock state.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully retrieved user state
-          schema:
-            $ref: '#/definitions/api_internal_handler.MeResponse'
         "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Get auth state
-      tags:
-      - auth
-  /auth/recovery/disable:
-    put:
-      consumes:
-      - application/json
-      description: Set recovery_disabled to true or false. When disabled, recovery
-        kit and trusted contact cannot be used.
-      parameters:
-      - description: Toggle recovery
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/api_internal_handler.DisableRecoveryRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully updated
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to update recovery setting
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -926,15 +1044,11 @@ paths:
               $ref: '#/definitions/api_internal_handler.IncomingRequest'
             type: array
         "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "404":
-          description: User not found
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to fetch requests
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -944,7 +1058,6 @@ paths:
       - recovery
   /auth/recovery/kit:
     get:
-      description: Returns the recovery-wrapped DEK so the client can attempt recovery.
       produces:
       - application/json
       responses:
@@ -953,15 +1066,15 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.RecoveryKitResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
-          description: Recovery disabled
+          description: Forbidden
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: No recovery kit or User not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -972,8 +1085,6 @@ paths:
     put:
       consumes:
       - application/json
-      description: Replaces the recovery-wrapped DEK with a new one. Old recovery
-        words are invalidated.
       parameters:
       - description: New recovery wrapped DEK
         in: body
@@ -985,29 +1096,29 @@ paths:
       - application/json
       responses:
         "200":
-          description: Successfully regenerated
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid request body or base64
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
-          description: Recovery disabled
+          description: Forbidden
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: User not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to update recovery kit
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1019,8 +1130,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Client verified recovery words, unwrapped DEK, set new Vault Key.
-        Submit new crypto material.
       parameters:
       - description: New crypto material
         in: body
@@ -1032,21 +1141,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: Vault successfully recovered
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid request body, key type, or base64
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to update vault
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1060,21 +1169,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: Request cancelled
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "404":
-          description: User not found
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to cancel
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1091,11 +1196,11 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.RecoveryRequestStatusResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: No active recovery request
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1106,7 +1211,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Start 72-hour waiting period for trusted contact recovery.
       parameters:
       - description: Ephemeral public key
         in: body
@@ -1118,24 +1222,24 @@ paths:
       - application/json
       responses:
         "201":
-          description: Recovery request created
+          description: Created
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body or base64
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: No trusted contact configured
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "409":
-          description: Active recovery request already exists
+          description: Conflict
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1147,8 +1251,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Trusted contact provides DEK re-wrapped with recovering user's
-        ephemeral key.
       parameters:
       - description: Recovery request ID
         in: path
@@ -1165,29 +1267,29 @@ paths:
       - application/json
       responses:
         "200":
-          description: Request approved
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid ID, body, base64, or request not pending
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
-          description: Not trusted contact or 72-hour wait period not elapsed
+          description: Forbidden
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Recovery request not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to approve
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1215,25 +1317,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: Vault successfully recovered
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid ID, body, or request not approved
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: Recovery request not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to update vault or complete request
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1252,11 +1354,11 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.RecoveryStatusResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: User not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1270,21 +1372,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: Trusted contact removed
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "404":
-          description: User not found
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to remove trusted contact
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1295,8 +1393,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Wrap DEK with contact's public key and store. Requires unlocked
-        vault.
       parameters:
       - description: Contact email + wrapped DEK
         in: body
@@ -1308,29 +1404,29 @@ paths:
       - application/json
       responses:
         "201":
-          description: Trusted contact set
+          description: Created
           schema:
             additionalProperties:
               type: string
             type: object
         "400":
-          description: Invalid body, base64, or self-designation
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
-          description: Recovery disabled
+          description: Forbidden
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: User or contact not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
-          description: Failed to set trusted contact
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1342,10 +1438,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Store client-generated crypto material and link to authenticated
-        identity.
+      description: Store client-generated cryptographic material and link to the authenticated
+        identity. Must be called once after signup before any vault operations. All
+        crypto material is generated client-side — the server stores ciphertext only.
+        On success, the session is immediately marked as vault-unlocked.
       parameters:
-      - description: Crypto material from client
+      - description: Client-generated crypto material
         in: body
         name: body
         required: true
@@ -1355,15 +1453,24 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Vault created and session unlocked
           schema:
             $ref: '#/definitions/api_internal_handler.SetupVaultResponse'
         "400":
-          description: Bad Request
+          description: Missing required fields, invalid vault_key_type, or malformed
+            base64
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: No active session
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "409":
-          description: Conflict
+          description: Vault already set up for this account
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
@@ -1375,10 +1482,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair
-        on success.
+      description: Verify the Auth Key hash (proof of Vault Key knowledge). On success,
+        marks the session as vault-unlocked in Redis and returns the wrapped DEK and
+        keypair so the client can derive the KEK and unwrap locally. The raw Vault
+        Key never leaves the client.
       parameters:
-      - description: Auth Key hash (base64)
+      - description: Auth Key hash derived from the user's Vault Key
         in: body
         name: body
         required: true
@@ -1388,155 +1497,23 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Vault unlocked — key material returned
           schema:
             $ref: '#/definitions/api_internal_handler.UnlockResponse'
+        "400":
+          description: Invalid request body or malformed base64
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: No active session
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "403":
-          description: Wrong Vault Key
+          description: Wrong Vault Key — auth key hash mismatch
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Unlock vault
-      tags:
-      - auth
-  /orgs:
-    get:
-      description: List all organizations the current user is a member of.
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: per_page
-        type: integer
-      - description: Sort by field
-        in: query
-        name: sort_by
-        type: string
-      - description: Sort direction (asc/desc)
-        in: query
-        name: sort_dir
-        type: string
-      - description: Search by organization name
-        in: query
-        name: search
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api_internal_handler.ListOrgsResponse'
-      security:
-      - SessionAuth: []
-      summary: List organizations
-      tags:
-      - organizations
-    post:
-      consumes:
-      - application/json
-      description: Create an organization. The creating user becomes the owner and
-        is added as an admin member.
-      parameters:
-      - description: Organization name
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/api_internal_handler.CreateOrgRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/api_internal_handler.OrgResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Create organization
-      tags:
-      - organizations
-  /orgs/{orgID}:
-    get:
-      description: Get a single organization by ID.
-      parameters:
-      - description: Organization UUID
-        in: path
-        name: orgID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api_internal_handler.OrgResponse'
         "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Get organization
-      tags:
-      - organizations
-  /orgs/{orgID}/members:
-    get:
-      description: List all members of an organization with their roles, emails, and
-        display names. Name is resolved from the auth table (table.User) via the vault
-        user's IdentityID.
-      parameters:
-      - description: Organization UUID
-        in: path
-        name: orgID
-        required: true
-        type: string
-      - description: 'Page number (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - description: 'Items per page (default: 20, max: 100)'
-        in: query
-        name: per_page
-        type: integer
-      - description: 'Sort field: email | role | joined_at (default: joined_at)'
-        in: query
-        name: sort_by
-        type: string
-      - description: 'Sort direction: asc | desc (default: desc)'
-        in: query
-        name: sort_dir
-        type: string
-      - description: Search by email (case-insensitive)
-        in: query
-        name: search
-        type: string
-      - description: Filter by role
-        in: query
-        name: role
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api_internal_handler.ListMembersResponse'
-        "400":
-          description: Invalid organization ID
+          description: Vault not set up for this account
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "500":
@@ -1545,82 +1522,9 @@ paths:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - SessionAuth: []
-      summary: List organization members
+      summary: Unlock vault
       tags:
-      - organizations
-    post:
-      consumes:
-      - application/json
-      description: Add a user to an organization. Provide either email (web) or user_id
-        UUID (CLI).
-      parameters:
-      - description: Organization UUID
-        in: path
-        name: orgID
-        required: true
-        type: string
-      - description: User (email or user_id) and role
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/api_internal_handler.AddMemberRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/api_internal_handler.MemberResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Add organization member
-      tags:
-      - organizations
-  /orgs/{orgID}/members/{memberID}:
-    delete:
-      description: Remove a member from an organization.
-      parameters:
-      - description: Organization UUID
-        in: path
-        name: orgID
-        required: true
-        type: string
-      - description: Member UUID
-        in: path
-        name: memberID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api_internal_handler.ErrorResponse'
-      security:
-      - SessionAuth: []
-      summary: Remove organization member
-      tags:
-      - organizations
+      - auth
   /preferences:
     get:
       description: Returns the current user's preference JSON.
@@ -2140,6 +2044,51 @@ paths:
       summary: Get project stats
       tags:
       - projects
+  /sdk/projects:
+    post:
+      consumes:
+      - application/json
+      description: 'Creates a project as the **service token creator** (Better Auth
+        user resolved from the token''s `created_by`). Inserts the project, initial
+        `project_vault_keys` row, and a `project_key_grants` row for that user. Payload
+        matches dashboard create: organization, display name, base64 project salt,
+        wrapped project DEK, and wrapped project vault key for the creator.'
+      parameters:
+      - description: organization_id, name, project_salt, wrapped_project_dek, wrapped_project_vault_key
+          (all base64 where applicable)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.ProjectResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "409":
+          description: Project name already exists in organization
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create project (SDK)
+      tags:
+      - sdk
   /sdk/projects/{projectID}/crypto:
     get:
       description: Returns project salt and wrapped Project DEK. SDK uses this to
@@ -2166,11 +2115,51 @@ paths:
       summary: Get project crypto
       tags:
       - projects
+  /sdk/projects/{projectID}/key-grant:
+    get:
+      description: Returns the **token creator's** wrapped project vault key for the
+        given project (`project_key_grants` row matching token `created_by` and path
+        `projectID`). Used by CLIs and automation to unwrap the project vault key
+        without a browser session. Not a generic lookup for arbitrary users.
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.KeyGrantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: No grant row for this creator and project
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get project key grant (SDK)
+      tags:
+      - sdk
   /sdk/secrets:
     get:
-      description: List secret metadata for a project. Never returns ciphertext or
-        nonces — only name hash, version, and timestamps. Supports pagination, sorting,
-        and filtering by environment and version.
+      description: 'List secret rows for a project: name hash, environment, version,
+        timestamps, and plaintext `metadata` (never ciphertext or nonces). Supports
+        pagination, sorting, and filters by environment and version.'
       parameters:
       - description: Project ID
         in: query
@@ -2225,9 +2214,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Store an encrypted vault item. Server stores opaque ciphertext
-        only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext
-        key name.
+      description: Store an encrypted vault item. The server stores opaque ciphertext
+        and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash).
+        Optional `metadata` is plaintext JSON (mime_type, description, tags, labels)
+        for operators and tooling — never put secret values in metadata.
       parameters:
       - description: Encrypted secret payload
         in: body
@@ -2305,8 +2295,9 @@ paths:
       tags:
       - secrets
     get:
-      description: Retrieve a single encrypted secret by its HMAC-SHA256 name hash.
-        The hash must match exactly — partial or plaintext lookups are not supported.
+      description: Retrieve one encrypted secret by HMAC-SHA256 name hash (must match
+        exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext
+        metadata. Partial or plaintext name lookups are not supported.
       parameters:
       - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
@@ -2350,9 +2341,10 @@ paths:
     put:
       consumes:
       - application/json
-      description: Replace the ciphertext and nonce for an existing secret. The current
-        version is automatically archived before overwriting, and the version counter
-        is incremented. Use GET /{nameHash}/versions to inspect history.
+      description: Replace ciphertext and nonce for an existing secret; the prior
+        row is archived and the version counter increments. Optional `metadata` in
+        the body is shallow-merged with existing server-side metadata (same validation
+        as PATCH metadata). Use GET /{nameHash}/versions for history.
       parameters:
       - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
@@ -2369,7 +2361,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: New ciphertext and nonce
+      - description: New ciphertext, nonce, and optional metadata merge
         in: body
         name: body
         required: true
@@ -2397,6 +2389,62 @@ paths:
       security:
       - BearerAuth: []
       summary: Update secret
+      tags:
+      - secrets
+  /sdk/secrets/{nameHash}/metadata:
+    patch:
+      consumes:
+      - application/json
+      description: Shallow-merge plaintext metadata for a vault item without changing
+        ciphertext, nonce, or the secret version counter. Use this when only labels,
+        MIME hints, or descriptions change. Body must be a JSON object; unknown keys
+        return 400. Send JSON null for a key to remove it. Total metadata size is
+        capped server-side.
+      parameters:
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment (development | staging | production)
+        in: query
+        name: environment
+        required: true
+        type: string
+      - description: Fields to merge (partial object)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.SecretMetadataMergeBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Empty body, invalid JSON, unknown keys, or metadata limits
+            exceeded
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Patch secret metadata
       tags:
       - secrets
   /sdk/secrets/{nameHash}/rollback:
@@ -2503,9 +2551,9 @@ paths:
       consumes:
       - application/json
       description: Fetch multiple encrypted secrets in one request by providing a
-        list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading.
-        Only secrets matching the given hashes, project, and environment are returned
-        — missing hashes are silently ignored.
+        list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each
+        item in the response includes optional plaintext `metadata` alongside ciphertext.
+        Missing hashes are omitted from the result (no error).
       parameters:
       - description: Project, environment, and list of name hashes to fetch
         in: body
@@ -2533,6 +2581,47 @@ paths:
       summary: Bulk fetch secrets
       tags:
       - secrets
+  /sdk/tokens:
+    post:
+      consumes:
+      - application/json
+      description: 'Issues a new service token on behalf of the **authenticated token''s
+        creator** (the `created_by` user from the parent token). Same semantics as
+        dashboard token create: plaintext returned once, stored as a hash. Requires
+        a valid service token with `read_write` when routed through the SDK write
+        group.'
+      parameters:
+      - description: project_id, name, environment; optional permission (read|read_write,
+          default read) and expires_at (RFC3339)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.CreateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api_internal_handler.CreateTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create service token (SDK)
+      tags:
+      - sdk
   /sdk/vault:
     get:
       description: Returns the token creator's vault crypto material for client-side
@@ -2555,7 +2644,9 @@ paths:
       - sdk
   /sdk/whoami:
     get:
-      description: Returns the token name, creator, project, environment, and permission.
+      description: Returns the token name, human-readable creator (when available),
+        project and organization names, environment, and permission for the **Bearer**
+        service token used on this request.
       produces:
       - application/json
       responses:
@@ -2563,6 +2654,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api_internal_handler.WhoamiResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Token identity
@@ -2570,9 +2669,9 @@ paths:
       - sdk
   /secrets:
     get:
-      description: List secret metadata for a project. Never returns ciphertext or
-        nonces — only name hash, version, and timestamps. Supports pagination, sorting,
-        and filtering by environment and version.
+      description: 'List secret rows for a project: name hash, environment, version,
+        timestamps, and plaintext `metadata` (never ciphertext or nonces). Supports
+        pagination, sorting, and filters by environment and version.'
       parameters:
       - description: Project ID
         in: query
@@ -2627,9 +2726,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Store an encrypted vault item. Server stores opaque ciphertext
-        only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext
-        key name.
+      description: Store an encrypted vault item. The server stores opaque ciphertext
+        and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash).
+        Optional `metadata` is plaintext JSON (mime_type, description, tags, labels)
+        for operators and tooling — never put secret values in metadata.
       parameters:
       - description: Encrypted secret payload
         in: body
@@ -2707,8 +2807,9 @@ paths:
       tags:
       - secrets
     get:
-      description: Retrieve a single encrypted secret by its HMAC-SHA256 name hash.
-        The hash must match exactly — partial or plaintext lookups are not supported.
+      description: Retrieve one encrypted secret by HMAC-SHA256 name hash (must match
+        exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext
+        metadata. Partial or plaintext name lookups are not supported.
       parameters:
       - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
@@ -2752,9 +2853,10 @@ paths:
     put:
       consumes:
       - application/json
-      description: Replace the ciphertext and nonce for an existing secret. The current
-        version is automatically archived before overwriting, and the version counter
-        is incremented. Use GET /{nameHash}/versions to inspect history.
+      description: Replace ciphertext and nonce for an existing secret; the prior
+        row is archived and the version counter increments. Optional `metadata` in
+        the body is shallow-merged with existing server-side metadata (same validation
+        as PATCH metadata). Use GET /{nameHash}/versions for history.
       parameters:
       - description: HMAC-SHA256 name hash (base64, URL-encoded)
         in: path
@@ -2771,7 +2873,7 @@ paths:
         name: environment
         required: true
         type: string
-      - description: New ciphertext and nonce
+      - description: New ciphertext, nonce, and optional metadata merge
         in: body
         name: body
         required: true
@@ -2799,6 +2901,62 @@ paths:
       security:
       - BearerAuth: []
       summary: Update secret
+      tags:
+      - secrets
+  /secrets/{nameHash}/metadata:
+    patch:
+      consumes:
+      - application/json
+      description: Shallow-merge plaintext metadata for a vault item without changing
+        ciphertext, nonce, or the secret version counter. Use this when only labels,
+        MIME hints, or descriptions change. Body must be a JSON object; unknown keys
+        return 400. Send JSON null for a key to remove it. Total metadata size is
+        capped server-side.
+      parameters:
+      - description: HMAC-SHA256 name hash (base64, URL-encoded)
+        in: path
+        name: nameHash
+        required: true
+        type: string
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      - description: Environment (development | staging | production)
+        in: query
+        name: environment
+        required: true
+        type: string
+      - description: Fields to merge (partial object)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api_internal_handler.SecretMetadataMergeBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_internal_handler.SecretResponse'
+        "400":
+          description: Empty body, invalid JSON, unknown keys, or metadata limits
+            exceeded
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "404":
+          description: Secret not found
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api_internal_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Patch secret metadata
       tags:
       - secrets
   /secrets/{nameHash}/rollback:
@@ -2905,9 +3063,9 @@ paths:
       consumes:
       - application/json
       description: Fetch multiple encrypted secrets in one request by providing a
-        list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading.
-        Only secrets matching the given hashes, project, and environment are returned
-        — missing hashes are silently ignored.
+        list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each
+        item in the response includes optional plaintext `metadata` alongside ciphertext.
+        Missing hashes are omitted from the result (no error).
       parameters:
       - description: Project, environment, and list of name hashes to fetch
         in: body
@@ -3070,15 +3228,15 @@ paths:
           schema:
             $ref: '#/definitions/api_internal_handler.PublicKeyResponse'
         "400":
-          description: Email query param required
+          description: Bad Request
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "401":
-          description: Authentication required
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
         "404":
-          description: User not found
+          description: Not Found
           schema:
             $ref: '#/definitions/api_internal_handler.ErrorResponse'
       security:

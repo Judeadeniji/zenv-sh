@@ -7,20 +7,20 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
+	"github.com/Judeadeniji/zenv-sh/api/internal/auth_client"
 	"github.com/Judeadeniji/zenv-sh/api/internal/handler"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
 )
 
 // Routes mounts all /v1 endpoints onto the given router.
-func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
-	identity := middleware.NewIdentitySession(db, rdb)
+func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer, ac *auth_client.Client) {
+	identity := middleware.NewIdentitySession(db, rdb, ac)
 	ta := middleware.NewTokenAuth(db)
 	auth := handler.NewAuthHandler(db, identity)
 	recovery := handler.NewRecoveryHandler(db, identity)
 	secrets := handler.NewSecretsHandler(db)
 	tokens := handler.NewTokensHandler(db)
 	projects := handler.NewProjectsHandler(db)
-	orgs := handler.NewOrgsHandler(db)
 	auditH := handler.NewAuditHandler(db, al)
 	prefs := handler.NewPreferencesHandler(db)
 
@@ -59,6 +59,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Get("/{nameHash}", secrets.Get)
 			r.Get("/{nameHash}/versions", secrets.Versions)
 			r.Post("/{nameHash}/rollback", secrets.Rollback)
+			r.Patch("/{nameHash}/metadata", secrets.PatchMetadata)
 			r.Put("/{nameHash}", secrets.Update)
 			r.Delete("/{nameHash}", secrets.Delete)
 		})
@@ -86,15 +87,6 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 			r.Delete("/{projectID}/rotation/{rotationID}", projects.CancelRotation)
 		})
 
-		r.Route("/orgs", func(r chi.Router) {
-			r.Post("/", orgs.Create)
-			r.Get("/", orgs.List)
-			r.Get("/{orgID}", orgs.Get)
-			r.Get("/{orgID}/members", orgs.ListMembers)
-			r.Post("/{orgID}/members", orgs.AddMember)
-			r.Delete("/{orgID}/members/{memberID}", orgs.RemoveMember)
-		})
-
 		// Recovery — requires vault unlocked
 		r.Post("/auth/recovery/trusted-contact", recovery.SetTrustedContact)
 		r.Delete("/auth/recovery/trusted-contact", recovery.RemoveTrustedContact)
@@ -116,14 +108,6 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 
 		r.Get("/whoami", tokens.Whoami)
 		r.Get("/vault", projects.GetVaultMaterial)
-
-		// Organizations
-		r.Get("/orgs", orgs.ListForToken)
-		r.Post("/orgs", orgs.CreateForToken)
-		r.Get("/orgs/{orgID}", orgs.Get)
-		r.Get("/orgs/{orgID}/members", orgs.ListMembers)
-		r.Post("/orgs/{orgID}/members", orgs.AddMemberForToken)
-		r.Delete("/orgs/{orgID}/members/{memberID}", orgs.RemoveMemberForToken)
 
 		// Projects
 		r.Get("/projects", projects.List)
@@ -149,6 +133,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer) {
 
 			r.Post("/secrets", secrets.Create)
 			r.Put("/secrets/{nameHash}", secrets.Update)
+			r.Patch("/secrets/{nameHash}/metadata", secrets.PatchMetadata)
 			r.Post("/secrets/{nameHash}/rollback", secrets.Rollback)
 			r.Delete("/secrets/{nameHash}", secrets.Delete)
 		})

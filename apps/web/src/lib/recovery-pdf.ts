@@ -38,7 +38,11 @@ export function generateRecoveryKitPDF(email: string, mnemonic: string, date: st
 		margin + 4,
 		60,
 	)
-	doc.text("Store it in a secure location. Anyone with these words can access your secrets.", margin + 4, 65)
+	doc.text(
+		"Store it in a secure location. Anyone with these words can access your secrets.",
+		margin + 4,
+		65,
+	)
 
 	// Recovery words grid
 	doc.setTextColor(0)

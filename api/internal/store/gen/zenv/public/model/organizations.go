@@ -13,9 +13,11 @@ import (
 )
 
 type Organizations struct {
-	ID            uuid.UUID `sql:"primary_key"`
-	Name          string
-	OwnerID       uuid.UUID
-	CreatedAt     time.Time
-	IdentityOrgID *string
+	ID        uuid.UUID `sql:"primary_key"`
+	Name      string
+	Slug      string
+	Logo      *string
+	CreatedAt time.Time
+	Metadata  *string
+	OwnerID   *uuid.UUID
 }

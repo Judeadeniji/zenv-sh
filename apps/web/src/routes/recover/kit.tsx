@@ -2,7 +2,14 @@ import { useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { z } from "zod"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
@@ -69,7 +76,7 @@ function RegenerateFlow() {
 			// Verify against server
 			const { data, error } = await api().POST("/auth/unlock", {
 				body: { auth_key_hash: toBase64(authKeyHash) },
-			})	
+			})
 			if (error || !data) throw new Error("Wrong Vault Key")
 
 			const res = data
@@ -163,9 +170,7 @@ function RegenerateFlow() {
 								{(verifyError || regenerate.error) && (
 									<Alert variant="danger" className="mb-4">
 										<AlertCircle />
-										<AlertDescription>
-											{verifyError || regenerate.error?.message}
-										</AlertDescription>
+										<AlertDescription>{verifyError || regenerate.error?.message}</AlertDescription>
 									</Alert>
 								)}
 
@@ -202,11 +207,17 @@ function RegenerateFlow() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>
@@ -368,11 +379,17 @@ function RecoverFlow() {
 				<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 					<span>&copy; {new Date().getFullYear()} zEnv</span>
 					<div className="flex items-center gap-1">
-						<a href="/support" className="hover:text-foreground">Support</a>
+						<a href="/support" className="hover:text-foreground">
+							Support
+						</a>
 						<span>&middot;</span>
-						<a href="/privacy" className="hover:text-foreground">Privacy</a>
+						<a href="/privacy" className="hover:text-foreground">
+							Privacy
+						</a>
 						<span>&middot;</span>
-						<a href="/terms" className="hover:text-foreground">Terms</a>
+						<a href="/terms" className="hover:text-foreground">
+							Terms
+						</a>
 					</div>
 				</footer>
 			</div>
@@ -404,11 +421,7 @@ function RecoverFlow() {
 									</Alert>
 								)}
 
-								<MnemonicInput
-									words={words}
-									onChange={setWords}
-									disabled={verifyWords.isPending}
-								/>
+								<MnemonicInput words={words} onChange={setWords} disabled={verifyWords.isPending} />
 
 								<Button
 									variant="solid"
@@ -439,11 +452,17 @@ function RecoverFlow() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

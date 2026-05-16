@@ -7,39 +7,62 @@ import (
 	"testing"
 	"time"
 
+	// . "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
 )
 
 // setupProjectCtx creates an identity user, zenv user, an org, and unlocks the vault.
 // Returns the session token, user ID, and org ID.
 func setupProjectCtx(t *testing.T) (sessionToken string, userID uuid.UUID, orgID uuid.UUID) {
 	t.Helper()
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	zenvUser := test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
-	// Create org via fixture (direct DB insert).
+	// Create org via Jet.
 	oid := uuid.New()
-	_, err := ts.DB.Exec(
-		`INSERT INTO organizations (id, name, owner_id) VALUES ($1, $2, $3)`,
-		oid, "TestOrg-"+uuid.New().String()[:8], zenvUser.UserID,
-	)
+	now := time.Now().UTC()
+	_, err := table.Organizations.INSERT(
+		table.Organizations.ID,
+		table.Organizations.Name,
+		table.Organizations.Slug,
+		table.Organizations.CreatedAt,
+		table.Organizations.OwnerID,
+	).VALUES(
+		oid.String(),
+		"TestOrg-"+uuid.New().String()[:8],
+		"test-org-"+uuid.New().String()[:8],
+		now,
+		identity.IdentityID,
+	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org: %v", err)
 	}
-	_, err = ts.DB.Exec(
-		`INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'admin')`,
-		oid, zenvUser.UserID,
-	)
+
+	// Create membership via Jet.
+	_, err = table.Members.INSERT(
+		table.Members.ID,
+		table.Members.OrganizationID,
+		table.Members.UserID,
+		table.Members.Role,
+		table.Members.CreatedAt,
+	).VALUES(
+		uuid.New().String(),
+		oid.String(),
+		identity.IdentityID,
+		"admin",
+		now,
+	).Exec(ts.DB)
 	if err != nil {
 		t.Fatalf("insert org member: %v", err)
 	}
 
 	// Unlock vault in Redis.
-	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	if err := idSession.SetVaultUnlocked(context.Background(), identity.SessionToken, time.Now().Add(24*time.Hour)); err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
 	}
@@ -64,10 +87,10 @@ func TestCreateProject_Success(t *testing.T) {
 	wrappedPVK := amnesia.GenerateKey() // stand-in for wrapped key
 
 	reqBody := jsonBody{
-		"organization_id":          orgID.String(),
-		"name":                     "my-project-" + uuid.New().String()[:8],
-		"project_salt":             base64.StdEncoding.EncodeToString(projectSalt),
-		"wrapped_project_dek":      base64.StdEncoding.EncodeToString(wrappedPDEKFull),
+		"organization_id":           orgID.String(),
+		"name":                      "my-project-" + uuid.New().String()[:8],
+		"project_salt":              base64.StdEncoding.EncodeToString(projectSalt),
+		"wrapped_project_dek":       base64.StdEncoding.EncodeToString(wrappedPDEKFull),
 		"wrapped_project_vault_key": base64.StdEncoding.EncodeToString(wrappedPVK),
 	}
 
@@ -90,12 +113,12 @@ func TestCreateProject_Success(t *testing.T) {
 }
 
 func TestListProjects_Success(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	orgID, _ := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	orgID, _ := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
 
 	// Unlock vault.
-	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	if err := idSession.SetVaultUnlocked(context.Background(), identity.SessionToken, time.Now().Add(24*time.Hour)); err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
 	}
@@ -117,12 +140,12 @@ func TestListProjects_Success(t *testing.T) {
 }
 
 func TestGetProject_Success(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
 
 	// Unlock vault.
-	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	if err := idSession.SetVaultUnlocked(context.Background(), identity.SessionToken, time.Now().Add(24*time.Hour)); err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
 	}
@@ -143,11 +166,11 @@ func TestGetProject_Success(t *testing.T) {
 }
 
 func TestGetProject_NotFound(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
 
 	// Unlock vault.
-	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	idSession := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	if err := idSession.SetVaultUnlocked(context.Background(), identity.SessionToken, time.Now().Add(24*time.Hour)); err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
 	}
@@ -159,12 +182,12 @@ func TestGetProject_NotFound(t *testing.T) {
 }
 
 func TestGetCrypto_Success(t *testing.T) {
-	identity := testutil.CreateIdentityUser(t, ts.DB)
-	zenvUser := testutil.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
-	_, projectID := testutil.CreateProject(t, ts.DB, zenvUser.UserID)
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
 
 	// Service token for SDK access.
-	svcToken := testutil.CreateServiceToken(t, ts.DB, projectID, "development", "read")
+	svcToken := test_util.CreateServiceToken(t, ts.DB, projectID, "development", "read")
 
 	cryptoURL := fmt.Sprintf("%s/v1/sdk/projects/%s/crypto", ts.URL, projectID.String())
 	resp := doReq(t, "GET", cryptoURL, nil, svcToken)

@@ -13,18 +13,16 @@ import (
 )
 
 type Users struct {
-	ID                 uuid.UUID `sql:"primary_key"`
-	Email              string
-	AuthKeyHash        []byte
-	VaultKeyType       string
-	Salt               []byte
-	WrappedDek         []byte
-	PublicKey          []byte
-	WrappedPrivateKey  []byte
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	IdentityID         *string
-	RecoveryWrappedDek *[]byte
-	RecoveryDisabled   bool
-	Preferences        string
+	ID               uuid.UUID `sql:"primary_key"`
+	Name             string
+	Email            string
+	EmailVerified    bool
+	Image            *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Role             *string
+	Banned           *bool
+	BanReason        *string
+	BanExpires       *time.Time
+	TwoFactorEnabled *bool
 }

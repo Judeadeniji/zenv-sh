@@ -73,13 +73,15 @@ func (w *Writer) createPartition(ctx context.Context, t time.Time) error {
 	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, 0)
 
+	// Table name is interpolated directly because Postgres does not accept
+	// parameterized identifiers in DDL. partitionName() only produces
+	// "audit_logs_YYYY_MM" from a time.Time, so there is no injection surface.
 	query := fmt.Sprintf(
 		`CREATE TABLE IF NOT EXISTS %s PARTITION OF audit_logs FOR VALUES FROM ('%s') TO ('%s')`,
 		name,
 		start.Format("2006-01-02"),
 		end.Format("2006-01-02"),
 	)
-
 	_, err := w.db.ExecContext(ctx, query)
 	if err == nil {
 		slog.Debug("audit: partition ensured", "name", name)
@@ -89,15 +91,16 @@ func (w *Writer) createPartition(ctx context.Context, t time.Time) error {
 
 func (w *Writer) dropPartition(ctx context.Context, t time.Time) error {
 	name := partitionName(t)
-	query := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, name)
 
+	// Same as createPartition: DDL identifiers cannot be parameterized.
+	// partitionName() is the only input, so the value is always safe.
+	query := fmt.Sprintf(`DROP TABLE IF EXISTS %s`, name)
 	_, err := w.db.ExecContext(ctx, query)
 	if err == nil {
 		slog.Info("audit: partition dropped", "name", name)
 	}
 	return err
 }
-
 func partitionName(t time.Time) string {
 	return fmt.Sprintf("audit_logs_%04d_%02d", t.Year(), t.Month())
 }

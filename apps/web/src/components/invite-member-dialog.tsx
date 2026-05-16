@@ -2,12 +2,27 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "#/components/ui/dialog"
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+	DialogClose,
+} from "#/components/ui/dialog"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { Alert, AlertDescription } from "#/components/ui/alert"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "#/components/ui/select"
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from "#/components/ui/select"
 import { authClient } from "#/lib/auth-client"
 import { AlertCircle, Copy, Check, Link } from "lucide-react"
 
@@ -78,13 +93,20 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true) }}>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				if (!v) handleClose()
+				else setOpen(true)
+			}}
+		>
 			<DialogTrigger render={trigger} nativeButton={false} />
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Invite a member</DialogTitle>
 					<DialogDescription>
-						Generate a one-time invite link. When they visit it they'll be added to your organization.
+						Generate a one-time invite link. When they visit it they'll be added to your
+						organization.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -101,11 +123,20 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 						</div>
 
 						<div className="flex items-center gap-2">
-							<code className="flex-1 truncate rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs">
-								{inviteLink}
+							<code className="flex-1 min-w-0 truncate rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs">
+								{inviteLink.slice(0, 20)}...{inviteLink.slice(-20)}
 							</code>
-							<Button variant="outline" size="icon-sm" onClick={handleCopy} title="Copy invite link">
-								{copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+							<Button
+								variant="outline"
+								size="icon-sm"
+								onClick={handleCopy}
+								title="Copy invite link"
+							>
+								{copied ? (
+									<Check className="size-3.5 text-success" />
+								) : (
+									<Copy className="size-3.5" />
+								)}
 							</Button>
 						</div>
 
@@ -114,11 +145,21 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 						</p>
 
 						<DialogFooter>
-							<Button variant="ghost" size="sm" type="button" onClick={() => { setInviteLink(null); setError(null) }}>
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								onClick={() => {
+									setInviteLink(null)
+									setError(null)
+								}}
+							>
 								Invite another
 							</Button>
 							<DialogClose>
-								<Button variant="solid" size="sm" type="button">Done</Button>
+								<Button variant="solid" size="sm" type="button">
+									Done
+								</Button>
 							</DialogClose>
 						</DialogFooter>
 					</div>
@@ -132,7 +173,9 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 						)}
 
 						<div className="space-y-1.5">
-							<Label htmlFor="invite-email" className="text-xs block">Email address</Label>
+							<Label htmlFor="invite-email" className="text-xs block">
+								Email address
+							</Label>
 							<Input
 								id="invite-email"
 								type="email"
@@ -165,7 +208,9 @@ export function InviteMemberDialog({ orgId, trigger }: InviteMemberDialogProps) 
 
 						<DialogFooter>
 							<DialogClose>
-								<Button variant="ghost" size="sm" type="button">Cancel</Button>
+								<Button variant="ghost" size="sm" type="button">
+									Cancel
+								</Button>
 							</DialogClose>
 							<Button type="submit" variant="solid" size="sm" isLoading={isPending}>
 								Generate invite link

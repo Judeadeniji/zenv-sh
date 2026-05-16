@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
+	"github.com/Judeadeniji/zenv-sh/api/internal/auth_client"
 	"github.com/Judeadeniji/zenv-sh/api/internal/config"
 	v1 "github.com/Judeadeniji/zenv-sh/api/internal/server/v1"
 )
@@ -28,6 +29,8 @@ func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) (*chi.Mux, *audit.Wr
 		RetainMonths: 12,
 		CreateAhead:  3,
 	})
+
+	auth := auth_client.New(cfg.AuthServerURL)
 
 	r := chi.NewRouter()
 
@@ -59,7 +62,7 @@ func New(db *sql.DB, rdb *redis.Client, cfg *config.Config) (*chi.Mux, *audit.Wr
 	// API versions
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(al.Middleware) // Audit every /v1 request
-		v1.Routes(r, db, rdb, al)
+		v1.Routes(r, db, rdb, al, auth)
 	})
 
 	return r, al

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/audit"
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
+	"github.com/Judeadeniji/zenv-sh/api/internal/user_lookup"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/model"
 	"github.com/Judeadeniji/zenv-sh/api/internal/store/gen/zenv/public/table"
 )
@@ -65,6 +66,8 @@ type AuditLogListResponse struct {
 //	@Param			per_page	query		int		false	"Items per page (default 50, max 100)"
 //	@Success		200			{object}	AuditLogListResponse
 //	@Failure		400			{object}	ErrorResponse
+//	@Failure		401			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
 //	@Security		SessionAuth
 //	@Router			/audit-logs [get]
 func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -150,15 +153,13 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	type auditRow struct {
 		model.AuditLogs
-		ActorEmail *string `alias:"users.email"`
 	}
 	var rows []auditRow
 
 	stmt := SELECT(
 		table.AuditLogs.AllColumns,
-		table.Users.Email,
 	).FROM(
-		table.AuditLogs.LEFT_JOIN(table.Users, RawBool("audit_logs.user_id::text = users.id::text")),
+		table.AuditLogs,
 	).WHERE(where).
 		ORDER_BY(orderBy).
 		LIMIT(params.Limit()).
@@ -170,10 +171,27 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var userIDs []uuid.UUID
+	for _, row := range rows {
+		if row.UserID != nil {
+			userIDs = append(userIDs, *row.UserID)
+		}
+	}
+	emailByUser, err := user_lookup.BatchByIDs(r.Context(), h.db, userIDs)
+	if err != nil {
+		slog.Error("audit-list: user lookup", "error", err)
+	}
+
 	entries := make([]AuditLogEntry, 0, len(rows))
-	for _, r := range rows {
-		e := auditModelToEntry(r.AuditLogs)
-		e.ActorEmail = r.ActorEmail
+	for _, row := range rows {
+		e := auditModelToEntry(row.AuditLogs)
+		if row.UserID != nil {
+			uid := row.UserID.String()
+			if prof, ok := emailByUser[uid]; ok && prof.Email != "" {
+				em := prof.Email
+				e.ActorEmail = &em
+			}
+		}
 		entries = append(entries, e)
 	}
 
@@ -195,7 +213,10 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 //	@Param			action		query	string	false	"Filter by action"
 //	@Param			user_id		query	string	false	"Filter by user ID"
 //	@Param			result		query	string	false	"Filter by result"
-//	@Success		200
+//	@Success		200				"CSV stream (Content-Disposition attachment)"
+//	@Failure		400				{object}	ErrorResponse
+//	@Failure		401				{object}	ErrorResponse
+//	@Failure		500				{object}	ErrorResponse
 //	@Security		SessionAuth
 //	@Router			/audit-logs/export [get]
 func (h *AuditHandler) Export(w http.ResponseWriter, r *http.Request) {
@@ -343,7 +364,9 @@ func ptrStr(s *string) string {
 //	@Tags			audit
 //	@Produce		json
 //	@Success		200	{object}	map[string]int
+//	@Failure		401	{object}	ErrorResponse
 //	@Failure		403	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
 //	@Security		SessionAuth
 //	@Router			/audit-logs/drain [post]
 func (h *AuditHandler) Drain(w http.ResponseWriter, r *http.Request) {

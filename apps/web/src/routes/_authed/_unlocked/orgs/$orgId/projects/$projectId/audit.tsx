@@ -1,11 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
-import { type ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select"
 import { DataTable } from "#/components/data-table"
 import { SearchInput } from "#/components/search-input"
 import { auditQueryOptions } from "#/lib/queries/audit"
@@ -13,16 +19,18 @@ import { formatRelativeTime } from "#/lib/format"
 import { env } from "#/lib/env"
 import { Shield, Download } from "lucide-react"
 
-const searchSchema = z.object({
-	page: z.number().catch(1),
-	per_page: z.number().catch(50),
-	action: z.string(),
-	actor_id: z.string(),
-	target_id: z.string(),
-	sort_by: z.string(),
-	sort_dir: z.enum(["asc", "desc"]),
-	result: z.string(),
-}).partial();
+const searchSchema = z
+	.object({
+		page: z.number().catch(1),
+		per_page: z.number().catch(50),
+		action: z.string(),
+		actor_id: z.string(),
+		target_id: z.string(),
+		sort_by: z.string(),
+		sort_dir: z.enum(["asc", "desc"]),
+		result: z.string(),
+	})
+	.partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/audit")({
 	validateSearch: searchSchema,
@@ -46,7 +54,9 @@ function AuditPage() {
 	const navigate = Route.useNavigate()
 
 	const { data, isLoading } = useQuery(auditQueryOptions(projectId, search))
-	const resp = data as { entries?: AuditRow[]; meta?: { total?: number; page?: number; total_pages?: number } } | undefined
+	const resp = data as
+		| { entries?: AuditRow[]; meta?: { total?: number; page?: number; total_pages?: number } }
+		| undefined
 	const entries = resp?.entries ?? []
 
 	const handleExport = () => {
@@ -58,7 +68,11 @@ function AuditPage() {
 		{
 			accessorKey: "action",
 			header: "Action",
-			cell: ({ row }) => <Badge variant="neutral" className="font-mono text-[11px]">{row.original.action}</Badge>,
+			cell: ({ row }) => (
+				<Badge variant="neutral" className="font-mono text-[11px]">
+					{row.original.action}
+				</Badge>
+			),
 		},
 		{
 			id: "actor",
@@ -70,7 +84,11 @@ function AuditPage() {
 						<span className="truncate text-xs text-muted-foreground">
 							{actor_email ?? user_id?.slice(0, 8) ?? "—"}
 						</span>
-						{token_id && <Badge variant="neutral" className="text-[10px]">token</Badge>}
+						{token_id && (
+							<Badge variant="neutral" className="text-[10px]">
+								token
+							</Badge>
+						)}
 					</div>
 				)
 			},
@@ -79,7 +97,15 @@ function AuditPage() {
 			accessorKey: "result",
 			header: "Result",
 			cell: ({ row }) => (
-				<Badge variant={row.original.result === "success" ? "success" : row.original.result === "denied" ? "danger" : "neutral"}>
+				<Badge
+					variant={
+						row.original.result === "success"
+							? "success"
+							: row.original.result === "denied"
+								? "danger"
+								: "neutral"
+					}
+				>
 					{row.original.result}
 				</Badge>
 			),
@@ -106,7 +132,9 @@ function AuditPage() {
 		return (
 			<div>
 				<PageHeader onExport={handleExport} />
-				<div className="flex items-center justify-center py-20"><Spinner /></div>
+				<div className="flex items-center justify-center py-20">
+					<Spinner />
+				</div>
 			</div>
 		)
 	}
@@ -122,7 +150,10 @@ function AuditPage() {
 					placeholder="Filter by action..."
 					value={search.action}
 					onChange={(val) => {
-						navigate({ search: (prev) => ({ ...prev, action: val || undefined, page: 1 }), replace: true })
+						navigate({
+							search: (prev) => ({ ...prev, action: val || undefined, page: 1 }),
+							replace: true,
+						})
 					}}
 				/>
 				<Select
@@ -152,12 +183,17 @@ function AuditPage() {
 			<DataTable
 				columns={columns}
 				data={entries}
-				pagination={resp?.meta ? {
-					page: resp.meta.page ?? 1,
-					totalPages: resp.meta.total_pages ?? 1,
-					total: resp.meta.total ?? 0,
-					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }), replace: true })
-				} : undefined}
+				pagination={
+					resp?.meta
+						? {
+								page: resp.meta.page ?? 1,
+								totalPages: resp.meta.total_pages ?? 1,
+								total: resp.meta.total ?? 0,
+								onPageChange: (p) =>
+									navigate({ search: (prev) => ({ ...prev, page: p }), replace: true }),
+							}
+						: undefined
+				}
 				emptyIcon={<Shield />}
 				emptyTitle="No activity yet"
 				emptyDescription="Every secret access, change, and token usage is logged here automatically. Activity will appear once you start using your project."
@@ -171,7 +207,9 @@ function PageHeader({ onExport }: { onExport: () => void }) {
 		<div className="flex items-center justify-between">
 			<div>
 				<h1 className="text-lg font-semibold">Audit Log</h1>
-				<p className="mt-1 text-sm text-muted-foreground">A record of every action in your project.</p>
+				<p className="mt-1 text-sm text-muted-foreground">
+					A record of every action in your project.
+				</p>
 			</div>
 			<Button variant="outline" size="sm" onClick={onExport}>
 				<Download /> Export CSV

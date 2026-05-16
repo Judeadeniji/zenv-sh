@@ -2,7 +2,14 @@ import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -125,7 +132,9 @@ function OnboardingWizard() {
 						>
 							{i < currentIdx ? <Check className="size-3" /> : i + 1}
 						</div>
-						<span className={`text-xs ${i <= currentIdx ? "text-foreground" : "text-muted-foreground"}`}>
+						<span
+							className={`text-xs ${i <= currentIdx ? "text-foreground" : "text-muted-foreground"}`}
+						>
 							{s.label}
 						</span>
 						{i < steps.length - 1 && <Separator className="w-6" />}
@@ -156,7 +165,9 @@ function OnboardingWizard() {
 									)}
 
 									<div className="space-y-2">
-										<Label htmlFor="org-name" className="text-xs block">Organization name</Label>
+										<Label htmlFor="org-name" className="text-xs block">
+											Organization name
+										</Label>
 										<Input
 											id="org-name"
 											placeholder="Acme Inc"
@@ -165,11 +176,18 @@ function OnboardingWizard() {
 											autoFocus
 										/>
 										{orgForm.formState.errors.name && (
-											<p className="text-xs text-destructive">{orgForm.formState.errors.name.message}</p>
+											<p className="text-xs text-destructive">
+												{orgForm.formState.errors.name.message}
+											</p>
 										)}
 									</div>
 
-									<Button type="submit" variant="solid" isLoading={createOrg.isPending} className="mt-1 w-full">
+									<Button
+										type="submit"
+										variant="solid"
+										isLoading={createOrg.isPending}
+										className="mt-1 w-full"
+									>
 										Continue
 										<ArrowRight />
 									</Button>
@@ -178,7 +196,10 @@ function OnboardingWizard() {
 
 							{/* Step 2: Create Project */}
 							{step === "project" && (
-								<form onSubmit={projectForm.handleSubmit(handleCreateProject)} className="grid gap-3">
+								<form
+									onSubmit={projectForm.handleSubmit(handleCreateProject)}
+									className="grid gap-3"
+								>
 									{createProject.error && (
 										<Alert variant="danger">
 											<AlertCircle />
@@ -187,7 +208,9 @@ function OnboardingWizard() {
 									)}
 
 									<div className="space-y-1.5">
-										<Label htmlFor="project-name" className="text-xs">Project name</Label>
+										<Label htmlFor="project-name" className="text-xs">
+											Project name
+										</Label>
 										<Input
 											id="project-name"
 											placeholder="my-app"
@@ -196,12 +219,21 @@ function OnboardingWizard() {
 											autoFocus
 										/>
 										{projectForm.formState.errors.name && (
-											<p className="text-xs text-destructive">{projectForm.formState.errors.name.message}</p>
+											<p className="text-xs text-destructive">
+												{projectForm.formState.errors.name.message}
+											</p>
 										)}
-										<p className="text-xs text-muted-foreground">Lowercase letters, numbers, and hyphens.</p>
+										<p className="text-xs text-muted-foreground">
+											Lowercase letters, numbers, and hyphens.
+										</p>
 									</div>
 
-									<Button type="submit" variant="solid" isLoading={createProject.isPending} className="mt-1 w-full">
+									<Button
+										type="submit"
+										variant="solid"
+										isLoading={createProject.isPending}
+										className="mt-1 w-full"
+									>
 										Continue
 										<ArrowRight />
 									</Button>
@@ -217,7 +249,8 @@ function OnboardingWizard() {
 										id="env-import"
 									/>
 									<p className="text-xs text-muted-foreground">
-										Each line should be in key=value format. Comments (#) and empty lines are ignored.
+										Each line should be in key=value format. Comments (#) and empty lines are
+										ignored.
 									</p>
 
 									{/* TODO: Wire up .env parsing + encryption + bulk create */}

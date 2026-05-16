@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"github.com/Judeadeniji/zenv-sh/api/internal/middleware"
-	"github.com/Judeadeniji/zenv-sh/api/internal/testutil"
+	"github.com/Judeadeniji/zenv-sh/api/internal/test_util"
 )
 
-var ts *testutil.TestServer
+var ts *test_util.TestServer
 
 func TestMain(m *testing.M) {
-	srv, cleanup := testutil.SetupServerForMain()
+	srv, cleanup := test_util.SetupServerForMain()
 	ts = srv
 	code := m.Run()
 	cleanup()
@@ -22,20 +22,20 @@ func TestMain(m *testing.M) {
 }
 
 func TestRequireSession_ValidCookie(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
+	user := test_util.CreateIdentityUser(t, ts)
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.AddCookie(testutil.SessionCookie(user.SessionToken))
+	req.AddCookie(test_util.SessionCookie(user.SessionToken))
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	handler := identity.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess := middleware.GetSession(r.Context())
 		if sess == nil {
 			t.Fatal("session is nil in context")
 		}
-		if sess.IdentityID != user.IdentityID {
-			t.Errorf("identity ID = %q, want %q", sess.IdentityID, user.IdentityID)
+		if sess.UserID != user.IdentityID {
+			t.Errorf("identity ID = %q, want %q", sess.UserID, user.IdentityID)
 		}
 		if sess.Email != user.Email {
 			t.Errorf("email = %q, want %q", sess.Email, user.Email)
@@ -51,20 +51,20 @@ func TestRequireSession_ValidCookie(t *testing.T) {
 }
 
 func TestRequireSession_ValidBearerHeader(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
+	user := test_util.CreateIdentityUser(t, ts)
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer "+user.SessionToken)
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	handler := identity.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess := middleware.GetSession(r.Context())
 		if sess == nil {
 			t.Fatal("session is nil")
 		}
-		if sess.IdentityID != user.IdentityID {
-			t.Errorf("identity ID = %q, want %q", sess.IdentityID, user.IdentityID)
+		if sess.UserID != user.IdentityID {
+			t.Errorf("identity ID = %q, want %q", sess.UserID, user.IdentityID)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -77,13 +77,13 @@ func TestRequireSession_ValidBearerHeader(t *testing.T) {
 }
 
 func TestRequireSession_ExpiredSession(t *testing.T) {
-	user := testutil.CreateExpiredIdentityUser(t, ts.DB)
+	user := test_util.CreateExpiredIdentityUser(t, ts)
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.AddCookie(testutil.SessionCookie(user.SessionToken))
+	req.AddCookie(test_util.SessionCookie(user.SessionToken))
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	handler := identity.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("handler should not be called for expired session")
 	}))
@@ -99,7 +99,7 @@ func TestRequireSession_MissingCookie(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	handler := identity.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("handler should not be called without session")
 	}))
@@ -122,10 +122,10 @@ func TestRequireSession_MissingCookie(t *testing.T) {
 
 func TestRequireSession_InvalidToken(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.AddCookie(testutil.SessionCookie("not-a-real-token"))
+	req.AddCookie(test_util.SessionCookie("not-a-real-token"))
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	handler := identity.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("handler should not be called with invalid token")
 	}))
@@ -138,13 +138,13 @@ func TestRequireSession_InvalidToken(t *testing.T) {
 }
 
 func TestRequireVaultUnlocked_Locked(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
+	user := test_util.CreateIdentityUser(t, ts)
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.AddCookie(testutil.SessionCookie(user.SessionToken))
+	req.AddCookie(test_util.SessionCookie(user.SessionToken))
 	w := httptest.NewRecorder()
 
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 
 	// Chain: RequireSession → RequireVaultUnlocked → handler
 	handler := identity.RequireSession(
@@ -161,19 +161,19 @@ func TestRequireVaultUnlocked_Locked(t *testing.T) {
 }
 
 func TestRequireVaultUnlocked_Unlocked(t *testing.T) {
-	user := testutil.CreateIdentityUser(t, ts.DB)
+	user := test_util.CreateIdentityUser(t, ts)
 
 	// Mark vault as unlocked in Redis.
-	identity := middleware.NewIdentitySession(ts.DB, ts.Redis)
+	identity := middleware.NewIdentitySession(ts.DB, ts.Redis, ts.AuthClient)
 	if err := identity.SetVaultUnlocked(
-		testutil.Ctx(), user.SessionToken,
-		testutil.FutureTime(),
+		test_util.Ctx(), user.SessionToken,
+		test_util.FutureTime(),
 	); err != nil {
 		t.Fatalf("set vault unlocked: %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.AddCookie(testutil.SessionCookie(user.SessionToken))
+	req.AddCookie(test_util.SessionCookie(user.SessionToken))
 	w := httptest.NewRecorder()
 
 	handler := identity.RequireSession(

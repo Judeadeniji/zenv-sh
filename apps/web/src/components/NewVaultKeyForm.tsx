@@ -131,7 +131,12 @@ export function NewVaultKeyForm({
 			</TabsList>
 
 			<TabsContent value="passphrase">
-				<form onSubmit={passphraseForm.handleSubmit((data) => handlePassphraseSubmit(data as PassphraseInput))} className="grid gap-3">
+				<form
+					onSubmit={passphraseForm.handleSubmit((data) =>
+						handlePassphraseSubmit(data as PassphraseInput),
+					)}
+					className="grid gap-3"
+				>
 					<div className="space-y-1.5">
 						<Label htmlFor="passphrase" className="text-xs">
 							{needsConfirm ? "Passphrase" : "Enter your passphrase"}
@@ -143,13 +148,17 @@ export function NewVaultKeyForm({
 							feedback={passphraseForm.formState.errors.passphrase ? "error" : undefined}
 						/>
 						{passphraseForm.formState.errors.passphrase && (
-							<p className="text-xs text-destructive">{passphraseForm.formState.errors.passphrase.message}</p>
+							<p className="text-xs text-destructive">
+								{passphraseForm.formState.errors.passphrase.message}
+							</p>
 						)}
 					</div>
 
 					{needsConfirm && (
 						<div className="space-y-1.5">
-							<Label htmlFor="confirm-passphrase" className="text-xs">Confirm passphrase</Label>
+							<Label htmlFor="confirm-passphrase" className="text-xs">
+								Confirm passphrase
+							</Label>
 							<PasswordInput
 								id="confirm-passphrase"
 								placeholder="Re-enter passphrase"
@@ -164,14 +173,23 @@ export function NewVaultKeyForm({
 						</div>
 					)}
 
-					<Button type="submit" variant="solid" isLoading={isLoading} loadingText={loadingText} className="mt-1 w-full">
+					<Button
+						type="submit"
+						variant="solid"
+						isLoading={isLoading}
+						loadingText={loadingText}
+						className="mt-1 w-full"
+					>
 						{submitLabel}
 					</Button>
 				</form>
 			</TabsContent>
 
 			<TabsContent value="pin">
-				<form onSubmit={pinForm.handleSubmit(data => handlePinSubmit(data as PinInput))} className="grid gap-4">
+				<form
+					onSubmit={pinForm.handleSubmit((data) => handlePinSubmit(data as PinInput))}
+					className="grid gap-4"
+				>
 					{!needsConfirm || pinStep === "enter" ? (
 						<Controller
 							control={pinForm.control}
@@ -201,7 +219,9 @@ export function NewVaultKeyForm({
 										label="Confirm your PIN"
 										value={field.value || ""}
 										onChange={field.onChange}
-										error={fieldState.error?.message || pinForm.formState.errors.confirmPin?.message}
+										error={
+											fieldState.error?.message || pinForm.formState.errors.confirmPin?.message
+										}
 										autoFocus
 									/>
 								)}

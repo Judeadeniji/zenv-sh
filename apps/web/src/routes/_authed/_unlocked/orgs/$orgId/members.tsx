@@ -7,8 +7,13 @@ import { Button } from "#/components/ui/button"
 import { Badge } from "#/components/ui/badge"
 import { Avatar } from "#/components/ui/avatar"
 import { Spinner } from "#/components/ui/spinner"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "#/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#/components/ui/select"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from "#/components/ui/sheet"
 import { DataTable } from "#/components/data-table"
 import { SearchInput } from "#/components/search-input"
 import { InviteMemberDialog } from "#/components/invite-member-dialog"
@@ -16,29 +21,38 @@ import { orgMembersQueryOptions, useRemoveMember } from "#/lib/queries/orgs"
 import { meQueryOptions } from "#/lib/queries/auth"
 import { Users, UserPlus, Trash2 } from "lucide-react"
 import { getInitials } from "#/lib/utils"
+import { formatDateTime } from "#/lib/format"
 
-const searchSchema = z.object({
-	page: z.number().default(1),
-	per_page: z.number().default(50),
-	search: z.string().default(""),
-	role: z.string().default(""),
-	sort_by: z.string().default("created_at"),
-	sort_dir: z.enum(["asc", "desc"]).default("desc"),
-}).partial();
+const searchSchema = z
+	.object({
+		limit: z.number().default(50),
+		offset: z.number().default(0),
+		sortBy: z.string().default("createdAt"),
+		sortDir: z.enum(["asc", "desc"]).default("desc"),
+		filterField: z.string().default(""),
+		filterValue: z.string().default(""),
+		filterOperator: z
+			.enum([
+				"eq",
+				"ne",
+				"gt",
+				"gte",
+				"lt",
+				"lte",
+				"in",
+				"not_in",
+				"contains",
+				"starts_with",
+				"ends_with",
+			])
+			.default("eq"),
+	})
+	.partial()
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/members")({
 	validateSearch: searchSchema,
 	component: MembersPage,
 })
-
-interface MemberRow {
-	id: string
-	user_id?: string
-	email?: string
-	name?: string
-	role?: string
-	created_at?: string
-}
 
 function MembersPage() {
 	const { orgId } = Route.useParams()
@@ -50,21 +64,23 @@ function MembersPage() {
 	const removeMember = useRemoveMember()
 	const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null)
 
-	const members: MemberRow[] = (data as { members?: MemberRow[] })?.members ?? []
+	const members = data?.members ?? []
+
+	type MemberRow = (typeof members)[number]
 
 	const columns: ColumnDef<MemberRow, unknown>[] = [
 		{
 			accessorKey: "name",
 			header: "Member",
 			cell: ({ row }) => {
-				const m = row.original
+				const m = row.original.user
 				const isMe = m.email === me?.email
 				return (
 					<div className="flex items-center gap-3">
 						<Avatar size="sm" fallback={getInitials(m.name, m.email)} />
 						<div>
 							<p className="text-sm font-medium">
-								{m.name || "Unnamed"}
+								{m.name}
 								{isMe && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
 							</p>
 							<p className="text-xs text-muted-foreground">{m.email}</p>
@@ -87,7 +103,7 @@ function MembersPage() {
 			header: "Joined",
 			cell: ({ row }) => (
 				<span className="text-xs text-muted-foreground">
-					{row.original.created_at ? new Date(row.original.created_at).toLocaleDateString() : "—"}
+					{formatDateTime(row.original.createdAt.toISOString())}
 				</span>
 			),
 		},
@@ -95,7 +111,7 @@ function MembersPage() {
 			id: "actions",
 			header: "",
 			cell: ({ row }) => {
-				const isMe = row.original.email === me?.email
+				const isMe = row.original.user.email === me?.email
 				if (isMe) return null
 				return (
 					<div className="text-right">
@@ -120,7 +136,9 @@ function MembersPage() {
 		return (
 			<div>
 				<PageHeader />
-				<div className="flex items-center justify-center py-20"><Spinner /></div>
+				<div className="flex items-center justify-center py-20">
+					<Spinner />
+				</div>
 			</div>
 		)
 	}
@@ -131,51 +149,30 @@ function MembersPage() {
 				<PageHeader />
 				<InviteMemberDialog
 					orgId={orgId}
-					trigger={<Button type="button" size="sm"><UserPlus /> Invite</Button>}
+					trigger={
+						<Button type="button" size="sm">
+							<UserPlus /> Invite
+						</Button>
+					}
 				/>
 			</div>
 
 			<div className="mb-4 flex items-center gap-3">
 				<SearchInput
 					placeholder="Search members..."
-					value={search.search}
+					value={search.filterValue}
 					onChange={(val) => {
-						navigate({ search: (prev) => ({ ...prev, search: val || undefined, page: 1 }), replace: true })
-					}}
-				/>
-				<Select
-					value={search.role ?? "all"}
-					onValueChange={(val) => {
 						navigate({
-							search: (prev) => ({
-								...prev,
-								role: val === "all" ? undefined : (val as string),
-								page: 1,
-							}),
+							search: (prev) => ({ ...prev, search: val || undefined, page: 1 }),
 							replace: true,
 						})
 					}}
-				>
-					<SelectTrigger className="w-32.5">
-						<SelectValue placeholder="All roles" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All roles</SelectItem>
-						<SelectItem value="admin">Admin</SelectItem>
-						<SelectItem value="member">Member</SelectItem>
-					</SelectContent>
-				</Select>
+				/>
 			</div>
 
 			<DataTable
 				columns={columns}
 				data={members}
-				pagination={data?.meta ? {
-					page: data.meta.page ?? 1,
-					totalPages: data.meta.total_pages ?? 1,
-					total: data.meta.total ?? 0,
-					onPageChange: (p) => navigate({ search: (prev) => ({ ...prev, page: p }) })
-				} : undefined}
 				onRowClick={(row) => setSelectedMember(row.original)}
 				emptyIcon={<Users />}
 				emptyTitle="Just you for now"
@@ -183,16 +180,25 @@ function MembersPage() {
 				emptyAction={
 					<InviteMemberDialog
 						orgId={orgId}
-						trigger={<Button type="button" size="sm"><UserPlus /> Invite a member</Button>}
+						trigger={
+							<Button type="button" size="sm">
+								<UserPlus /> Invite a member
+							</Button>
+						}
 					/>
 				}
 			/>
 
-			<Sheet open={!!selectedMember} onOpenChange={(open) => { if (!open) setSelectedMember(null) }}>
+			<Sheet
+				open={!!selectedMember}
+				onOpenChange={(open) => {
+					if (!open) setSelectedMember(null)
+				}}
+			>
 				<SheetContent>
 					<SheetHeader>
-						<SheetTitle>{selectedMember?.name || "Unnamed"}</SheetTitle>
-						<SheetDescription>{selectedMember?.email}</SheetDescription>
+						<SheetTitle>{selectedMember?.user.name || "Unnamed"}</SheetTitle>
+						<SheetDescription>{selectedMember?.user.email}</SheetDescription>
 					</SheetHeader>
 					{selectedMember && (
 						<div className="space-y-4 px-6 py-4">
@@ -207,10 +213,10 @@ function MembersPage() {
 							<div>
 								<span className="text-xs font-medium text-muted-foreground">Joined</span>
 								<p className="mt-1 text-sm">
-									{selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : "—"}
+									{formatDateTime(selectedMember.createdAt.toISOString())}
 								</p>
 							</div>
-							{selectedMember.email !== me?.email && (
+							{selectedMember.user.email !== me?.email && selectedMember.role !== "owner" && (
 								<div className="pt-2">
 									<Button
 										variant="danger"

@@ -20,7 +20,11 @@ interface NavState {
 	pinProject: (id: string) => void
 	unpinProject: (id: string) => void
 	setTheme: (theme: string) => void
-	hydrate: (prefs: { active_environment?: string; pinned_projects?: string[]; theme?: string }) => void
+	hydrate: (prefs: {
+		active_environment?: string
+		pinned_projects?: string[]
+		theme?: string
+	}) => void
 	reset: () => void
 }
 

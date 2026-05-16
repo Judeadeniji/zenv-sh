@@ -1,6 +1,13 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router"
 import { useMutation } from "@tanstack/react-query"
-import { CardBox, Card, CardHeader, CardTitle, CardDescription, CardContent } from "#/components/ui/card"
+import {
+	CardBox,
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "#/components/ui/card"
 import { Alert, AlertDescription } from "#/components/ui/alert"
 import { Button } from "#/components/ui/button"
 import { Spinner } from "#/components/ui/spinner"
@@ -74,11 +81,7 @@ function JoinPage() {
 										<p className="text-sm text-muted-foreground">Accepting invitation...</p>
 									</div>
 								) : (
-									<Button
-										variant="solid"
-										onClick={() => accept.mutate()}
-										className="w-full"
-									>
+									<Button variant="solid" onClick={() => accept.mutate()} className="w-full">
 										Accept invitation
 									</Button>
 								)}
@@ -97,11 +100,17 @@ function JoinPage() {
 			<footer className="flex items-center justify-between px-6 py-4 text-xs text-muted-foreground">
 				<span>&copy; {new Date().getFullYear()} zEnv</span>
 				<div className="flex items-center gap-1">
-					<a href="/support" className="hover:text-foreground">Support</a>
+					<a href="/support" className="hover:text-foreground">
+						Support
+					</a>
 					<span>&middot;</span>
-					<a href="/privacy" className="hover:text-foreground">Privacy</a>
+					<a href="/privacy" className="hover:text-foreground">
+						Privacy
+					</a>
 					<span>&middot;</span>
-					<a href="/terms" className="hover:text-foreground">Terms</a>
+					<a href="/terms" className="hover:text-foreground">
+						Terms
+					</a>
 				</div>
 			</footer>
 		</div>

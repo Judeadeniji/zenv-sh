@@ -59,6 +59,24 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
@@ -102,8 +120,26 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -152,12 +188,39 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OK */
+                /** @description CSV stream (Content-Disposition attachment) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
                 };
             };
         };
@@ -179,7 +242,7 @@ export interface paths {
         get?: never;
         /**
          * Change vault key
-         * @description Rotate vault key: verify current auth key, store new crypto material. O(1) — no item rows touched.
+         * @description Rotate the Vault Key. The client derives the old KEK, unwraps the DEK, derives a new KEK from the new Vault Key, re-wraps the same DEK, and submits the new crypto material. This is an O(1) operation — zero vault item rows are touched. Requires the current Vault Key to be verified before rotation is applied.
          */
         put: {
             parameters: {
@@ -188,14 +251,14 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Current auth proof + new crypto material */
+            /** @description Current auth proof and new crypto material */
             requestBody: {
                 content: {
                     "application/json": components["schemas"]["api_internal_handler.ChangeVaultKeyRequest"];
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Vault key rotated successfully */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -206,8 +269,17 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Missing required fields, invalid vault_key_type, or malformed base64 */
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description No active session */
+                401: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -217,6 +289,24 @@ export interface paths {
                 };
                 /** @description Wrong current Vault Key */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Vault not set up */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -244,7 +334,7 @@ export interface paths {
         put?: never;
         /**
          * Lock vault
-         * @description Removes the vault unlock record, requiring the user to re-enter their Vault Key on next access.
+         * @description Clears the vault unlock record in Redis, requiring the user to re-enter their Vault Key on next access. Safe to call even if already locked.
          */
         post: {
             parameters: {
@@ -255,12 +345,21 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description No Content */
+                /** @description Vault locked successfully */
                 204: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description No active session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
                 };
             };
         };
@@ -279,7 +378,7 @@ export interface paths {
         };
         /**
          * Get auth state
-         * @description Returns identity, vault setup status, and vault lock state.
+         * @description Returns the authenticated user's identity info, vault setup status, and vault lock state. Use this to determine whether to show the vault setup flow, the unlock prompt, or the main UI. The salt is returned so the client can derive the KEK locally without an extra round trip.
          */
         get: {
             parameters: {
@@ -290,7 +389,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Successfully retrieved user state */
+                /** @description Current user state */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -299,7 +398,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.MeResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description No active session */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -326,10 +425,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Toggle recovery disabled
-         * @description Set recovery_disabled to true or false. When disabled, recovery kit and trusted contact cannot be used.
-         */
+        /** Toggle recovery disabled */
         put: {
             parameters: {
                 query?: never;
@@ -344,7 +440,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Successfully updated */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -355,7 +451,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid request body */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -364,7 +460,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -373,7 +469,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to update recovery setting */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -417,7 +513,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.IncomingRequest"][];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -426,16 +522,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Failed to fetch requests */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -461,10 +548,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get recovery kit material
-         * @description Returns the recovery-wrapped DEK so the client can attempt recovery.
-         */
+        /** Get recovery kit material */
         get: {
             parameters: {
                 query?: never;
@@ -483,7 +567,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryKitResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -492,7 +576,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Recovery disabled */
+                /** @description Forbidden */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -501,7 +585,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description No recovery kit or User not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -512,10 +596,7 @@ export interface paths {
                 };
             };
         };
-        /**
-         * Regenerate recovery kit
-         * @description Replaces the recovery-wrapped DEK with a new one. Old recovery words are invalidated.
-         */
+        /** Regenerate recovery kit */
         put: {
             parameters: {
                 query?: never;
@@ -530,7 +611,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Successfully regenerated */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -541,7 +622,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid request body or base64 */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -550,7 +631,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -559,7 +640,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Recovery disabled */
+                /** @description Forbidden */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -568,7 +649,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -577,7 +658,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to update recovery kit */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -604,10 +685,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Recover with Recovery Kit
-         * @description Client verified recovery words, unwrapped DEK, set new Vault Key. Submit new crypto material.
-         */
+        /** Recover with Recovery Kit */
         post: {
             parameters: {
                 query?: never;
@@ -622,7 +700,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Vault successfully recovered */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -633,7 +711,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid request body, key type, or base64 */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -642,7 +720,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -651,7 +729,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to update vault */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -694,7 +772,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryRequestStatusResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -703,7 +781,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description No active recovery request */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -715,10 +793,7 @@ export interface paths {
             };
         };
         put?: never;
-        /**
-         * Initiate recovery request
-         * @description Start 72-hour waiting period for trusted contact recovery.
-         */
+        /** Initiate recovery request */
         post: {
             parameters: {
                 query?: never;
@@ -733,7 +808,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Recovery request created */
+                /** @description Created */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -744,7 +819,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid request body or base64 */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -753,7 +828,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -762,7 +837,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description No trusted contact configured */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -771,7 +846,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Active recovery request already exists */
+                /** @description Conflict */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -792,7 +867,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Request cancelled */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -803,7 +878,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -812,16 +887,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Failed to cancel */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -846,10 +912,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Approve recovery request
-         * @description Trusted contact provides DEK re-wrapped with recovering user's ephemeral key.
-         */
+        /** Approve recovery request */
         post: {
             parameters: {
                 query?: never;
@@ -867,7 +930,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Request approved */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -878,7 +941,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid ID, body, base64, or request not pending */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -887,7 +950,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -896,7 +959,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Not trusted contact or 72-hour wait period not elapsed */
+                /** @description Forbidden */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -905,7 +968,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Recovery request not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -914,7 +977,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to approve */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -958,7 +1021,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Vault successfully recovered */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -969,7 +1032,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid ID, body, or request not approved */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -978,7 +1041,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -987,7 +1050,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Recovery request not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -996,7 +1059,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to update vault or complete request */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -1042,7 +1105,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.RecoveryStatusResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -1051,7 +1114,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1079,10 +1142,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Set trusted contact
-         * @description Wrap DEK with contact's public key and store. Requires unlocked vault.
-         */
+        /** Set trusted contact */
         post: {
             parameters: {
                 query?: never;
@@ -1097,7 +1157,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Trusted contact set */
+                /** @description Created */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -1108,7 +1168,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Invalid body, base64, or self-designation */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -1117,7 +1177,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -1126,7 +1186,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Recovery disabled */
+                /** @description Forbidden */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1135,7 +1195,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User or contact not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1144,7 +1204,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Failed to set trusted contact */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -1165,7 +1225,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Trusted contact removed */
+                /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1176,7 +1236,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -1185,16 +1245,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Failed to remove trusted contact */
+                /** @description Internal Server Error */
                 500: {
                     headers: {
                         [name: string]: unknown;
@@ -1221,7 +1272,7 @@ export interface paths {
         put?: never;
         /**
          * Setup vault
-         * @description Store client-generated crypto material and link to authenticated identity.
+         * @description Store client-generated cryptographic material and link to the authenticated identity. Must be called once after signup before any vault operations. All crypto material is generated client-side — the server stores ciphertext only. On success, the session is immediately marked as vault-unlocked.
          */
         post: {
             parameters: {
@@ -1230,14 +1281,14 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Crypto material from client */
+            /** @description Client-generated crypto material */
             requestBody: {
                 content: {
                     "application/json": components["schemas"]["api_internal_handler.SetupVaultRequest"];
                 };
             };
             responses: {
-                /** @description Created */
+                /** @description Vault created and session unlocked */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -1246,7 +1297,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.SetupVaultResponse"];
                     };
                 };
-                /** @description Bad Request */
+                /** @description Missing required fields, invalid vault_key_type, or malformed base64 */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -1255,8 +1306,26 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Conflict */
+                /** @description No active session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Vault already set up for this account */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1283,7 +1352,7 @@ export interface paths {
         put?: never;
         /**
          * Unlock vault
-         * @description Verify Auth Key hash (Vault Key proof). Returns wrapped DEK + keypair on success.
+         * @description Verify the Auth Key hash (proof of Vault Key knowledge). On success, marks the session as vault-unlocked in Redis and returns the wrapped DEK and keypair so the client can derive the KEK and unwrap locally. The raw Vault Key never leaves the client.
          */
         post: {
             parameters: {
@@ -1292,14 +1361,14 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Auth Key hash (base64) */
+            /** @description Auth Key hash derived from the user's Vault Key */
             requestBody: {
                 content: {
                     "application/json": components["schemas"]["api_internal_handler.UnlockRequest"];
                 };
             };
             responses: {
-                /** @description OK */
+                /** @description Vault unlocked — key material returned */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1308,7 +1377,25 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.UnlockResponse"];
                     };
                 };
-                /** @description Wrong Vault Key */
+                /** @description Invalid request body or malformed base64 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description No active session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Wrong Vault Key — auth key hash mismatch */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1317,208 +1404,8 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/orgs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List organizations
-         * @description List all organizations the current user is a member of.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Page number */
-                    page?: number;
-                    /** @description Items per page */
-                    per_page?: number;
-                    /** @description Sort by field */
-                    sort_by?: string;
-                    /** @description Sort direction (asc/desc) */
-                    sort_dir?: string;
-                    /** @description Search by organization name */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ListOrgsResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        /**
-         * Create organization
-         * @description Create an organization. The creating user becomes the owner and is added as an admin member.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            /** @description Organization name */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.CreateOrgRequest"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.OrgResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/orgs/{orgID}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get organization
-         * @description Get a single organization by ID.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description Organization UUID */
-                    orgID: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.OrgResponse"];
-                    };
-                };
-                /** @description Not Found */
+                /** @description Vault not set up for this account */
                 404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/orgs/{orgID}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List organization members
-         * @description List all members of an organization with their roles, emails, and display names. Name is resolved from the auth table (table.User) via the vault user's IdentityID.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Page number (default: 1) */
-                    page?: number;
-                    /** @description Items per page (default: 20, max: 100) */
-                    per_page?: number;
-                    /** @description Sort field: email | role | joined_at (default: joined_at) */
-                    sort_by?: string;
-                    /** @description Sort direction: asc | desc (default: desc) */
-                    sort_dir?: string;
-                    /** @description Search by email (case-insensitive) */
-                    search?: string;
-                    /** @description Filter by role */
-                    role?: string;
-                };
-                header?: never;
-                path: {
-                    /** @description Organization UUID */
-                    orgID: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ListMembersResponse"];
-                    };
-                };
-                /** @description Invalid organization ID */
-                400: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1537,122 +1424,7 @@ export interface paths {
                 };
             };
         };
-        put?: never;
-        /**
-         * Add organization member
-         * @description Add a user to an organization. Provide either email (web) or user_id UUID (CLI).
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description Organization UUID */
-                    orgID: string;
-                };
-                cookie?: never;
-            };
-            /** @description User (email or user_id) and role */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["api_internal_handler.AddMemberRequest"];
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.MemberResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/orgs/{orgID}/members/{memberID}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove organization member
-         * @description Remove a member from an organization.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description Organization UUID */
-                    orgID: string;
-                    /** @description Member UUID */
-                    memberID: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            [key: string]: string;
-                        };
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
-                    };
-                };
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2561,6 +2333,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sdk/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create project (SDK)
+         * @description Creates a project as the **service token creator** (Better Auth user resolved from the token's `created_by`). Inserts the project, initial `project_vault_keys` row, and a `project_key_grants` row for that user. Payload matches dashboard create: organization, display name, base64 project salt, wrapped project DEK, and wrapped project vault key for the creator.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description organization_id, name, project_salt, wrapped_project_dek, wrapped_project_vault_key (all base64 where applicable) */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.CreateProjectRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ProjectResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Project name already exists in organization */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sdk/projects/{projectID}/crypto": {
         parameters: {
             query?: never;
@@ -2612,6 +2464,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sdk/projects/{projectID}/key-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project key grant (SDK)
+         * @description Returns the **token creator's** wrapped project vault key for the given project (`project_key_grants` row matching token `created_by` and path `projectID`). Used by CLIs and automation to unwrap the project vault key without a browser session. Not a generic lookup for arbitrary users.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Project ID */
+                    projectID: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.KeyGrantResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description No grant row for this creator and project */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sdk/secrets": {
         parameters: {
             query?: never;
@@ -2621,7 +2551,7 @@ export interface paths {
         };
         /**
          * List secrets
-         * @description List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
+         * @description List secret rows for a project: name hash, environment, version, timestamps, and plaintext `metadata` (never ciphertext or nonces). Supports pagination, sorting, and filters by environment and version.
          */
         get: {
             parameters: {
@@ -2679,7 +2609,7 @@ export interface paths {
         put?: never;
         /**
          * Create secret
-         * @description Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
+         * @description Store an encrypted vault item. The server stores opaque ciphertext and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash). Optional `metadata` is plaintext JSON (mime_type, description, tags, labels) for operators and tooling — never put secret values in metadata.
          */
         post: {
             parameters: {
@@ -2745,7 +2675,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk fetch secrets
-         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
+         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each item in the response includes optional plaintext `metadata` alongside ciphertext. Missing hashes are omitted from the result (no error).
          */
         post: {
             parameters: {
@@ -2800,7 +2730,7 @@ export interface paths {
         };
         /**
          * Get secret
-         * @description Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
+         * @description Retrieve one encrypted secret by HMAC-SHA256 name hash (must match exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext metadata. Partial or plaintext name lookups are not supported.
          */
         get: {
             parameters: {
@@ -2859,7 +2789,7 @@ export interface paths {
         };
         /**
          * Update secret
-         * @description Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
+         * @description Replace ciphertext and nonce for an existing secret; the prior row is archived and the version counter increments. Optional `metadata` in the body is shallow-merged with existing server-side metadata (same validation as PATCH metadata). Use GET /{nameHash}/versions for history.
          */
         put: {
             parameters: {
@@ -2981,6 +2911,80 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/sdk/secrets/{nameHash}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch secret metadata
+         * @description Shallow-merge plaintext metadata for a vault item without changing ciphertext, nonce, or the secret version counter. Use this when only labels, MIME hints, or descriptions change. Body must be a JSON object; unknown keys return 400. Send JSON null for a key to remove it. Total metadata size is capped server-side.
+         */
+        patch: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment (development | staging | production) */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.SecretMetadataMergeBody"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Empty body, invalid JSON, unknown keys, or metadata limits exceeded */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/sdk/secrets/{nameHash}/rollback": {
@@ -3131,6 +3135,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sdk/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create service token (SDK)
+         * @description Issues a new service token on behalf of the **authenticated token's creator** (the `created_by` user from the parent token). Same semantics as dashboard token create: plaintext returned once, stored as a hash. Requires a valid service token with `read_write` when routed through the SDK write group.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description project_id, name, environment; optional permission (read|read_write, default read) and expires_at (RFC3339) */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["api_internal_handler.CreateTokenRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.CreateTokenResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sdk/vault": {
         parameters: {
             query?: never;
@@ -3188,7 +3263,7 @@ export interface paths {
         };
         /**
          * Token identity
-         * @description Returns the token name, creator, project, environment, and permission.
+         * @description Returns the token name, human-readable creator (when available), project and organization names, environment, and permission for the **Bearer** service token used on this request.
          */
         get: {
             parameters: {
@@ -3206,6 +3281,24 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["api_internal_handler.WhoamiResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
             };
@@ -3227,7 +3320,7 @@ export interface paths {
         };
         /**
          * List secrets
-         * @description List secret metadata for a project. Never returns ciphertext or nonces — only name hash, version, and timestamps. Supports pagination, sorting, and filtering by environment and version.
+         * @description List secret rows for a project: name hash, environment, version, timestamps, and plaintext `metadata` (never ciphertext or nonces). Supports pagination, sorting, and filters by environment and version.
          */
         get: {
             parameters: {
@@ -3285,7 +3378,7 @@ export interface paths {
         put?: never;
         /**
          * Create secret
-         * @description Store an encrypted vault item. Server stores opaque ciphertext only. Name is stored as an HMAC-SHA256 hash — the server never sees the plaintext key name.
+         * @description Store an encrypted vault item. The server stores opaque ciphertext and nonce only; the secret name is never sent in plaintext (HMAC-SHA256 name_hash). Optional `metadata` is plaintext JSON (mime_type, description, tags, labels) for operators and tooling — never put secret values in metadata.
          */
         post: {
             parameters: {
@@ -3351,7 +3444,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk fetch secrets
-         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by the SDK for schema manifest loading. Only secrets matching the given hashes, project, and environment are returned — missing hashes are silently ignored.
+         * @description Fetch multiple encrypted secrets in one request by providing a list of HMAC-SHA256 name hashes. Used by clients for manifest loading. Each item in the response includes optional plaintext `metadata` alongside ciphertext. Missing hashes are omitted from the result (no error).
          */
         post: {
             parameters: {
@@ -3406,7 +3499,7 @@ export interface paths {
         };
         /**
          * Get secret
-         * @description Retrieve a single encrypted secret by its HMAC-SHA256 name hash. The hash must match exactly — partial or plaintext lookups are not supported.
+         * @description Retrieve one encrypted secret by HMAC-SHA256 name hash (must match exactly). Returns ciphertext, nonce, version, timestamps, and optional plaintext metadata. Partial or plaintext name lookups are not supported.
          */
         get: {
             parameters: {
@@ -3465,7 +3558,7 @@ export interface paths {
         };
         /**
          * Update secret
-         * @description Replace the ciphertext and nonce for an existing secret. The current version is automatically archived before overwriting, and the version counter is incremented. Use GET /{nameHash}/versions to inspect history.
+         * @description Replace ciphertext and nonce for an existing secret; the prior row is archived and the version counter increments. Optional `metadata` in the body is shallow-merged with existing server-side metadata (same validation as PATCH metadata). Use GET /{nameHash}/versions for history.
          */
         put: {
             parameters: {
@@ -3587,6 +3680,80 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/secrets/{nameHash}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch secret metadata
+         * @description Shallow-merge plaintext metadata for a vault item without changing ciphertext, nonce, or the secret version counter. Use this when only labels, MIME hints, or descriptions change. Body must be a JSON object; unknown keys return 400. Send JSON null for a key to remove it. Total metadata size is capped server-side.
+         */
+        patch: {
+            parameters: {
+                query: {
+                    /** @description Project ID */
+                    project_id: string;
+                    /** @description Environment (development | staging | production) */
+                    environment: string;
+                };
+                header?: never;
+                path: {
+                    /** @description HMAC-SHA256 name hash (base64, URL-encoded) */
+                    nameHash: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["api_internal_handler.SecretMetadataMergeBody"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.SecretResponse"];
+                    };
+                };
+                /** @description Empty body, invalid JSON, unknown keys, or metadata limits exceeded */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Secret not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/secrets/{nameHash}/rollback": {
@@ -3957,7 +4124,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.PublicKeyResponse"];
                     };
                 };
-                /** @description Email query param required */
+                /** @description Bad Request */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -3966,7 +4133,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description Authentication required */
+                /** @description Unauthorized */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -3975,7 +4142,7 @@ export interface paths {
                         "application/json": components["schemas"]["api_internal_handler.ErrorResponse"];
                     };
                 };
-                /** @description User not found */
+                /** @description Not Found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -3998,16 +4165,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        "api_internal_handler.AddMemberRequest": {
-            /** @description email — used by web; looked up to resolve UUID */
-            email?: string;
-            /** @description admin, senior_dev, dev, contractor, ci_bot */
-            role?: string;
-            /** @description UUID — used by CLI */
-            user_id?: string;
-        };
         "api_internal_handler.ApproveRecoveryRequest": {
-            /** @description base64 */
             recovery_payload?: string;
         };
         "api_internal_handler.AuditLogEntry": {
@@ -4039,17 +4197,36 @@ export interface components {
             secrets?: components["schemas"]["api_internal_handler.SecretResponse"][];
         };
         "api_internal_handler.ChangeVaultKeyRequest": {
-            /** @description base64 */
+            /**
+             * @description CurrentAuthKeyHash is HashAuthKey(currentVaultKey), used to verify the current Vault Key before rotation, base64-encoded.
+             * @example base64encodedstring==
+             */
             current_auth_key_hash?: string;
-            /** @description base64 */
+            /**
+             * @description NewAuthKeyHash is HashAuthKey(newVaultKey), base64-encoded.
+             * @example base64encodedstring==
+             */
             new_auth_key_hash?: string;
-            /** @description base64 */
+            /**
+             * @description NewSalt is a freshly generated KDF salt for the new Key Encryption Key, base64-encoded.
+             * @example base64encodedstring==
+             */
             new_salt?: string;
-            /** @description "pin" or "passphrase" */
-            new_vault_key_type?: string;
-            /** @description base64 */
+            /**
+             * @description NewVaultKeyType is the type of the new Vault Key. Must be "pin" or "passphrase".
+             * @example passphrase
+             * @enum {string}
+             */
+            new_vault_key_type?: "pin" | "passphrase";
+            /**
+             * @description NewWrappedDEK is the same DEK re-wrapped with the new KEK, base64-encoded.
+             * @example base64encodedstring==
+             */
             new_wrapped_dek?: string;
-            /** @description base64 */
+            /**
+             * @description NewWrappedPrivateKey is the private key re-wrapped with the new DEK, base64-encoded.
+             * @example base64encodedstring==
+             */
             new_wrapped_private_key?: string;
         };
         "api_internal_handler.CommitRotationRequest": {
@@ -4070,10 +4247,6 @@ export interface components {
             new_vault_key_type?: string;
             new_wrapped_dek?: string;
             new_wrapped_private_key?: string;
-            request_id?: string;
-        };
-        "api_internal_handler.CreateOrgRequest": {
-            name?: string;
         };
         "api_internal_handler.CreateProjectRequest": {
             name?: string;
@@ -4088,7 +4261,9 @@ export interface components {
         "api_internal_handler.CreateSecretRequest": {
             /** @description base64 AES-256-GCM encrypted item JSON */
             ciphertext?: string;
-            environment?: string;
+            environment?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"];
+            /** @description Metadata is optional plaintext hints (MIME, description, tags). Never put secret material here. */
+            metadata?: number[];
             /** @description base64 HMAC-SHA256 of secret name */
             name_hash?: string;
             /** @description base64 96-bit nonce */
@@ -4135,10 +4310,9 @@ export interface components {
             requested_at?: string;
             requester_email?: string;
             requester_name?: string;
-            status?: string;
+            status?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus"];
         };
         "api_internal_handler.InitiateRecoveryRequest": {
-            /** @description base64 */
             recovery_public_key?: string;
         };
         "api_internal_handler.KeyGrantMember": {
@@ -4155,14 +4329,6 @@ export interface components {
         "api_internal_handler.ListKeyGrantsResponse": {
             members?: components["schemas"]["api_internal_handler.KeyGrantMember"][];
         };
-        "api_internal_handler.ListMembersResponse": {
-            members?: components["schemas"]["api_internal_handler.MemberResponse"][];
-            meta?: components["schemas"]["api_internal_handler.Meta"];
-        };
-        "api_internal_handler.ListOrgsResponse": {
-            meta?: components["schemas"]["api_internal_handler.Meta"];
-            organizations?: components["schemas"]["api_internal_handler.OrgResponse"][];
-        };
         "api_internal_handler.ListProjectsResponse": {
             meta?: components["schemas"]["api_internal_handler.Meta"];
             projects?: components["schemas"]["api_internal_handler.ProjectResponse"][];
@@ -4176,21 +4342,37 @@ export interface components {
             tokens?: components["schemas"]["api_internal_handler.TokenListItem"][];
         };
         "api_internal_handler.MeResponse": {
+            /**
+             * @description Email is the user's email address from their identity provider.
+             * @example user@example.com
+             */
             email?: string;
+            /**
+             * @description Name is the user's display name from their identity provider.
+             * @example Jane Doe
+             */
             name?: string;
-            /** @description base64 */
+            /**
+             * @description Salt is the KDF salt for the user's Key Encryption Key, base64-encoded. Only present if vault is set up.
+             * @example base64encodedstring==
+             */
             salt?: string;
-            vault_key_type?: string;
+            /**
+             * @description VaultKeyType is the type of Vault Key the user chose ("pin" or "passphrase"). Only present if vault is set up.
+             * @example passphrase
+             * @enum {unknown}
+             */
+            vault_key_type?: "pin" | "passphrase";
+            /**
+             * @description VaultSetupComplete is true if the user has completed vault setup.
+             * @example true
+             */
             vault_setup_complete?: boolean;
+            /**
+             * @description VaultUnlocked is true if the user has completed both auth layers in this session.
+             * @example false
+             */
             vault_unlocked?: boolean;
-        };
-        "api_internal_handler.MemberResponse": {
-            email?: string;
-            id?: string;
-            joined_at?: string;
-            name?: string;
-            role?: string;
-            user_id?: string;
         };
         "api_internal_handler.Meta": {
             page?: number;
@@ -4198,17 +4380,11 @@ export interface components {
             total?: number;
             total_pages?: number;
         };
-        "api_internal_handler.OrgResponse": {
-            created_at?: string;
-            id?: string;
-            name?: string;
-            owner_id?: string;
-        };
         "api_internal_handler.ProjectCryptoResponse": {
             /** @description base64 */
             project_salt?: string;
             /** @description "pin" or "passphrase" */
-            vault_key_type?: string;
+            vault_key_type?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType"];
             /** @description base64 */
             wrapped_project_dek?: string;
         };
@@ -4228,7 +4404,6 @@ export interface components {
         };
         "api_internal_handler.PublicKeyResponse": {
             email?: string;
-            /** @description base64 */
             public_key?: string;
         };
         "api_internal_handler.RecoverWithKitRequest": {
@@ -4240,7 +4415,6 @@ export interface components {
             new_wrapped_private_key?: string;
         };
         "api_internal_handler.RecoveryKitResponse": {
-            /** @description base64 */
             recovery_wrapped_dek?: string;
         };
         "api_internal_handler.RecoveryRequestStatusResponse": {
@@ -4248,7 +4422,7 @@ export interface components {
             has_payload?: boolean;
             request_id?: string;
             requested_at?: string;
-            status?: string;
+            status?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus"];
         };
         "api_internal_handler.RecoveryStatusResponse": {
             contact_email?: string;
@@ -4257,7 +4431,6 @@ export interface components {
             recovery_disabled?: boolean;
         };
         "api_internal_handler.RegenerateKitRequest": {
-            /** @description base64 */
             recovery_wrapped_dek?: string;
         };
         "api_internal_handler.RollbackRequest": {
@@ -4265,17 +4438,27 @@ export interface components {
         };
         "api_internal_handler.SecretListItem": {
             created_at?: string;
-            environment?: string;
+            environment?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"];
             id?: string;
+            metadata?: number[];
             name_hash?: string;
             updated_at?: string;
             version?: number;
         };
+        "api_internal_handler.SecretMetadataMergeBody": {
+            description?: string;
+            labels?: {
+                [key: string]: string;
+            };
+            mime_type?: string;
+            tags?: string[];
+        };
         "api_internal_handler.SecretResponse": {
             ciphertext?: string;
             created_at?: string;
-            environment?: string;
+            environment?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"];
             id?: string;
+            metadata?: number[];
             name_hash?: string;
             nonce?: string;
             project_id?: string;
@@ -4284,29 +4467,61 @@ export interface components {
         };
         "api_internal_handler.SetTrustedContactRequest": {
             contact_email?: string;
-            /** @description base64 */
             trusted_wrapped_dek?: string;
         };
         "api_internal_handler.SetupVaultRequest": {
-            /** @description base64 */
+            /**
+             * @description AuthKeyHash is base64(HashAuthKey(authKey)) — same proof stored at setup-vault (JSON field name is historical).
+             * @example base64encodedstring==
+             */
             auth_key_hash?: string;
-            /** @description base64 */
+            /**
+             * @description PublicKey is the user's raw Ed25519 public key, base64-encoded.
+             * @example base64encodedstring==
+             */
             public_key?: string;
-            /** @description enterprise opt-in to disable recovery */
+            /**
+             * @description RecoveryDisabled disables all recovery methods for this account. Enterprise opt-in.
+             * @example false
+             */
             recovery_disabled?: boolean;
-            /** @description base64, optional — DEK wrapped with recovery key */
+            /**
+             * @description RecoveryWrappedDEK is the DEK wrapped with the recovery key, base64-encoded. Optional.
+             * @example base64encodedstring==
+             */
             recovery_wrapped_dek?: string;
-            /** @description base64 */
+            /**
+             * @description Salt is the random salt used to derive the Key Encryption Key from the Vault Key, base64-encoded.
+             * @example base64encodedstring==
+             */
             salt?: string;
-            /** @description "pin" or "passphrase" */
-            vault_key_type?: string;
-            /** @description base64 */
+            /**
+             * @description VaultKeyType is the type of Vault Key the user chose. Must be "pin" or "passphrase".
+             * @example passphrase
+             * @enum {string}
+             */
+            vault_key_type?: "pin" | "passphrase";
+            /**
+             * @description WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.
+             * @example base64encodedstring==
+             */
             wrapped_dek?: string;
-            /** @description base64 */
+            /**
+             * @description WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.
+             * @example base64encodedstring==
+             */
             wrapped_private_key?: string;
         };
         "api_internal_handler.SetupVaultResponse": {
+            /**
+             * @description UserID is the newly created vault identity UUID.
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
             user_id?: string;
+            /**
+             * @description VaultSetupComplete is always true on success.
+             * @example true
+             */
             vault_setup_complete?: boolean;
         };
         "api_internal_handler.StageItem": {
@@ -4333,29 +4548,43 @@ export interface components {
         };
         "api_internal_handler.TokenListItem": {
             created_at?: string;
-            environment?: string;
+            environment?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"];
             expires_at?: string;
             id?: string;
             name?: string;
-            permission?: string;
+            permission?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission"];
             project_id?: string;
             revoked_at?: string;
         };
         "api_internal_handler.UnlockRequest": {
-            /** @description base64 */
+            /**
+             * @description AuthKeyHash must match setup-vault: base64(HashAuthKey(authKey)) where authKey is the
+             *     32-byte auth material from DeriveKeys (Argon2id output bytes 32–63). Same value as setup's auth_key_hash field.
+             * @example base64encodedstring==
+             */
             auth_key_hash?: string;
         };
         "api_internal_handler.UnlockResponse": {
-            /** @description base64 */
+            /**
+             * @description PublicKey is the user's raw Ed25519 public key, base64-encoded.
+             * @example base64encodedstring==
+             */
             public_key?: string;
-            /** @description base64 */
+            /**
+             * @description WrappedDEK is the Data Encryption Key wrapped with the Key Encryption Key, base64-encoded.
+             * @example base64encodedstring==
+             */
             wrapped_dek?: string;
-            /** @description base64 */
+            /**
+             * @description WrappedPrivateKey is the user's Ed25519 private key wrapped with the DEK, base64-encoded.
+             * @example base64encodedstring==
+             */
             wrapped_private_key?: string;
         };
         "api_internal_handler.UpdateSecretRequest": {
             /** @description base64 */
             ciphertext?: string;
+            metadata?: number[];
             /** @description base64 */
             nonce?: string;
         };
@@ -4365,7 +4594,7 @@ export interface components {
             /** @description base64 */
             salt?: string;
             /** @description "pin" or "passphrase" */
-            vault_key_type?: string;
+            vault_key_type?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType"];
             /** @description base64 */
             wrapped_dek?: string;
             /** @description base64 */
@@ -4380,16 +4609,24 @@ export interface components {
             versions?: components["schemas"]["api_internal_handler.VersionItem"][];
         };
         "api_internal_handler.WhoamiResponse": {
-            environment?: string;
+            environment?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment"];
             organization_id?: string;
             organization_name?: string;
-            permission?: string;
+            permission?: components["schemas"]["github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission"];
             project_id?: string;
             project_name?: string;
             token_name?: string;
             user_email?: string;
             user_name?: string;
         };
+        /** @enum {string} */
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Environment": "development" | "staging" | "production";
+        /** @enum {string} */
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.Permission": "read" | "read_write";
+        /** @enum {string} */
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.RecoveryStatus": "pending" | "approved" | "cancelled" | "expired" | "completed";
+        /** @enum {string} */
+        "github_com_Judeadeniji_zenv-sh_api_internal_store_gen_zenv_public_model.VaultKeyType": "pin" | "passphrase";
     };
     responses: never;
     parameters: never;
@@ -4400,22 +4637,28 @@ export interface components {
                 "application/json": components["schemas"]["api_internal_handler.CreateSecretRequest"];
             };
         };
+        /** @description Fields to merge (partial object) */
+        "api_internal_handler.SecretMetadataMergeBody": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.SecretMetadataMergeBody"];
+            };
+        };
         /** @description Target version number */
         "api_internal_handler.RollbackRequest": {
             content: {
                 "application/json": components["schemas"]["api_internal_handler.RollbackRequest"];
             };
         };
+        /** @description New ciphertext, nonce, and optional metadata merge */
+        "api_internal_handler.UpdateSecretRequest": {
+            content: {
+                "application/json": components["schemas"]["api_internal_handler.UpdateSecretRequest"];
+            };
+        };
         /** @description Project, environment, and list of name hashes to fetch */
         "api_internal_handler.BulkFetchRequest": {
             content: {
                 "application/json": components["schemas"]["api_internal_handler.BulkFetchRequest"];
-            };
-        };
-        /** @description New ciphertext and nonce */
-        "api_internal_handler.UpdateSecretRequest": {
-            content: {
-                "application/json": components["schemas"]["api_internal_handler.UpdateSecretRequest"];
             };
         };
     };

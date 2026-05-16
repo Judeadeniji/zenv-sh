@@ -1,4 +1,13 @@
-import { KeyRound, FileKey, Users, Shield, Settings, LayoutDashboard, type LucideIcon, UserPlus2 } from "lucide-react"
+import {
+	KeyRound,
+	FileKey,
+	Users,
+	Shield,
+	Settings,
+	LayoutDashboard,
+	type LucideIcon,
+	UserPlus2,
+} from "lucide-react"
 
 export interface NavItem {
 	label: string
@@ -44,8 +53,8 @@ export function getOrgItems(orgId: string, projectId?: string): NavItem[] {
 			label: "Invitations",
 			description: "View and manage pending invites to your organization.",
 			icon: UserPlus2,
-			href: `/orgs/${orgId}/invitations`
-		}
+			href: `/orgs/${orgId}/invitations`,
+		},
 	]
 
 	if (projectId) {
