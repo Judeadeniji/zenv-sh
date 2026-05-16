@@ -39,14 +39,13 @@ services:
   # ---------------------------------------------------------------------------
 
   migrate-api:
-    image: migrate/migrate:4
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     restart: "no"
-    volumes:
-      - ./api/migrations:/migrations:ro
-    command:
-      - "-path=/migrations"
-      - "-database=${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}"
-      - "up"
+    entrypoint: ["/usr/local/bin/zenv-apply-drizzle"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-zenv}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zenv}?sslmode=disable}
     depends_on:
       postgres:
         condition: service_healthy

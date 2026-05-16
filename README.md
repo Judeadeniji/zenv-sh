@@ -129,7 +129,7 @@ zEnv/
 │   ├── cmd/zenv-api/            Entrypoint
 │   ├── internal/handler/        Auth, secrets, tokens, projects
 │   ├── internal/middleware/      Session + token auth
-│   ├── migrations/              SQL schema
+│   ├── cmd/apply-drizzle/       Applies apps/auth/drizzle SQL (make migrate)
 │   └── docs/                    OpenAPI spec (auto-generated via swag)
 ├── cli/                         CLI tool
 │   ├── cmd/zenv/                Entrypoint

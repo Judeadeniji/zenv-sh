@@ -5,9 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,12 +14,13 @@ import (
 	tcPostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/Judeadeniji/zenv-sh/api/internal/dbschema"
 )
 
 const (
-	pgContainerName         = "zenv-test-postgres"
-	redisContainerName      = "zenv-test-redis"
-	drizzleMigrationRelPath = "../apps/auth/drizzle"
+	pgContainerName    = "zenv-test-postgres"
+	redisContainerName = "zenv-test-redis"
 )
 
 func init() {
@@ -86,116 +84,12 @@ func setupDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("ping db: %w", pingErr)
 	}
 
-	if err := syncDrizzleSchema(ctx, db); err != nil {
+	if err := dbschema.Sync(ctx, db); err != nil {
 		db.Close()
 		return nil, err
 	}
 
 	return db, nil
-}
-
-func syncDrizzleSchema(ctx context.Context, db *sql.DB) error {
-	// Advisory lock prevents parallel package tests from migrating at the same time
-	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_lock(1234)"); err != nil {
-		return fmt.Errorf("lock for migration: %w", err)
-	}
-	defer db.ExecContext(ctx, "SELECT pg_advisory_unlock(1234)")
-
-	var sessionsExists bool
-	err := db.QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='sessions')`,
-	).Scan(&sessionsExists)
-	if err != nil {
-		return fmt.Errorf("check schema existence: %w", err)
-	}
-
-	if sessionsExists {
-		// Reused containers skip the migration loop below; apply any additive
-		// migrations that were added after the container was first created.
-		return ensureAdditiveMigrations(ctx, db)
-	}
-
-	cwd, _ := os.Getwd()
-	goRoot := findGoRoot(cwd)
-	if goRoot == "" {
-		return fmt.Errorf("could not find go.mod starting from %s", cwd)
-	}
-
-	migrationDir := filepath.Join(goRoot, drizzleMigrationRelPath)
-	entries, err := os.ReadDir(migrationDir)
-	if err != nil {
-		return fmt.Errorf("read drizzle migrations at %s: %w", migrationDir, err)
-	}
-
-	var sqlFiles []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
-			sqlFiles = append(sqlFiles, e.Name())
-		}
-	}
-	sort.Strings(sqlFiles)
-
-	for _, file := range sqlFiles {
-		content, err := os.ReadFile(filepath.Join(migrationDir, file))
-		if err != nil {
-			return fmt.Errorf("read migration %s: %w", file, err)
-		}
-
-		if _, err := db.ExecContext(ctx, string(content)); err != nil {
-			return fmt.Errorf("apply migration %s: %w", file, err)
-		}
-	}
-
-	return nil
-}
-
-// ensureAdditiveMigrations patches reused test DBs that were migrated before
-// newer Drizzle files existed (syncDrizzleSchema short-circuits when sessions exists).
-func ensureAdditiveMigrations(ctx context.Context, db *sql.DB) error {
-	var hasMetadata bool
-	err := db.QueryRowContext(ctx,
-		`SELECT EXISTS(
-			SELECT 1 FROM information_schema.columns
-			WHERE table_schema = 'public' AND table_name = 'vault_items' AND column_name = 'metadata'
-		)`,
-	).Scan(&hasMetadata)
-	if err != nil {
-		return fmt.Errorf("check vault_items.metadata: %w", err)
-	}
-	if hasMetadata {
-		return nil
-	}
-	var hasVaultItems bool
-	if err := db.QueryRowContext(ctx,
-		`SELECT EXISTS(
-			SELECT 1 FROM information_schema.tables
-			WHERE table_schema = 'public' AND table_name = 'vault_items'
-		)`,
-	).Scan(&hasVaultItems); err != nil {
-		return fmt.Errorf("check vault_items table: %w", err)
-	}
-	if !hasVaultItems {
-		return nil
-	}
-	if _, err := db.ExecContext(ctx,
-		`ALTER TABLE "vault_items" ADD COLUMN IF NOT EXISTS "metadata" jsonb DEFAULT '{}'::jsonb NOT NULL`,
-	); err != nil {
-		return fmt.Errorf("add vault_items.metadata: %w", err)
-	}
-	return nil
-}
-
-func findGoRoot(path string) string {
-	for {
-		if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
-			return path
-		}
-		parent := filepath.Dir(path)
-		if parent == path {
-			return ""
-		}
-		path = parent
-	}
 }
 
 func SetupRedis(t *testing.T) *redis.Client {

@@ -17,6 +17,7 @@ COPY amnesia/ ./amnesia/
 COPY api/ ./api/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /zenv-api ./api/cmd/zenv-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /zenv-apply-drizzle ./api/cmd/apply-drizzle
 
 # ---
 
@@ -24,9 +25,11 @@ FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata
 
+WORKDIR /
+COPY apps/auth/drizzle /apps/auth/drizzle
 COPY --from=builder /zenv-api /usr/local/bin/zenv-api
-COPY api/migrations /migrations
+COPY --from=builder /zenv-apply-drizzle /usr/local/bin/zenv-apply-drizzle
 
 EXPOSE 8080
 
-ENTRYPOINT ["zenv-api"]
+ENTRYPOINT ["/usr/local/bin/zenv-api"]
