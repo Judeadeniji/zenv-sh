@@ -1,4 +1,4 @@
-import { useState, useMemo, useId } from "react"
+import { useState, useMemo, useId, useCallback } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "#/components/ui/button"
@@ -17,11 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "#
 import { CreateSecretDialog } from "#/components/create-secret-dialog"
 import { ImportSecretsDialog } from "#/components/import-secrets-dialog"
 import { EditSecretDialog } from "#/components/edit-secret-dialog"
+import { SecretContentPanel } from "#/components/secret-content-panel"
+import { SecretMimeIcon } from "#/components/secret-mime-icon"
 import { useDecryptedSecrets, useDeleteSecret, useSecretVersions, useRollbackSecret, type DecryptedSecretRow } from "#/lib/queries/secrets"
 import { useNavStore } from "#/lib/stores/nav"
 import { toast } from "sonner"
 import { KeyRound, Plus, Upload, Eye, EyeOff, Trash2, Copy, Check, Pencil, History, RotateCcw, AlertCircle } from "lucide-react"
 import { formatDateTime } from "#/lib/format"
+import { formatSecretByteSize, resolveSecretMime } from "#/lib/secret-mime"
 
 export const Route = createFileRoute("/_authed/_unlocked/orgs/$orgId/projects/$projectId/secrets")({
 	component: SecretsPage,
@@ -33,6 +36,19 @@ function SecretsPage() {
 	const { data: secrets, isLoading } = useDecryptedSecrets(projectId, environment)
 	const [selectedSecret, setSelectedSecret] = useState<DecryptedSecretRow | null>(null)
 	const [editingSecret, setEditingSecret] = useState<DecryptedSecretRow | null>(null)
+	const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
+
+	const selectSecret = useCallback((row: DecryptedSecretRow | null) => {
+		setPreviewBlobUrl((prev) => {
+			if (prev) URL.revokeObjectURL(prev)
+			if (row?.kind === "binary" && row.binary) {
+				const mime = resolveSecretMime(row)
+				return URL.createObjectURL(new Blob([row.binary], { type: mime }))
+			}
+			return null
+		})
+		setSelectedSecret(row)
+	}, [])
 	const [searchTerm, setSearchTerm] = useState("")
 	const [sortBy, setSortBy] = useState<"name" | "updated">("name")
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
@@ -46,7 +62,8 @@ function SecretsPage() {
 			filtered = filtered.filter((s) => {
 				if (s.name.toLowerCase().includes(q)) return true
 				const m = s.metadata
-				const hay = [m?.description, m?.mime_type, ...(m?.tags ?? [])].filter(Boolean).join(" ").toLowerCase()
+				const resolvedMime = resolveSecretMime(s)
+				const hay = [m?.description, m?.mime_type, resolvedMime, ...(m?.tags ?? [])].filter(Boolean).join(" ").toLowerCase()
 				return hay.includes(q)
 			})
 		}
@@ -69,22 +86,38 @@ function SecretsPage() {
 			accessorKey: "name",
 			header: "Name",
 			cell: ({ row }) => (
-				<code className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
-					{row.original.name}
-				</code>
+				<div className="flex max-w-[240px] items-center gap-2">
+					<SecretMimeIcon
+						name={row.original.name}
+						value={row.original.value}
+						kind={row.original.kind}
+						metadata={row.original.metadata}
+						resolvedMime={row.original.resolvedMime}
+						className="size-5 shrink-0"
+						size={20}
+					/>
+					<code className="truncate rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+						{row.original.name}
+					</code>
+				</div>
 			),
 		},
 		{
 			id: "details",
 			header: "Details",
 			cell: ({ row }) => {
-				const m = row.original.metadata
-				if (!m?.description && !m?.mime_type && !(m?.tags?.length)) {
+				const m = row.original.metadata!
+				const mime = resolveSecretMime(row.original)
+				const hasServerMeta = !!(m?.description || m?.mime_type || (m?.tags?.length && m.tags.length > 0))
+				if (!hasServerMeta && !mime) {
 					return <span className="text-xs text-muted-foreground">—</span>
 				}
-				const bits = [m.mime_type, m.description].filter(Boolean)
+				const bits = [mime !== "application/octet-stream" ? mime : null, m?.description].filter(Boolean) as string[]
 				const joined = bits.join(" · ")
 				const label = joined.length > 72 ? `${joined.slice(0, 72)}…` : joined
+				if (!label && !(m?.tags?.length)) {
+					return <span className="text-xs text-muted-foreground">—</span>
+				}
 				return (
 					<div className="flex max-w-[220px] flex-col gap-0.5">
 						{label ? (
@@ -107,7 +140,14 @@ function SecretsPage() {
 		{
 			id: "value",
 			header: "Value",
-			cell: ({ row }) => <MaskedValue value={row.original.value} />,
+			cell: ({ row }) =>
+				row.original.kind === "binary" ? (
+					<Badge variant="neutral" className="text-[10px] font-normal">
+						File · {formatSecretByteSize(row.original.binary?.byteLength ?? 0)}
+					</Badge>
+				) : (
+					<MaskedValue value={row.original.value} />
+				),
 		},
 		{
 			accessorKey: "version",
@@ -135,8 +175,11 @@ function SecretsPage() {
 						size="icon-sm"
 						className="text-muted-foreground hover:text-foreground"
 						type="button"
+						disabled={row.original.kind === "binary"}
+						title={row.original.kind === "binary" ? "File secrets cannot be edited as text" : "Edit"}
 						onClick={(e) => {
 							e.stopPropagation()
+							if (row.original.kind === "binary") return
 							setEditingSecret(row.original)
 						}}
 					>
@@ -222,7 +265,7 @@ function SecretsPage() {
 			<DataTable
 				columns={columns}
 				data={rows}
-				onRowClick={(row) => setSelectedSecret(row.original)}
+				onRowClick={(row) => selectSecret(row.original)}
 				emptyIcon={<KeyRound />}
 				emptyTitle="No secrets yet"
 				emptyDescription="Secrets are encrypted on your device before leaving the browser. Add your first secret to get started."
@@ -240,7 +283,7 @@ function SecretsPage() {
 				}
 			/>
 
-			<Sheet open={!!selectedSecret} onOpenChange={(open) => { if (!open) setSelectedSecret(null) }}>
+			<Sheet open={!!selectedSecret} onOpenChange={(open) => { if (!open) selectSecret(null) }}>
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{selectedSecret?.name ?? "Secret"}</SheetTitle>
@@ -253,11 +296,12 @@ function SecretsPage() {
 							projectId={projectId}
 							environment={environment}
 							secret={selectedSecret}
+							blobUrl={previewBlobUrl}
 							onEdit={() => {
 								setEditingSecret(selectedSecret)
-								setSelectedSecret(null)
+								selectSecret(null)
 							}}
-							onDeleted={() => setSelectedSecret(null)}
+							onDeleted={() => selectSecret(null)}
 						/>
 					)}
 				</SheetContent>
@@ -275,10 +319,11 @@ function SecretsPage() {
 	)
 }
 
-function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }: {
+function SecretDetailSheet({ projectId, environment, secret, blobUrl, onEdit, onDeleted }: {
 	projectId: string
 	environment: string
 	secret: DecryptedSecretRow
+	blobUrl: string | null
 	onEdit: () => void
 	onDeleted: () => void
 }) {
@@ -323,11 +368,14 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 
 			<div>
 				<p className="text-xs font-medium text-muted-foreground">Value</p>
-				<div className="mt-1 flex items-start gap-2">
-					<code className="flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs">{secret.value}</code>
-					<Button variant="ghost" size="icon-sm" onClick={() => handleCopy(secret.value, "value")}>
-						{copied === "value" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-					</Button>
+				<div className="mt-1">
+					<SecretContentPanel
+						secret={secret}
+						blobUrl={blobUrl}
+						copied={copied}
+						onCopy={handleCopy}
+						defaultTextRevealed
+					/>
 				</div>
 			</div>
 
@@ -335,13 +383,24 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 				<div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-3">
 					<p className="text-[11px] font-medium text-amber-950 dark:text-amber-200">Stored on the server in plaintext</p>
 					<p className="mt-1 text-xs text-muted-foreground">
-						Use for MIME hints, runbooks, and search — never put the secret value here.
+						Use for runbooks and search — never put the secret value here.
 					</p>
 					<dl className="mt-2 space-y-1.5 text-xs">
 						{secret.metadata?.mime_type ? (
 							<div className="flex gap-2">
 								<dt className="w-20 shrink-0 text-muted-foreground">MIME</dt>
-								<dd className="font-mono">{secret.metadata.mime_type}</dd>
+								<dd className="flex items-center gap-1.5 font-mono">
+									<SecretMimeIcon
+										name={secret.name}
+										value={secret.value}
+										kind={secret.kind}
+										metadata={secret.metadata}
+										forcedMime={secret.resolvedMime ?? secret.metadata.mime_type}
+										size={16}
+										className="size-4 shrink-0"
+									/>
+									{secret.metadata.mime_type}
+								</dd>
 							</div>
 						) : null}
 						{secret.metadata?.description ? (
@@ -376,21 +435,30 @@ function SecretDetailSheet({ projectId, environment, secret, onEdit, onDeleted }
 
 			<div>
 				<p className="text-xs font-medium text-muted-foreground">Copyable</p>
-				<div className="mt-1 flex items-center gap-2">
-					<code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
-						{secret.name}={secret.value}
-					</code>
-					<Button variant="ghost" size="icon-sm" onClick={() => handleCopy(`${secret.name}=${secret.value}`, "env")}>
-						{copied === "env" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-					</Button>
-				</div>
+				{secret.kind === "binary" ? (
+					<p className="mt-1 text-xs text-muted-foreground">
+						Not available for file secrets — use{" "}
+						<span className="font-medium text-foreground">Download</span> or copy base64 under Value.
+					</p>
+				) : (
+					<div className="mt-1 flex items-center gap-2">
+						<code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">
+							{secret.name}={secret.value}
+						</code>
+						<Button variant="ghost" size="icon-sm" onClick={() => handleCopy(`${secret.name}=${secret.value}`, "env")}>
+							{copied === "env" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+						</Button>
+					</div>
+				)}
 			</div>
 
-			<div className="flex gap-2 pt-2">
-				<Button variant="outline" size="sm" onClick={onEdit}>
-					<Pencil /> Edit value
-				</Button>
-			</div>
+			{secret.kind !== "binary" ? (
+				<div className="flex gap-2 pt-2">
+					<Button variant="outline" size="sm" onClick={onEdit}>
+						<Pencil /> Edit value
+					</Button>
+				</div>
+			) : null}
 
 			<Separator />
 

@@ -13,6 +13,7 @@ import type { DecryptedSecretRow } from "#/lib/queries/secrets"
 import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
 import { updateSecretSchema, type UpdateSecretInput, buildSecretMetadataPayload } from "#/lib/schemas/secrets"
+import { inferMimeForUpdateClient } from "#/lib/secret-mime"
 import { toast } from "sonner"
 import { AlertCircle, ChevronDown } from "lucide-react"
 import { cn } from "#/lib/utils"
@@ -35,19 +36,21 @@ export function EditSecretDialog({ projectId, secret, open, onOpenChange }: Edit
 		resolver: zodResolver(updateSecretSchema),
 		values: {
 			value: secret.value,
-			mime_type: meta?.mime_type ?? "",
 			description: meta?.description ?? "",
 			tags_input: meta?.tags?.join(", ") ?? "",
 		},
 	})
 
-	const onSubmit = (data: UpdateSecretInput) => {
+	const onSubmit = async (data: UpdateSecretInput) => {
 		if (!projectDEK) return
-		const metadata = buildSecretMetadataPayload({
-			mime_type: data.mime_type,
-			description: data.description,
-			tags_input: data.tags_input,
-		})
+		const mime = await inferMimeForUpdateClient(secret, data.value)
+		const metadata = buildSecretMetadataPayload(
+			{
+				description: data.description,
+				tags_input: data.tags_input,
+			},
+			mime,
+		)
 		update.mutate(
 			{
 				projectId,
@@ -119,10 +122,6 @@ export function EditSecretDialog({ projectId, secret, open, onOpenChange }: Edit
 						</CollapsibleTrigger>
 						<CollapsibleContent className="border-t px-3 pb-3 pt-1">
 							<div className="grid gap-3">
-								<div className="space-y-1">
-									<Label htmlFor="edit-mime" className="text-[11px] text-muted-foreground">MIME type</Label>
-									<Input id="edit-mime" className="h-8 text-xs" {...form.register("mime_type")} />
-								</div>
 								<div className="space-y-1">
 									<Label htmlFor="edit-desc" className="text-[11px] text-muted-foreground">Description</Label>
 									<Textarea id="edit-desc" className="min-h-[64px] text-xs" rows={2} {...form.register("description")} />

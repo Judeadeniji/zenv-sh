@@ -2,7 +2,6 @@ import { z } from "zod"
 
 /** Plaintext hints stored on the server (never put secret values here). */
 export const secretMetadataFieldsSchema = z.object({
-	mime_type: z.string().max(256).optional().or(z.literal("")),
 	description: z.string().max(4000).optional().or(z.literal("")),
 	/** Comma-separated tags */
 	tags_input: z.string().optional().or(z.literal("")),
@@ -10,39 +9,46 @@ export const secretMetadataFieldsSchema = z.object({
 
 export type SecretMetadataFields = z.infer<typeof secretMetadataFieldsSchema>
 
-export function buildSecretMetadataPayload(fields: SecretMetadataFields): Record<string, unknown> | undefined {
-	const mime = fields.mime_type?.trim()
+/** Merge optional description/tags with auto-detected MIME (always sent). */
+export function buildSecretMetadataPayload(
+	fields: SecretMetadataFields,
+	mimeType: string,
+): Record<string, unknown> {
 	const desc = fields.description?.trim()
 	const tags = (fields.tags_input ?? "")
 		.split(",")
 		.map((t) => t.trim())
 		.filter(Boolean)
-	const out: Record<string, unknown> = {}
-	if (mime) out.mime_type = mime
+	const out: Record<string, unknown> = { mime_type: mimeType.slice(0, 256) }
 	if (desc) out.description = desc
 	if (tags.length > 0) out.tags = tags
-	if (Object.keys(out).length === 0) return undefined
 	return out
 }
 
 export const createSecretSchema = z.discriminatedUnion("inputMode", [
-	z.object({
-		inputMode: z.literal("text"),
-		name: z.string().min(1, "Name is required"),
-		value: z.string().min(1, "Value is required"),
-	}).merge(secretMetadataFieldsSchema),
-	z.object({
-		inputMode: z.literal("file"),
-		name: z.string().min(1, "Name is required"),
-		value: z.string(),
-	}).merge(secretMetadataFieldsSchema),
+	z
+		.object({
+			inputMode: z.literal("text"),
+			name: z.string().min(1, "Name is required"),
+			value: z.string().min(1, "Value is required"),
+		})
+		.extend(secretMetadataFieldsSchema.shape),
+	z
+		.object({
+			inputMode: z.literal("file"),
+			name: z.string().min(1, "Name is required"),
+			value: z.string(),
+		})
+		.extend(secretMetadataFieldsSchema.shape),
 ])
 
 export type CreateSecretInput = z.infer<typeof createSecretSchema>
 
-export const updateSecretSchema = z.object({
-	value: z.string().min(1, "Value is required"),
-}).merge(secretMetadataFieldsSchema)
+export const updateSecretSchema = z
+	.object({
+		value: z.string().min(1, "Value is required"),
+	})
+	.extend(secretMetadataFieldsSchema.shape)
 
 export type UpdateSecretInput = z.infer<typeof updateSecretSchema>
 

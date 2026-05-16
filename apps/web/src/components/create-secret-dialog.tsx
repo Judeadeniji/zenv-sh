@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQuery } from "@tanstack/react-query"
 import {
 	Dialog, DialogTrigger, DialogContent, DialogHeader,
 	DialogTitle, DialogDescription, DialogFooter, DialogClose,
@@ -14,8 +15,10 @@ import { useCreateSecret } from "#/lib/queries/secrets"
 import { useProjectDEK } from "#/lib/queries/projects"
 import { useNavStore } from "#/lib/stores/nav"
 import { createSecretSchema, type CreateSecretInput, buildSecretMetadataPayload } from "#/lib/schemas/secrets"
+import { inferMimeForCreateFile, inferTextMime } from "#/lib/secret-mime"
 import { toast } from "sonner"
-import { AlertCircle, File, Upload, X, ChevronDown } from "lucide-react"
+import { AlertCircle, Upload, X, ChevronDown } from "lucide-react"
+import { SecretMimeIcon } from "#/components/secret-mime-icon"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "#/components/ui/collapsible"
 import { cn } from "#/lib/utils"
 
@@ -45,9 +48,16 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	const { data: projectDEK } = useProjectDEK(projectId)
 	const create = useCreateSecret()
 
+	const { data: guessedFileMime } = useQuery({
+		queryKey: ["create-secret-file-mime", file?.name, file?.size, file?.lastModified, file?.type, inputMode, open],
+		queryFn: () => inferMimeForCreateFile(file!),
+		enabled: !!file && inputMode === "file" && open,
+		staleTime: 60_000,
+	})
+
 	const form = useForm<CreateSecretInput>({
 		resolver: zodResolver(createSecretSchema),
-		defaultValues: { inputMode: "text", name: "", value: "", mime_type: "", description: "", tags_input: "" },
+		defaultValues: { inputMode: "text", name: "", value: "", description: "", tags_input: "" },
 	})
 
 
@@ -94,11 +104,15 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 	const onSubmit = async (data: CreateSecretInput) => {
 		if (!projectDEK) { toast.error("No project DEK found"); return }
 	
-		const metadata = buildSecretMetadataPayload({
-			mime_type: data.mime_type,
-			description: data.description,
-			tags_input: data.tags_input,
-		})
+		const mime =
+			data.inputMode === "file" ? await inferMimeForCreateFile(file!) : inferTextMime(data.value)
+		const metadata = buildSecretMetadataPayload(
+			{
+				description: data.description,
+				tags_input: data.tags_input,
+			},
+			mime,
+		)
 
 		if (data.inputMode === "file") {
 			if (!file) { setFileError("Select a file to encrypt"); return }
@@ -196,11 +210,22 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 							<>
 								{file ? (
 									<div className="flex items-center gap-2.5 rounded-md border bg-muted/40 px-3 py-2.5">
-										<File className="size-4 shrink-0 text-muted-foreground" />
+										<SecretMimeIcon
+											name={file.name}
+											value=""
+											kind="binary"
+											className="size-6 shrink-0"
+											size={24}
+											forcedMime={guessedFileMime}
+										/>
 										<div className="min-w-0 flex-1">
 											<p className="truncate text-xs font-medium">{file.name}</p>
 											<p className="text-xs text-muted-foreground">
-												{formatBytes(file.size)}{file.type ? ` · ${file.type}` : ""}
+												{formatBytes(file.size)}
+												{" · "}
+												<span className="font-mono">
+													{guessedFileMime ?? "…"}
+												</span>
 											</p>
 										</div>
 										<Button
@@ -264,15 +289,6 @@ export function CreateSecretDialog({ projectId, trigger }: CreateSecretDialogPro
 						</CollapsibleTrigger>
 						<CollapsibleContent className="border-t px-3 pb-3 pt-1">
 							<div className="grid gap-3">
-								<div className="space-y-1">
-									<Label htmlFor="secret-mime" className="text-[11px] text-muted-foreground">MIME type hint</Label>
-									<Input
-										id="secret-mime"
-										placeholder="e.g. application/json, text/plain"
-										className="h-8 text-xs"
-										{...form.register("mime_type")}
-									/>
-								</div>
 								<div className="space-y-1">
 									<Label htmlFor="secret-desc" className="text-[11px] text-muted-foreground">Description</Label>
 									<Textarea

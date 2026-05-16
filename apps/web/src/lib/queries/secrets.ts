@@ -4,6 +4,11 @@ import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { toBase64, fromBase64 } from "#/lib/encoding"
 import { useProjectDEK } from "#/lib/queries/projects"
+import type { SecretPayloadKind } from "#/lib/secret-mime"
+import { inferTextMime } from "#/lib/secret-mime"
+import { resolveSecretMimeBatchServerFn } from "#/server/mime-lookup-fns"
+
+export type { SecretPayloadKind }
 
 /** Plaintext metadata returned with list/bulk (server-visible). */
 export type SecretServerMetadata = {
@@ -17,6 +22,12 @@ export type DecryptedSecretRow = {
     name_hash: string
     name: string
     value: string
+    kind: SecretPayloadKind
+    /** Decoded bytes when `kind === "binary"` (encrypted payload used base64). */
+    binary?: Uint8Array
+    /** MIME from server `mime-types` batch + text sniff fallback (client-only for JSON). */
+    resolvedMime?: string
+    suggestedDownloadFilename?: string
     version?: number
     updated_at?: string
     metadata?: SecretServerMetadata
@@ -162,31 +173,77 @@ export function useDecryptedSecrets(projectId: string, environment: string) {
 
             const items = data.secrets ?? []
 
-            return Promise.all(items.map(async (s) => {
-                const meta = (s as { metadata?: SecretServerMetadata }).metadata
-                try {
-                    const plaintext = await decrypt(fromBase64(s.ciphertext!), fromBase64(s.nonce!), projectDEK)
-                    const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as { name: string; value: string }
-                    const row: DecryptedSecretRow = {
-                        name_hash: s.name_hash!,
-                        name: parsed.name,
-                        value: parsed.value,
-                        version: s.version,
-                        updated_at: s.updated_at,
-                        metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+            const rows: DecryptedSecretRow[] = await Promise.all(
+                items.map(async (s) => {
+                    const meta = (s as { metadata?: SecretServerMetadata }).metadata
+                    try {
+                        const plaintext = await decrypt(fromBase64(s.ciphertext!), fromBase64(s.nonce!), projectDEK)
+                        const parsed = JSON.parse(new TextDecoder().decode(plaintext)) as {
+                            name: string
+                            value: string
+                            type?: string
+                        }
+                        if (parsed.type === "base64") {
+                            return {
+                                name_hash: s.name_hash!,
+                                name: parsed.name,
+                                value: parsed.value,
+                                kind: "binary" as const,
+                                binary: fromBase64(parsed.value),
+                                version: s.version,
+                                updated_at: s.updated_at,
+                                metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+                            } satisfies DecryptedSecretRow
+                        }
+                        return {
+                            name_hash: s.name_hash!,
+                            name: parsed.name,
+                            value: parsed.value,
+                            kind: "text" as const,
+                            version: s.version,
+                            updated_at: s.updated_at,
+                            metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+                        } satisfies DecryptedSecretRow
+                    } catch {
+                        return {
+                            name_hash: s.name_hash ?? "",
+                            name: `${(s.name_hash ?? "").slice(0, 12)}…`,
+                            value: "[decrypt error]",
+                            kind: "text" as const,
+                            version: s.version,
+                            updated_at: s.updated_at,
+                            metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+                        } satisfies DecryptedSecretRow
                     }
-                    return row
-                } catch {
-                    return {
-                        name_hash: s.name_hash ?? "",
-                        name: `${(s.name_hash ?? "").slice(0, 12)}…`,
-                        value: "[decrypt error]",
-                        version: s.version,
-                        updated_at: s.updated_at,
-                        metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
-                    } satisfies DecryptedSecretRow
-                }
+                }),
+            )
+
+            const okRows = rows.filter((r) => r.value !== "[decrypt error]")
+            const batchInput = okRows.map((r) => ({
+                name: r.name,
+                kind: r.kind,
+                metadataMime: r.metadata?.mime_type,
             }))
+
+            let batch: { mime: string | null; suggestedDownloadFilename: string | null }[] = []
+            try {
+                batch = await resolveSecretMimeBatchServerFn({ data: { items: batchInput } })
+            } catch {
+                batch = batchInput.map(() => ({ mime: null, suggestedDownloadFilename: null }))
+            }
+
+            let bi = 0
+            return rows.map((r) => {
+                if (r.value === "[decrypt error]") return r
+                const hints = batch[bi++]!
+                const resolvedMime =
+                    hints.mime ?? (r.kind === "text" ? inferTextMime(r.value) : "application/octet-stream")
+                return {
+                    ...r,
+                    resolvedMime,
+                    suggestedDownloadFilename: hints.suggestedDownloadFilename ?? undefined,
+                }
+            })
         },
         enabled: !!projectDEK && secrets.length > 0,
         staleTime: 15_000,
