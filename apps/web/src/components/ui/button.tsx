@@ -59,9 +59,7 @@ const buttonVariants = cva(
 				"icon-sm": "size-6 [&_svg:not([class*='size-'])]:size-3.5",
 			},
 		},
-		compoundVariants: [
-			{ variant: "link", className: "h-auto p-0" },
-		],
+		compoundVariants: [{ variant: "link", className: "h-auto p-0" }],
 		defaultVariants: {
 			variant: "solid",
 			size: "sm",
@@ -76,7 +74,17 @@ interface ButtonProps
 	loadingText?: string
 }
 
-function Button({ className, variant, size, isLoading, loadingText, children, disabled, render, ...props }: ButtonProps) {
+function Button({
+	className,
+	variant,
+	size,
+	isLoading,
+	loadingText,
+	children,
+	disabled,
+	render,
+	...props
+}: ButtonProps) {
 	const content = isLoading ? (
 		<span className="relative inline-flex items-center gap-1.5">
 			<span

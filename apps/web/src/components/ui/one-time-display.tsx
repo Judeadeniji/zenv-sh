@@ -11,7 +11,14 @@ interface OneTimeDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
 	masked?: boolean
 }
 
-function OneTimeDisplay({ value, label, warning, masked = true, className, ...props }: OneTimeDisplayProps) {
+function OneTimeDisplay({
+	value,
+	label,
+	warning,
+	masked = true,
+	className,
+	...props
+}: OneTimeDisplayProps) {
 	const [copied, setCopied] = React.useState(false)
 	const [revealed, setRevealed] = React.useState(!masked)
 
@@ -44,7 +51,9 @@ function OneTimeDisplay({ value, label, warning, masked = true, className, ...pr
 						{revealed ? (
 							<span className="select-all break-all">{value}</span>
 						) : (
-							<span className="text-muted-foreground">{"•".repeat(Math.min(value.length, 40))}</span>
+							<span className="text-muted-foreground">
+								{"•".repeat(Math.min(value.length, 40))}
+							</span>
 						)}
 					</div>
 					{masked && (
@@ -57,7 +66,12 @@ function OneTimeDisplay({ value, label, warning, masked = true, className, ...pr
 							{revealed ? <EyeOff /> : <Eye />}
 						</Button>
 					)}
-					<Button variant="outline" size="icon-sm" onClick={handleCopy} aria-label="Copy to clipboard">
+					<Button
+						variant="outline"
+						size="icon-sm"
+						onClick={handleCopy}
+						aria-label="Copy to clipboard"
+					>
 						{copied ? <Check className="text-success" /> : <Copy />}
 					</Button>
 				</div>

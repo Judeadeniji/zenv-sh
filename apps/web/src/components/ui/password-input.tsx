@@ -13,12 +13,14 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
 		const [visible, setVisible] = React.useState(false)
 
 		return (
-			<InputGroup className={cn(feedback === "error" && "shadow-[0px_0px_0px_1px_var(--danger-alpha-400),0px_0px_1px_0px_var(--danger-alpha-200)]", className)}>
-				<InputGroupInput
-					ref={ref}
-					type={visible ? "text" : "password"}
-					{...props}
-				/>
+			<InputGroup
+				className={cn(
+					feedback === "error" &&
+						"shadow-[0px_0px_0px_1px_var(--danger-alpha-400),0px_0px_1px_0px_var(--danger-alpha-200)]",
+					className,
+				)}
+			>
+				<InputGroupInput ref={ref} type={visible ? "text" : "password"} {...props} />
 				<InputGroupAddon align="inline-end">
 					<InputGroupButton
 						size="icon-xs"

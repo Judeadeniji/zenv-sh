@@ -38,7 +38,9 @@ const inputVariants = cva(
 
 type Feedback = "error" | "warning" | "success"
 
-interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">, VariantProps<typeof inputVariants> {
+interface InputProps
+	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
+		VariantProps<typeof inputVariants> {
 	feedback?: Feedback
 }
 
