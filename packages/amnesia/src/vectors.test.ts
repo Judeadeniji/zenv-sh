@@ -5,8 +5,12 @@
  * and validates that TypeScript Amnesia produces byte-identical output.
  * If any vector fails, Go and TS have drifted — fix before merging.
  */
-import { test, expect, describe } from "bun:test";
-import vectors from "../../../tests/vectors.json";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+
+// Node.js ESM requires the `with { type: "json" }` attribute for JSON imports
+import vectors from "../../../tests/vectors.json" with { type: "json" };
+
 import { deriveKeys } from "./derive.ts";
 import { hashName, hashAuthKey } from "./hash.ts";
 
@@ -32,8 +36,8 @@ describe("cross-language parity: deriveKeys", () => {
         unhex(v.salt),
         v.keyType as "pin" | "passphrase",
       );
-      expect(hex(kek)).toBe(v.kek);
-      expect(hex(authKey)).toBe(v.authKey);
+      assert.strictEqual(hex(kek), v.kek);
+      assert.strictEqual(hex(authKey), v.authKey);
     });
   }
 });
@@ -51,8 +55,8 @@ describe("cross-language parity: symmetric", () => {
 
       const { decrypt } = await import("./symmetric.ts");
       const decrypted = await decrypt(ciphertext, nonce, key);
-      expect(hex(decrypted)).toBe(v.plaintext);
-      expect(decrypted).toEqual(expectedPlaintext);
+      assert.strictEqual(hex(decrypted), v.plaintext);
+      assert.deepStrictEqual(decrypted, expectedPlaintext);
     });
   }
 });
@@ -61,7 +65,7 @@ describe("cross-language parity: hashName", () => {
   for (const v of vectors.hashName) {
     test(`name="${v.name}"`, async () => {
       const hash = await hashName(v.name, unhex(v.hmacKey));
-      expect(hex(hash)).toBe(v.hash);
+      assert.strictEqual(hex(hash), v.hash);
     });
   }
 });
@@ -70,7 +74,7 @@ describe("cross-language parity: hashAuthKey", () => {
   for (const v of vectors.hashAuthKey) {
     test(`authKey=${v.authKey.slice(0, 16)}...`, async () => {
       const hash = await hashAuthKey(unhex(v.authKey));
-      expect(hex(hash)).toBe(v.hash);
+      assert.strictEqual(hex(hash), v.hash);
     });
   }
 });

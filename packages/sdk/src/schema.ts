@@ -36,7 +36,8 @@ function isStandardSchema(v: unknown): v is StandardSchemaV1 {
     typeof v === "object" &&
     v !== null &&
     "~standard" in v &&
-    typeof (v as any)["~standard"]?.validate === "function"
+    // @ts-expect-error
+    typeof v["~standard"]?.validate === "function"
   );
 }
 
@@ -147,8 +148,8 @@ export function pickSchema(
   keys: string[],
 ): Record<string, unknown> {
   // Zod: schema.pick({ key1: true, key2: true })
-  if ("pick" in schema && typeof (schema as any).pick === "function") {
-    return (schema as any).pick(
+  if ("pick" in schema && typeof (schema).pick === "function") {
+    return (schema).pick(
       Object.fromEntries(keys.map((k) => [k, true])),
     );
   }
