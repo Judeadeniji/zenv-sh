@@ -5,8 +5,8 @@ import {
 	isPreviewableMime,
 	mimeToFileIconType,
 	resolveSecretMime,
-} from "#/lib/secret-mime"
-import type { DecryptedSecretRow } from "#/lib/queries/secrets"
+} from "#/lib/secret-mime.ts"
+import type { DecryptedSecretRow } from "#/lib/queries/secrets.ts"
 
 describe("secret-mime (client)", () => {
 	it("inferTextMime detects JSON", () => {
