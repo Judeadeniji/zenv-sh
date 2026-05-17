@@ -19,14 +19,14 @@
  *   const secrets = await vault.load();
  */
 import {
+  decrypt,
   deriveKeys,
   encrypt,
-  decrypt,
-  unwrapKey,
   hashName,
+  unwrapKey,
 } from "@zenv/amnesia";
-import { createApiClient, type ApiClient } from "./client.ts";
-import { extractKeys, validateValues, pickSchema, type InferSchema } from "./schema.ts";
+import { type ApiClient, createApiClient } from "./client.ts";
+import { extractKeys, type InferSchema, pickSchema, validateValues } from "./schema.ts";
 
 export interface ZEnvConfig<S extends Record<string, unknown> = Record<string, unknown>> {
   /** Service token — authenticates with the API. */
@@ -36,7 +36,7 @@ export interface ZEnvConfig<S extends Record<string, unknown> = Record<string, u
   /** Project ID — which project to fetch secrets from. */
   projectId: string;
   /** Environment — development, staging, or production. */
-  environment?: string;
+  environment?: "development" | "staging" | "production";
   /** Schema — defines which secrets to fetch and how to validate them. */
   schema?: S;
   /**
@@ -58,24 +58,38 @@ interface CryptoState {
   hmacKey: Uint8Array;
 }
 
+// Precomputed hex lookup table to avoid Array.from/map string churn
+const HEX_MAP: string[] = new Array(256);
+for (let i = 0; i < 256; i++) {
+  HEX_MAP[i] = i.toString(16).padStart(2, "0");
+}
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  let hex = "";
+  const len = bytes.length;
+  for (let i = 0; i < len; i++) {
+    hex += HEX_MAP[bytes[i]!];
+  }
+  return hex;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+  const len = bytes.length;
+  const chars = new Array(len);
+  for (let i = 0; i < len; i++) {
+    chars[i] = String.fromCharCode(bytes[i]!);
   }
-  return btoa(binary);
+  return btoa(chars.join(""));
 }
 
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
@@ -85,7 +99,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
   private client: ApiClient;
   private projectKey: string;
   private projectId: string;
-  private environment: string;
+  private environment: "development" | "staging" | "production";
   private schema: S | undefined;
   private strict: boolean;
   private disableValidation: boolean;
@@ -240,9 +254,9 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       }
 
       const rows = listData.secrets ?? [];
-      nameHashes = rows.map((r: any) => ({
-        name: r.name_hash,
-        hash: r.name_hash,
+      nameHashes = rows.map((r) => ({
+        name: r.name_hash!,
+        hash: r.name_hash!,
       }));
 
       if (nameHashes.length === 0) {
@@ -263,7 +277,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       throw new Error(`[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`);
     }
 
-    const rows = data ?? [];
+    const rows = data.secrets ?? [];
     const rowMap = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       rowMap.set(row.name_hash!, row);
@@ -286,7 +300,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
         dek,
       );
 
-      const item = JSON.parse(new TextDecoder().decode(plaintext));
+      const item = JSON.parse(textDecoder.decode(plaintext));
       // When loading without schema, we don't know the original name (only the hash)
       // so use the name from the decrypted item payload
       decrypted[item.name ?? name] = item.value;
@@ -387,7 +401,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       throw new Error(`[zEnv] Failed to fetch secrets: ${JSON.stringify(error)}`);
     }
 
-    const rows = data ?? [];
+    const rows = data.secrets ?? [];
     const rowMap = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       rowMap.set(row.name_hash!, row);
@@ -408,7 +422,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
         base64ToBytes(row.nonce!),
         dek,
       );
-      decrypted[name] = JSON.parse(new TextDecoder().decode(plaintext)).value;
+      decrypted[name] = JSON.parse(textDecoder.decode(plaintext)).value;
     }
 
     if (missing.length > 0) {
@@ -471,7 +485,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
       dek,
     );
 
-    const item = JSON.parse(new TextDecoder().decode(plaintext));
+    const item = JSON.parse(textDecoder.decode(plaintext));
     const rawValue: string = item.value;
 
     // Validate against schema field if present and validation not disabled
@@ -495,7 +509,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
     const hash = bytesToHex(await hashName(name, hmacKey));
 
     const itemJson = JSON.stringify({ name, value });
-    const plaintext = new TextEncoder().encode(itemJson);
+    const plaintext = textEncoder.encode(itemJson);
     const { ciphertext, nonce } = await encrypt(plaintext, dek);
 
     const { error } = await this.client.PUT("/sdk/secrets/{nameHash}", {
