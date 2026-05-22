@@ -47,10 +47,12 @@ COPY --from=builder-auth /build/apps/auth/dist ./apps/auth/dist
 COPY --from=builder-auth /build/apps/auth/package.json ./apps/auth/package.json
 COPY --from=builder-auth /build/apps/auth/drizzle ./apps/auth/drizzle
 COPY --from=builder-auth /build/apps/auth/drizzle.config.ts ./apps/auth/drizzle.config.ts
+# Install drizzle-kit CLI for runtime migrations
+RUN npm install -g drizzle-kit
 WORKDIR /app/apps/auth
 EXPOSE 3000
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "pnpm run db:generate && pnpm run db:migrate && node dist/index.js"]
 
 # =============================================================================
 # Stage 3b — web runtime

@@ -67,6 +67,11 @@ services:
       postgres:
         condition: service_healthy
         required: false
+    healthcheck:
+      test: ["CMD", "ls", "/build/apps/auth/drizzle/migrations"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   # Application services
@@ -88,6 +93,11 @@ services:
       redis:
         condition: service_healthy
         required: false
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth:
     build:
@@ -110,6 +120,11 @@ services:
     depends_on:
       migrate-auth:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build:
@@ -122,6 +137,11 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ---------------------------------------------------------------------------
   # Caddy — reverse proxy + automatic TLS

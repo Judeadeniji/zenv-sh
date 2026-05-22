@@ -25,9 +25,8 @@ coverage.txt
 Thumbs.db
 
 # Environment
-.env
-.env.local
-.env.*.local
+.env*
+!.env*.example
 .zenv
 
 # Node

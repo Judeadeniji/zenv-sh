@@ -71,7 +71,8 @@ boot: setup dev-up
 
 all: build
 
-build: build-api build-cli
+# --- Build ---
+build: build-api build-cli build-app build-auth build-docs
 
 build-api:
 	go build -o $(BIN)/zenv-api ./api/cmd/zenv-api
@@ -79,20 +80,16 @@ build-api:
 build-cli:
 	go build -o $(BIN)/zenv ./cli/cmd/zenv
 
-# ==========================================
-# Auth server
-# ==========================================
-
-auth-build:
+build-auth:
 	pnpm -C apps/auth run build
 
-migrate-auth:
-	pnpm -C apps/auth run db:migrate
+build-app:
+	pnpm -C apps/web run build
 
-# ==========================================
-# Test
-# ==========================================
+build-docs:
+	pnpm -C apps/docs run build
 
+# --- Test ---
 test:
 	go test ./amnesia/... ./api/... ./cli/...
 
@@ -179,3 +176,35 @@ smoke: build
 
 clean:
 	rm -rf $(BIN)
+
+# --- Preview ---
+preview: build
+	$(BIN)/zenv-api &
+
+# --- Prod infrastructure (local testing) ---
+# Use docker-compose.yml + docker-compose.prod.yml to run a local production-like stack.
+PROD_COMPOSE := -f docker-compose.yml -f docker-compose.prod.yml
+PROD_ENV_FILE ?= .env.prod
+
+prod-up:
+	@if [ -f "$(PROD_ENV_FILE)" ]; then \
+		docker compose $(PROD_COMPOSE) --env-file $(PROD_ENV_FILE) up -d --remove-orphans; \
+	else \
+		echo "WARNING: $(PROD_ENV_FILE) not found, using current environment variables" >&2; \
+		docker compose $(PROD_COMPOSE) up -d --remove-orphans; \
+	fi
+
+prod-down:
+	docker compose $(PROD_COMPOSE) down -v
+
+prod-recreate: prod-down prod-up
+
+prod-logs:
+	docker compose $(PROD_COMPOSE) --env-file $(PROD_ENV_FILE) logs -f --tail=200
+
+prod-ps:
+	docker compose $(PROD_COMPOSE) ps
+
+# Open a shell in the API service (common name: api)
+prod-shell:
+	docker compose $(PROD_COMPOSE) exec api sh
