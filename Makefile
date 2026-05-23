@@ -1,4 +1,4 @@
-.PHONY: help init-env setup boot all build build-api build-cli auth-build test test-fast test-amnesia test-api test-cli lint dev-up dev-down migrate migrate-down migrate-auth jet-gen swagger sdk-types dev-api dev-auth dev-app dev smoke clean
+.PHONY: help init-env setup boot all build build-api build-cli auth-build test test-fast test-amnesia test-api test-cli lint dev-build dev-up dev-down dev-logs migrate migrate-down jet-gen swagger sdk-types dev-api dev-auth dev-app dev smoke clean
 
 BIN := ./bin
 DATABASE_URL ?= postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
@@ -11,20 +11,20 @@ help:
 	@echo "Zenv-sh Makefile Commands:"
 	@echo ""
 	@echo "--- Setup ---"
-	@echo "  make boot           - First-time setup (envs, dependencies, databases, migrations)"
-	@echo "  make setup          - Install tools and code-gen dependencies"
+	@echo "  make boot           - First-time setup (envs, Go tools, build Docker images, start infra)"
+	@echo "  make setup          - Install Go tools and copy .env files (no pnpm install)"
 	@echo ""
 	@echo "--- Local Development ---"
 	@echo "  make dev            - Start all services (API, Auth, App) concurrently"
 	@echo "  make dev-api        - Start the Go API (Portless)"
 	@echo "  make dev-auth       - Start the Auth service (Portless)"
 	@echo "  make dev-app        - Start the Web App (Portless)"
-	@echo "  make dev-up         - Start local databases (Postgres, Redis)"
-	@echo "  make dev-down       - Stop local databases"
+	@echo "  make dev-build      - Build Docker images (runs pnpm install inside containers)"
+	@echo "  make dev-start      - Start Docker infra without rebuilding (fast)"
+	@echo "  make dev-down       - Stop Docker infra"
+	@echo "  make dev-logs       - Tail Docker logs"
 	@echo ""
 	@echo "--- Code Generation & Migrations ---"
-	@echo "  make migrate        - Apply Drizzle schema to the database"
-	@echo "  make migrate-auth   - Run Auth DB migrations"
 	@echo "  make jet-gen        - Generate Go-Jet types from schema"
 	@echo "  make swagger        - Generate OpenAPI/Swagger docs"
 	@echo "  make sdk-types      - Generate TypeScript types from OpenAPI"
@@ -39,39 +39,33 @@ help:
 init-env:
 	@echo "Scaffolding .env files..."
 	@test -f api/.env || cp api/.env.example api/.env
-	@test -f apps/web/.env || cp apps/web/.env.example apps/web/.env
+	# @test -f apps/web/.env || cp apps/web/.env.example apps/web/.env
 	@test -f apps/auth/.env || cp apps/auth/.env.example apps/auth/.env
 	@test -f cli/.env || cp cli/.env.example cli/.env 2>/dev/null || true
 
 setup: init-env
-	@echo "Installing tools and dependencies..."
-	pnpm install
-	@echo "Ensuring code-gen tools are installed..."
+	@echo "Installing Go tools (jet, swag)..."
 	go install github.com/go-jet/jet/v2/cmd/jet@latest
 	go install github.com/swaggo/swag/cmd/swag@latest
+	@echo "✅ Go tools installed. (No host pnpm install – Docker handles Node dependencies.)"
 
-boot: setup dev-up
-	@echo "Waiting for Postgres to accept connections..."
-	@sleep 3
-	@make migrate
-	@make migrate-auth
+boot: setup dev-build dev-start
 	@echo "\n========================================"
 	@echo "✅ Infrastructure and Database are ready!"
 	@echo "========================================"
-	@echo "To start developing, you can run:"
-	@echo "  make dev"
-	@echo "Or run these in separate terminal tabs:"
+	@echo "All dependencies run inside Docker containers."
+	@echo "To start developing, run: make dev"
+	@echo "Or run these in separate terminals:"
 	@echo "  make dev-api"
 	@echo "  make dev-auth"
 	@echo "  make dev-app"
 
 # ==========================================
-# Build
+# Build (optional – for CI or production)
 # ==========================================
 
 all: build
 
-# --- Build ---
 build: build-api build-cli build-app build-auth build-docs
 
 build-api:
@@ -113,39 +107,46 @@ lint:
 	golangci-lint run ./amnesia/... ./api/... ./cli/...
 
 # ==========================================
-# Dev infrastructure
+# Dev infrastructure (Docker)
 # ==========================================
 
+# Build images explicitly (use this after dependency changes)
+dev-build:
+	docker compose --profile local build
+
+# Start containers – builds images if missing, otherwise uses cache
 dev-up:
-	docker compose up -d
+	docker compose --profile local up -d
+
+# Alias for dev-up (fast start, builds only when necessary)
+dev-start: dev-up
 
 dev-down:
-	docker compose down -v
+	docker compose --profile local down -v
+
+dev-logs:
+	docker compose logs -f --tail=200
 
 # ==========================================
-# Migrations
+# Migrations – run on host (requires pnpm)
 # ==========================================
 
 migrate:
-	go run ./api/cmd/apply-drizzle
+	pnpm -C apps/auth run db:migrate
 
 migrate-down:
-	@echo "migrate-down is not supported for Drizzle-applied schema; restore from backup or reset the database." >&2
-	@exit 1
+	pnpm -C apps/auth exec drizzle-kit drop
 
 # ==========================================
 # Code Generation
 # ==========================================
 
-# --- Go-Jet codegen ---
 jet-gen:
 	~/go/bin/jet -dsn="$(DATABASE_URL)" -schema=public -path=./api/internal/store/gen
 
-# --- OpenAPI / Swagger ---
 swagger:
 	~/go/bin/swag init -g api/cmd/zenv-api/main.go -o api/docs --parseDependency --parseInternal
 
-# --- Generate TypeScript types from OpenAPI spec ---
 sdk-types: swagger
 	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
 	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
@@ -182,8 +183,7 @@ preview: build
 	$(BIN)/zenv-api &
 
 # --- Prod infrastructure (local testing) ---
-# Use docker-compose.yml + docker-compose.prod.yml to run a local production-like stack.
-PROD_COMPOSE := -f docker-compose.yml -f docker-compose.prod.yml
+PROD_COMPOSE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod
 
 prod-up:
@@ -205,6 +205,5 @@ prod-logs:
 prod-ps:
 	docker compose $(PROD_COMPOSE) ps
 
-# Open a shell in the API service (common name: api)
 prod-shell:
 	docker compose $(PROD_COMPOSE) exec api sh

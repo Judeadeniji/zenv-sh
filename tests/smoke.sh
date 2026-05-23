@@ -3,7 +3,7 @@
 # Requires: API running, auth server running, Postgres + Redis up.
 #
 # Usage:
-#   make dev-up && make migrate && make migrate-auth
+#   make dev-up && make migrate
 #   make dev-api &   # API on localhost:8080
 #   make dev-auth &  # Auth on localhost:3000
 #   ./tests/smoke.sh
