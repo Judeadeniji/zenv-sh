@@ -14,6 +14,8 @@ import (
 	tcPostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/Judeadeniji/zenv-sh/api/internal/dbschema"
 )
 
 const (
@@ -79,10 +81,14 @@ func setupDB() (*sql.DB, error) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if pingErr != nil {
+		db.Close()
 		return nil, fmt.Errorf("ping db: %w", pingErr)
 	}
 
-	db.Close()
+	if err := dbschema.Sync(ctx, db); err != nil {
+		db.Close()
+		return nil, err
+	}
 
 	return db, nil
 }

@@ -10,29 +10,6 @@ jobs:
   go-test:
     name: Go Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: zenv
-          POSTGRES_PASSWORD: zenv_dev
-          POSTGRES_DB: zenv
-        ports:
-          - 5434:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -46,15 +23,7 @@ jobs:
       - name: Build API + CLI
         run: go build ./api/... ./cli/...
 
-      - name: Run migrations
-        env:
-          DATABASE_URL: postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
-        run: make migrate
-
       - name: Test API
-        env:
-          DATABASE_URL: postgres://zenv:zenv_dev@localhost:5434/zenv?sslmode=disable
-          REDIS_URL: redis://localhost:6379
         run: go test -v -count=1 -p 1 ./api/...
 
   ts-test:
