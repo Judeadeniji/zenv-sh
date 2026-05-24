@@ -60,7 +60,7 @@ Run "zenv whoami" to verify your identity.`,
 				// Non-fatal — fall back to manual setup
 				fmt.Fprintf(os.Stderr, "\nCould not auto-derive project key: %s\n", err)
 				fmt.Fprintln(os.Stderr, "You can set it manually:")
-				fmt.Fprintln(os.Stderr, "  zenv config set --global project_key <your-project-key>")
+				fmt.Fprintln(os.Stderr, "  zenv config set project_key <your-project-key>")
 			}
 
 			fmt.Fprintln(os.Stderr, "\nRun `zenv whoami` to verify.")
@@ -105,7 +105,7 @@ func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
 	}
 
 	// Prompt for vault key
-	fmt.Fprint(os.Stderr, "\nEnter your Vault Key to auto-configure the project key: ")
+	fmt.Fprint(os.Stdout, "\nEnter your Vault Key to auto-configure the project key: ")
 	vaultKeyInput, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("read vault key: %w", err)
@@ -166,6 +166,7 @@ func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
 	if err != nil {
 		return fmt.Errorf("unwrap project vault key: %w", err)
 	}
+
 	projectKey := string(projectVaultKeyBytes)
 
 	// Save project key and project ID

@@ -82,13 +82,8 @@ func setupDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("ping db: %w", pingErr)
 	}
 
-	// if err := dbschema.Sync(ctx, db); err != nil {
-	//	db.Close()
-	//	return nil, err
-	// }
-
 	db.Close()
-	
+
 	return db, nil
 }
 

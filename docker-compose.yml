@@ -19,6 +19,8 @@ services:
       timeout: 3s
       retries: 5
     stop_grace_period: 30s
+    ports:
+      - "5434:5432"      # map host port 5434 → container port 5432
     networks:
       - internal
 
@@ -26,7 +28,6 @@ services:
     profiles: ["local"]
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:?Missing REDIS_PASSWORD}
     volumes:
       - redisdata:/data
     healthcheck:
@@ -35,6 +36,8 @@ services:
       timeout: 3s
       retries: 5
     stop_grace_period: 30s
+    ports:
+      - "6379:6379"      # map host port 6379 → container port 6379
     networks:
       - internal
 

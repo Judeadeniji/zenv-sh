@@ -125,7 +125,7 @@ dev-down:
 	docker compose --profile local down -v
 
 dev-logs:
-	docker compose logs -f --tail=200
+	docker compose --profile local logs -f --tail=200
 
 # ==========================================
 # Migrations – run on host (requires pnpm)

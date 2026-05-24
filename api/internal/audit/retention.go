@@ -83,9 +83,11 @@ func (w *Writer) createPartition(ctx context.Context, t time.Time) error {
 		end.Format("2006-01-02"),
 	)
 	_, err := w.db.ExecContext(ctx, query)
-	if err == nil {
-		slog.Debug("audit: partition ensured", "name", name)
+	if err != nil {
+		slog.Error("audit: create partition failed", "query", query, "error", err)
+		return err
 	}
+	slog.Debug("audit: partition ensured", "name", name)
 	return err
 }
 

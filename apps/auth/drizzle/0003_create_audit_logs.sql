@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     result      TEXT NOT NULL DEFAULT 'success'
                   CHECK (result IN ('success', 'denied', 'error')),
     metadata    JSONB,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_project_time ON audit_logs(project_id, created_at);
