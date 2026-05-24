@@ -10,56 +10,76 @@ import (
 
 // Known config keys and where they live.
 //
-//	~/.config/zenv/config       → api_url, auth_url
-//	~/.config/zenv/credentials  → token, project_key
-//	.zenv (local, per-project)  → project, env
+//	~/.config/zenv/config                      → api_url, auth_url
+//	~/.config/zenv/projects/<project-id>/credentials → token, project_key (per project)
+//	~/.config/zenv/credentials                 → legacy global secrets (fallback only)
+//	.zenv (per-repo)                           → project, env
 //
 // Resolution order (highest wins):
 //
-//	CLI flags → local .zenv → global config/credentials → env vars → defaults
+//	CLI flags → .zenv → per-project credentials → legacy global credentials → env vars → defaults
 const (
-	KeyAPIURL   = "api_url"
-	KeyAuthURL  = "auth_url"
-	KeyToken    = "token"
+	KeyAPIURL     = "api_url"
+	KeyAuthURL    = "auth_url"
+	KeyToken      = "token"
 	KeyProjectKey = "project_key"
-	KeyProject  = "project"
-	KeyEnv      = "env"
+	KeyProject    = "project"
+	KeyEnv        = "env"
 )
 
 // Config holds resolved CLI configuration.
 type Config struct {
-	APIURL   string
-	AuthURL  string
-	Token    string
+	APIURL     string
+	AuthURL    string
+	Token      string
 	ProjectKey string
-	Project  string
-	Env      string
+	Project    string
+	Env        string
 }
 
-// Load resolves config: flags → .zenv → global files → env vars → defaults.
+// Load resolves config: flags → .zenv → per-project creds → global creds → env vars → defaults.
 func Load(flagProject, flagEnv string) *Config {
+	scrubLocalOnlyFromGlobal()
+
 	global := loadGlobalConfig()
-	creds := loadGlobalCredentials()
+	legacyGlobal := loadGlobalCredentials()
 	local := findDotZenv()
 
-	c := &Config{
-		APIURL:   first(local[KeyAPIURL], global[KeyAPIURL], os.Getenv("ZENV_API_URL"), "http://localhost:8080"),
-		AuthURL:  first(local[KeyAuthURL], global[KeyAuthURL], os.Getenv("ZENV_AUTH_URL"), "http://localhost:3000"),
-		Token:      first(local[KeyToken], creds[KeyToken], os.Getenv("ZENV_TOKEN")),
-		ProjectKey: first(local[KeyProjectKey], creds[KeyProjectKey], os.Getenv("ZENV_PROJECT_KEY")),
-		Project:  first(local[KeyProject], global[KeyProject], os.Getenv("ZENV_PROJECT")),
-		Env:      first(local[KeyEnv], global[KeyEnv], os.Getenv("ZENV_ENV")),
-	}
+	project := first(local[KeyProject], os.Getenv("ZENV_PROJECT"))
+	env := first(local[KeyEnv], os.Getenv("ZENV_ENV"))
 
-	// Flags override everything
 	if flagProject != "" {
-		c.Project = flagProject
+		project = flagProject
 	}
 	if flagEnv != "" {
-		c.Env = flagEnv
+		env = flagEnv
+	}
+
+	var projectCreds map[string]string
+	if project != "" {
+		migrateGlobalSecretsToProject(project)
+		projectCreds = loadProjectCredentials(project)
+	}
+
+	c := &Config{
+		APIURL:     first(local[KeyAPIURL], global[KeyAPIURL], os.Getenv("ZENV_API_URL"), "http://localhost:8080"),
+		AuthURL:    first(local[KeyAuthURL], global[KeyAuthURL], os.Getenv("ZENV_AUTH_URL"), "http://localhost:3000"),
+		Token:      first(projectCreds[KeyToken], legacyGlobal[KeyToken], os.Getenv("ZENV_TOKEN")),
+		ProjectKey: first(projectCreds[KeyProjectKey], legacyGlobal[KeyProjectKey], os.Getenv("ZENV_PROJECT_KEY")),
+		Project:    project,
+		Env:        env,
 	}
 
 	return c
+}
+
+// ResolveProject returns the active project ID from flags, .zenv, or env (no credentials).
+func ResolveProject(flagProject string) string {
+	local := findDotZenv()
+	if flagProject != "" {
+		return flagProject
+	}
+	return first(local[KeyProject], os.Getenv("ZENV_PROJECT"))
 }
 
 // --- Global file paths ---
@@ -73,38 +93,48 @@ func Dir() string {
 	return filepath.Join(configDir, "zenv")
 }
 
-func globalConfigPath() string   { return filepath.Join(Dir(), "config") }
-func globalCredsPath() string    { return filepath.Join(Dir(), "credentials") }
+func globalConfigPath() string { return filepath.Join(Dir(), "config") }
+func globalCredsPath() string  { return filepath.Join(Dir(), "credentials") }
 
-// --- Read/Write helpers ---
-
-// Get reads a single key from the appropriate global file.
+// Get reads api_url / auth_url from global config only.
 func Get(key string) string {
-	if isCredential(key) {
-		return loadKV(globalCredsPath())[key]
+	if isLocalOnly(key) || isCredential(key) {
+		return ""
 	}
 	return loadKV(globalConfigPath())[key]
 }
 
-// Set writes a key to the appropriate global file.
+// Set writes api_url / auth_url to global config only.
 func Set(key, value string) error {
-	path := globalConfigPath()
-	if isCredential(key) {
-		path = globalCredsPath()
+	if isLocalOnly(key) {
+		return fmt.Errorf("%s is per-repo — use: zenv config set %s <value>  (writes .zenv)", key, key)
 	}
-	return setKV(path, key, value)
+	if isCredential(key) {
+		return fmt.Errorf("%s must use per-project storage — run: zenv config set %s <value>  (with project in .zenv)\n  or dare global: zenv config set --global %s <value>", key, key, key)
+	}
+	return setKV(globalConfigPath(), key, value)
 }
 
-// Unset removes a key from the appropriate global file.
+// Unset removes a key from global config (not per-project credentials).
 func Unset(key string) error {
-	path := globalConfigPath()
-	if isCredential(key) {
-		path = globalCredsPath()
+	if isLocalOnly(key) {
+		return fmt.Errorf("%s is per-repo — use: zenv config unset %s  (in .zenv)", key, key)
 	}
-	return removeKV(path, key)
+	if isCredential(key) {
+		return fmt.Errorf("%s is not in global config — use: zenv config unset --project <id> %s", key, key)
+	}
+	return removeKV(globalConfigPath(), key)
 }
 
-// ListGlobal returns all key-value pairs from both global files.
+// UnsetGlobalSecret removes a key from legacy global credentials.
+func UnsetGlobalSecret(key string) error {
+	if !isCredential(key) {
+		return fmt.Errorf("%s is not a global credential", key)
+	}
+	return removeKV(globalCredsPath(), key)
+}
+
+// ListGlobal returns api_url/auth_url and legacy global credentials.
 func ListGlobal() map[string]string {
 	result := loadKV(globalConfigPath())
 	for k, v := range loadKV(globalCredsPath()) {
@@ -124,6 +154,9 @@ func GetLocal(key string) string {
 
 // SetLocal writes a key to the nearest .zenv file (creates in cwd if none).
 func SetLocal(key, value string) error {
+	if isCredential(key) {
+		return fmt.Errorf("%s must be stored per-project — use: zenv login / zenv unlock", key)
+	}
 	path := findDotZenvPath()
 	if path == "" {
 		path = ".zenv"
@@ -149,18 +182,37 @@ func ListLocal() map[string]string {
 	return kv
 }
 
-// isCredential returns true if the key holds a secret.
 func isCredential(key string) bool {
 	return key == KeyToken || key == KeyProjectKey
+}
+
+func isLocalOnly(key string) bool {
+	return key == KeyProject || key == KeyEnv
 }
 
 // IsSecret is the exported version of isCredential.
 func IsSecret(key string) bool { return isCredential(key) }
 
-// --- File I/O ---
+// IsLocalOnly reports whether a key must be stored in .zenv (not global config).
+func IsLocalOnly(key string) bool { return isLocalOnly(key) }
 
-func loadGlobalConfig() map[string]string      { return loadKV(globalConfigPath()) }
-func loadGlobalCredentials() map[string]string  { return loadKV(globalCredsPath()) }
+func scrubLocalOnlyFromGlobal() {
+	path := globalConfigPath()
+	kv := loadKV(path)
+	changed := false
+	for _, k := range []string{KeyProject, KeyEnv} {
+		if _, ok := kv[k]; ok {
+			delete(kv, k)
+			changed = true
+		}
+	}
+	if changed {
+		_ = writeKV(path, kv)
+	}
+}
+
+func loadGlobalConfig() map[string]string     { return loadKV(globalConfigPath()) }
+func loadGlobalCredentials() map[string]string { return loadKV(globalCredsPath()) }
 
 func loadKV(path string) map[string]string {
 	result := make(map[string]string)
@@ -204,7 +256,6 @@ func removeKV(path, key string) error {
 }
 
 func writeKV(path string, kv map[string]string) error {
-	// Credentials get restrictive permissions.
 	perm := os.FileMode(0644)
 	if strings.HasSuffix(path, "credentials") {
 		perm = 0600
@@ -219,8 +270,6 @@ func writeKV(path string, kv map[string]string) error {
 	}
 	return os.WriteFile(path, []byte(sb.String()), perm)
 }
-
-// --- .zenv file discovery ---
 
 func findDotZenv() map[string]string {
 	path := findDotZenvPath()
@@ -249,7 +298,6 @@ func findDotZenvPath() string {
 	return ""
 }
 
-// first returns the first non-empty string.
 func first(vals ...string) string {
 	for _, v := range vals {
 		if v != "" {

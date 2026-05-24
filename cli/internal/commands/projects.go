@@ -161,9 +161,6 @@ func newProjectsCreateCmd() *cobra.Command {
 			if projectName == "" {
 				return fmt.Errorf("--name is required")
 			}
-			if cfg.ProjectKey == "" {
-				return fmt.Errorf("ZENV_PROJECT_KEY is not set.\nSet it: export ZENV_PROJECT_KEY=...")
-			}
 			if projectPubKey == "" {
 				return fmt.Errorf("--public-key is required (base64 X25519 public key from vault unlock)")
 			}
@@ -173,22 +170,22 @@ func newProjectsCreateCmd() *cobra.Command {
 				return fmt.Errorf("invalid base64 in --public-key: %w", err)
 			}
 
-			// Generate project crypto (all client-side).
+			// Generate project crypto (matches dashboard create flow).
 			projectSalt := amnesia.GenerateSalt()
 			projectDEK := amnesia.GenerateKey()
+			projectVaultKeyBytes := amnesia.GenerateKey()
+			projectVaultKey := base64.StdEncoding.EncodeToString(projectVaultKeyBytes)
 
-			// Derive Project KEK from ZENV_PROJECT_KEY + project salt.
-			projectKEK, _ := amnesia.DeriveKeys(cfg.ProjectKey, projectSalt, amnesia.KeyTypePassphrase)
+			projectKEK, _ := amnesia.DeriveKeys(projectVaultKey, projectSalt, amnesia.KeyTypePassphrase)
 
-			// Wrap Project DEK with Project KEK (nonce || ciphertext).
 			wrappedCT, wrappedNonce, err := amnesia.WrapKey(projectDEK, projectKEK)
 			if err != nil {
 				return fmt.Errorf("wrap project DEK: %w", err)
 			}
 			wrappedProjectDEK := append(wrappedNonce, wrappedCT...)
 
-			// Wrap Project DEK with user's public key (for key grant / team sharing).
-			wrappedProjectVaultKey, err := amnesia.WrapWithPublicKey(projectDEK, pubKeyBytes)
+			// Wrap the Project Vault Key (base64 string) with the user's public key for the key grant.
+			wrappedProjectVaultKey, err := amnesia.WrapWithPublicKey([]byte(projectVaultKey), pubKeyBytes)
 			if err != nil {
 				return fmt.Errorf("wrap project vault key: %w", err)
 			}
@@ -204,11 +201,21 @@ func newProjectsCreateCmd() *cobra.Command {
 				return err
 			}
 
+			if err := config.SetForProject(p.ID, config.KeyProjectKey, projectVaultKey); err != nil {
+				return fmt.Errorf("save project_key: %w", err)
+			}
+			if err := config.SetLocal(config.KeyProject, p.ID); err != nil {
+				return fmt.Errorf("save project to .zenv: %w", err)
+			}
+
 			fmt.Println("Project created successfully.")
 			fmt.Println("")
 			fmt.Printf("  ID:   %s\n", p.ID)
 			fmt.Printf("  Name: %s\n", p.Name)
 			fmt.Println("")
+			if path, err := config.ProjectCredentialsPath(p.ID); err == nil {
+				fmt.Printf("  Project key saved: %s\n", path)
+			}
 			fmt.Printf("  Run 'zenv projects init %s' to link this directory.\n", p.ID)
 			return nil
 		},

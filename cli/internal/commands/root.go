@@ -59,6 +59,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newEnvCmd())
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newLoginCmd())
+	root.AddCommand(newUnlockCmd())
 	root.AddCommand(newWhoamiCmd())
 	root.AddCommand(newConfigCmd())
 
@@ -70,13 +71,37 @@ func requireConfig() error {
 		return fmt.Errorf("not authenticated.\nRun: zenv login\n  or: zenv config set --global token <your-service-token>")
 	}
 	if cfg.ProjectKey == "" {
-		return fmt.Errorf("project key not set.\nRun: zenv config set --global project_key <your-project-key>")
+		return fmt.Errorf("project key not set for project %s.\nSet ZENV_PROJECT_KEY (CI) or run: zenv unlock\n  or: zenv config set project_key <key>", cfg.Project)
 	}
 	if cfg.Project == "" {
 		return fmt.Errorf("no project specified.\nRun: zenv config set project <project-id>\n  or: zenv projects init")
 	}
 	if cfg.Env == "" {
 		return fmt.Errorf("no environment specified.\nRun: zenv config set env <environment>")
+	}
+	return validateTokenScope()
+}
+
+// validateTokenScope ensures the CLI project/env match the service token scope.
+func validateTokenScope() error {
+	if api == nil {
+		return nil
+	}
+	info, err := api.Whoami()
+	if err != nil {
+		return nil
+	}
+	if info.ProjectID != "" && cfg.Project != "" && info.ProjectID != cfg.Project {
+		return fmt.Errorf(
+			"project mismatch: token is scoped to %s but CLI is using %s.\nRun: zenv projects init %s\n  or: zenv login",
+			info.ProjectID, cfg.Project, info.ProjectID,
+		)
+	}
+	if info.Environment != "" && cfg.Env != "" && info.Environment != cfg.Env {
+		return fmt.Errorf(
+			"environment mismatch: token is scoped to %s but CLI is using %s.\nRun: zenv config set env %s",
+			info.Environment, cfg.Env, info.Environment,
+		)
 	}
 	return nil
 }

@@ -236,25 +236,52 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 // CreateServiceToken creates a service token and returns the plaintext.
 func CreateServiceToken(t *testing.T, db *sql.DB, projectID uuid.UUID, env, permission string) string {
 	t.Helper()
+	return CreateServiceTokenForCreator(t, db, projectID, env, permission, uuid.Nil)
+}
+
+// CreateServiceTokenForCreator creates a token with created_by set to the Better Auth user id.
+func CreateServiceTokenForCreator(t *testing.T, db *sql.DB, projectID uuid.UUID, env, permission string, createdBy uuid.UUID) string {
+	t.Helper()
 
 	tokenPlaintext := fmt.Sprintf("ze_%s_%s", env, hex.EncodeToString(amnesia.GenerateKey()))
 	hash := sha256.Sum256([]byte(tokenPlaintext))
 
-	_, err := table.ServiceTokens.INSERT(
-		table.ServiceTokens.ID,
-		table.ServiceTokens.ProjectID,
-		table.ServiceTokens.Name,
-		table.ServiceTokens.TokenHash,
-		table.ServiceTokens.Environment,
-		table.ServiceTokens.Permission,
-	).VALUES(
-		uuid.New(),
-		projectID,
-		"test-token-"+uuid.New().String()[:8],
-		hash[:],
-		env,
-		permission,
-	).Exec(db)
+	var err error
+	if createdBy != uuid.Nil {
+		_, err = table.ServiceTokens.INSERT(
+			table.ServiceTokens.ID,
+			table.ServiceTokens.ProjectID,
+			table.ServiceTokens.Name,
+			table.ServiceTokens.TokenHash,
+			table.ServiceTokens.Environment,
+			table.ServiceTokens.Permission,
+			table.ServiceTokens.CreatedBy,
+		).VALUES(
+			uuid.New(),
+			projectID,
+			"test-token-"+uuid.New().String()[:8],
+			hash[:],
+			env,
+			permission,
+			createdBy,
+		).Exec(db)
+	} else {
+		_, err = table.ServiceTokens.INSERT(
+			table.ServiceTokens.ID,
+			table.ServiceTokens.ProjectID,
+			table.ServiceTokens.Name,
+			table.ServiceTokens.TokenHash,
+			table.ServiceTokens.Environment,
+			table.ServiceTokens.Permission,
+		).VALUES(
+			uuid.New(),
+			projectID,
+			"test-token-"+uuid.New().String()[:8],
+			hash[:],
+			env,
+			permission,
+		).Exec(db)
+	}
 	if err != nil {
 		t.Fatalf("insert service token: %v", err)
 	}

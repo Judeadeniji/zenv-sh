@@ -206,3 +206,33 @@ func TestGetCrypto_Success(t *testing.T) {
 		t.Error("wrapped_project_dek should not be empty")
 	}
 }
+
+func TestGetVaultMaterial_ForTokenCreator(t *testing.T) {
+	identity := test_util.CreateIdentityUser(t, ts)
+	test_util.CreateZenvUser(t, ts.DB, identity.IdentityID, identity.Email)
+	_, projectID := test_util.CreateProject(t, ts.DB, uuid.MustParse(identity.IdentityID))
+
+	svcToken := test_util.CreateServiceTokenForCreator(
+		t, ts.DB, projectID, "development", "read",
+		uuid.MustParse(identity.IdentityID),
+	)
+
+	resp := doReq(t, "GET", ts.URL+"/v1/sdk/vault", nil, svcToken)
+	assertStatus(t, resp, 200)
+
+	var result struct {
+		Salt              string `json:"salt"`
+		VaultKeyType      string `json:"vault_key_type"`
+		WrappedDEK        string `json:"wrapped_dek"`
+		WrappedPrivateKey string `json:"wrapped_private_key"`
+		PublicKey         string `json:"public_key"`
+	}
+	decodeJSON(t, resp, &result)
+
+	if result.Salt == "" || result.WrappedDEK == "" || result.WrappedPrivateKey == "" || result.PublicKey == "" {
+		t.Fatalf("vault material incomplete: %+v", result)
+	}
+	if result.VaultKeyType != "passphrase" {
+		t.Errorf("vault_key_type = %q, want passphrase", result.VaultKeyType)
+	}
+}

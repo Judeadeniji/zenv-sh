@@ -1010,7 +1010,7 @@ func (h *ProjectsHandler) GetCrypto(w http.ResponseWriter, r *http.Request) {
 		creatorID, _ := uuid.Parse(info.CreatedBy)
 		var user model.Identities
 		userStmt := SELECT(table.Identities.VaultKeyType).FROM(table.Identities).WHERE(
-			table.Identities.ID.EQ(UUID(creatorID)),
+			table.Identities.IdentityID.EQ(UUID(creatorID)),
 		)
 		if err := userStmt.Query(h.db, &user); err == nil {
 			resp.VaultKeyType = user.VaultKeyType
@@ -1322,11 +1322,11 @@ func (h *ProjectsHandler) GetVaultMaterial(w http.ResponseWriter, r *http.Reques
 		table.Identities.WrappedDek,
 		table.Identities.WrappedPrivateKey,
 		table.Identities.PublicKey,
-	).FROM(table.Identities).WHERE(table.Identities.ID.EQ(UUID(userID)))
+	).FROM(table.Identities).WHERE(table.Identities.IdentityID.EQ(UUID(userID)))
 
 	if err := stmt.Query(h.db, &user); err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "vault not set up for this user"})
 			return
 		}
 		slog.Error("vault_material: query", "error", err)

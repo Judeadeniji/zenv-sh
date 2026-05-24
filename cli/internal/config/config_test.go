@@ -7,12 +7,10 @@ import (
 )
 
 func TestLoad_Defaults(t *testing.T) {
-	// Clear all env vars that could affect config.
 	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_PROJECT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
 		t.Setenv(k, "")
 	}
 
-	// Use a temp dir so no real config files are read.
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
@@ -21,28 +19,14 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.APIURL != "http://localhost:8080" {
 		t.Errorf("APIURL = %q, want default", cfg.APIURL)
 	}
-	if cfg.AuthURL != "http://localhost:3000" {
-		t.Errorf("AuthURL = %q, want default", cfg.AuthURL)
-	}
 	if cfg.Token != "" {
 		t.Errorf("Token = %q, want empty", cfg.Token)
-	}
-	if cfg.ProjectKey != "" {
-		t.Errorf("ProjectKey = %q, want empty", cfg.ProjectKey)
-	}
-	if cfg.Project != "" {
-		t.Errorf("Project = %q, want empty", cfg.Project)
-	}
-	if cfg.Env != "" {
-		t.Errorf("Env = %q, want empty", cfg.Env)
 	}
 }
 
 func TestLoad_EnvVarsOverrideDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-	t.Setenv("ZENV_API_URL", "http://custom-api:9090")
-	t.Setenv("ZENV_AUTH_URL", "http://custom-auth:4000")
 	t.Setenv("ZENV_TOKEN", "ze_dev_testtoken")
 	t.Setenv("ZENV_PROJECT_KEY", "my-project-key")
 	t.Setenv("ZENV_PROJECT", "proj-123")
@@ -50,145 +34,129 @@ func TestLoad_EnvVarsOverrideDefaults(t *testing.T) {
 
 	cfg := Load("", "")
 
-	if cfg.APIURL != "http://custom-api:9090" {
-		t.Errorf("APIURL = %q", cfg.APIURL)
-	}
-	if cfg.AuthURL != "http://custom-auth:4000" {
-		t.Errorf("AuthURL = %q", cfg.AuthURL)
-	}
 	if cfg.Token != "ze_dev_testtoken" {
 		t.Errorf("Token = %q", cfg.Token)
 	}
 	if cfg.ProjectKey != "my-project-key" {
 		t.Errorf("ProjectKey = %q", cfg.ProjectKey)
 	}
-	if cfg.Project != "proj-123" {
-		t.Errorf("Project = %q", cfg.Project)
-	}
-	if cfg.Env != "staging" {
-		t.Errorf("Env = %q", cfg.Env)
-	}
 }
 
-func TestLoad_FlagsOverrideEverything(t *testing.T) {
+func TestLoad_PerProjectCredentials(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-	t.Setenv("ZENV_PROJECT", "env-project")
-	t.Setenv("ZENV_ENV", "env-env")
-
-	cfg := Load("flag-project", "flag-env")
-
-	if cfg.Project != "flag-project" {
-		t.Errorf("Project = %q, want flag-project", cfg.Project)
-	}
-	if cfg.Env != "flag-env" {
-		t.Errorf("Env = %q, want flag-env", cfg.Env)
-	}
-}
-
-func TestLoad_GlobalConfigFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-	// Clear env vars so config file values win.
-	for _, k := range []string{"ZENV_API_URL", "ZENV_AUTH_URL", "ZENV_TOKEN", "ZENV_PROJECT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
+	for _, k := range []string{"ZENV_TOKEN", "ZENV_PROJECT_KEY", "ZENV_PROJECT", "ZENV_ENV"} {
 		t.Setenv(k, "")
 	}
 
-	zenvDir := filepath.Join(tmpDir, "zenv")
-	os.MkdirAll(zenvDir, 0700)
+	projectID := "31a4884b-ec44-437d-a7c7-e17752137cfa"
+	credDir := filepath.Join(tmpDir, "zenv", "projects", projectID)
+	os.MkdirAll(credDir, 0700)
+	os.WriteFile(filepath.Join(credDir, "credentials"),
+		[]byte("token=ze_proj_token\nproject_key=proj-key\n"), 0600)
 
-	// Write global config.
-	os.WriteFile(filepath.Join(zenvDir, "config"), []byte("api_url=http://file-api\nauth_url=http://file-auth\n"), 0644)
+	workDir := filepath.Join(tmpDir, "repo")
+	os.MkdirAll(workDir, 0700)
+	os.WriteFile(filepath.Join(workDir, ".zenv"), []byte("project="+projectID+"\nenv=development\n"), 0644)
 
-	// Write credentials.
-	os.WriteFile(filepath.Join(zenvDir, "credentials"), []byte("token=ze_dev_filetoken\nproject_key=file-vault\n"), 0600)
+	origDir, _ := os.Getwd()
+	os.Chdir(workDir)
+	defer os.Chdir(origDir)
 
 	cfg := Load("", "")
 
-	if cfg.APIURL != "http://file-api" {
-		t.Errorf("APIURL = %q, want http://file-api", cfg.APIURL)
+	if cfg.Token != "ze_proj_token" {
+		t.Errorf("Token = %q, want per-project token", cfg.Token)
 	}
-	if cfg.AuthURL != "http://file-auth" {
-		t.Errorf("AuthURL = %q, want http://file-auth", cfg.AuthURL)
-	}
-	if cfg.Token != "ze_dev_filetoken" {
-		t.Errorf("Token = %q, want ze_dev_filetoken", cfg.Token)
-	}
-	if cfg.ProjectKey != "file-vault" {
-		t.Errorf("ProjectKey = %q, want file-vault", cfg.ProjectKey)
+	if cfg.ProjectKey != "proj-key" {
+		t.Errorf("ProjectKey = %q, want per-project key", cfg.ProjectKey)
 	}
 }
 
-func TestSet_GlobalConfig(t *testing.T) {
+func TestLoad_ProjectCredsBeatGlobal(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-	if err := Set("api_url", "http://set-test"); err != nil {
-		t.Fatalf("Set: %v", err)
+	for _, k := range []string{"ZENV_TOKEN", "ZENV_PROJECT_KEY"} {
+		t.Setenv(k, "")
 	}
 
-	got := Get("api_url")
-	if got != "http://set-test" {
-		t.Errorf("Get = %q, want http://set-test", got)
+	projectID := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+	zenvDir := filepath.Join(tmpDir, "zenv")
+	os.MkdirAll(filepath.Join(zenvDir, "projects", projectID), 0700)
+	os.WriteFile(filepath.Join(zenvDir, "credentials"), []byte("token=ze_global\nproject_key=global-key\n"), 0600)
+	os.WriteFile(filepath.Join(zenvDir, "projects", projectID, "credentials"),
+		[]byte("token=ze_project\nproject_key=project-key\n"), 0600)
+
+	workDir := filepath.Join(tmpDir, "repo")
+	os.MkdirAll(workDir, 0700)
+	os.WriteFile(filepath.Join(workDir, ".zenv"), []byte("project="+projectID+"\n"), 0644)
+	origDir, _ := os.Getwd()
+	os.Chdir(workDir)
+	defer os.Chdir(origDir)
+
+	cfg := Load("", "")
+
+	if cfg.Token != "ze_project" {
+		t.Errorf("Token = %q, want project-scoped", cfg.Token)
+	}
+	if cfg.ProjectKey != "project-key" {
+		t.Errorf("ProjectKey = %q, want project-scoped", cfg.ProjectKey)
 	}
 }
 
-func TestSet_Credentials(t *testing.T) {
+func TestSetForProject(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
-	if err := Set("token", "ze_dev_secret"); err != nil {
-		t.Fatalf("Set: %v", err)
+	projectID := "11111111-2222-3333-4444-555555555555"
+	if err := SetForProject(projectID, KeyToken, "ze_saved"); err != nil {
+		t.Fatalf("SetForProject: %v", err)
 	}
+	got := GetForProject(projectID, KeyToken)
+	if got != "ze_saved" {
+		t.Errorf("GetForProject = %q", got)
+	}
+}
 
-	// Token should be in credentials file, not config.
-	credPath := filepath.Join(tmpDir, "zenv", "credentials")
-	data, err := os.ReadFile(credPath)
+func TestSet_RejectsCredentialViaSet(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	if err := Set("token", "ze_bad"); err == nil {
+		t.Fatal("Set(token) should fail — use SetForProject")
+	}
+}
+
+func TestSetGlobalSecret(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	if err := SetGlobalSecret("token", "ze_global"); err != nil {
+		t.Fatalf("SetGlobalSecret: %v", err)
+	}
+	if loadGlobalCredentials()[KeyToken] != "ze_global" {
+		t.Error("global credentials should contain token")
+	}
+}
+
+func TestListConfiguredProjects(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	_ = SetForProject("aaaaaaaa-bbbb-cccc-dddd-111111111111", KeyToken, "ze_a")
+	_ = SetForProject("aaaaaaaa-bbbb-cccc-dddd-222222222222", KeyToken, "ze_b")
+
+	ids, err := ListConfiguredProjects()
 	if err != nil {
-		t.Fatalf("read credentials: %v", err)
+		t.Fatal(err)
 	}
-	if string(data) == "" || !contains(string(data), "token=ze_dev_secret") {
-		t.Errorf("credentials file = %q, want to contain token", string(data))
-	}
-
-	// Check permissions.
-	info, _ := os.Stat(credPath)
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("credentials perm = %o, want 0600", info.Mode().Perm())
-	}
-}
-
-func TestUnset(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-	Set("api_url", "http://remove-me")
-	if err := Unset("api_url"); err != nil {
-		t.Fatalf("Unset: %v", err)
-	}
-
-	got := Get("api_url")
-	if got != "" {
-		t.Errorf("Get after Unset = %q, want empty", got)
-	}
-}
-
-func TestIsSecret(t *testing.T) {
-	if !IsSecret("token") {
-		t.Error("token should be secret")
-	}
-	if !IsSecret("project_key") {
-		t.Error("project_key should be secret")
-	}
-	if IsSecret("api_url") {
-		t.Error("api_url should not be secret")
+	if len(ids) != 2 {
+		t.Fatalf("got %d projects, want 2", len(ids))
 	}
 }
 
 func TestSetLocal_WritesToDotZenv(t *testing.T) {
 	tmpDir := t.TempDir()
-	// Change to tmpDir so .zenv is written there.
 	origDir, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
@@ -202,12 +170,12 @@ func TestSetLocal_WritesToDotZenv(t *testing.T) {
 		t.Fatalf("read .zenv: %v", err)
 	}
 	if !contains(string(data), "project=local-proj-123") {
-		t.Errorf(".zenv = %q, want to contain project", string(data))
+		t.Errorf(".zenv = %q", string(data))
 	}
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
+	return len(s) >= len(substr) && (s == substr || containsSubstr(s, substr))
 }
 
 func containsSubstr(s, substr string) bool {
