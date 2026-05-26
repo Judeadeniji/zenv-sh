@@ -25,7 +25,7 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /
-COPY apps/auth/drizzle /apps/auth/drizzle
+COPY apps/identity/drizzle /apps/identity/drizzle
 COPY --from=builder /zenv-api /usr/local/bin/zenv-api
 
 EXPOSE 8080

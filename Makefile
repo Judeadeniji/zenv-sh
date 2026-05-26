@@ -39,8 +39,8 @@ help:
 init-env:
 	@echo "Scaffolding .env files..."
 	@test -f api/.env || cp api/.env.example api/.env
-	# @test -f apps/web/.env || cp apps/web/.env.example apps/web/.env
-	@test -f apps/auth/.env || cp apps/auth/.env.example apps/auth/.env
+	# @test -f apps/dashboard/.env || cp apps/dashboard/.env.example apps/dashboard/.env
+	@test -f apps/identity/.env || cp apps/identity/.env.example apps/identity/.env
 	@test -f cli/.env || cp cli/.env.example cli/.env 2>/dev/null || true
 
 setup: init-env
@@ -75,10 +75,10 @@ build-cli:
 	go build -o $(BIN)/zenv ./cli/cmd/zenv
 
 build-auth:
-	pnpm -C apps/auth run build
+	pnpm -C apps/identity run build
 
 build-app:
-	pnpm -C apps/web run build
+	pnpm -C apps/dashboard run build
 
 build-docs:
 	pnpm -C apps/docs run build
@@ -132,10 +132,10 @@ dev-logs:
 # ==========================================
 
 migrate:
-	pnpm -C apps/auth run db:migrate
+	pnpm -C apps/identity run db:migrate
 
 migrate-down:
-	pnpm -C apps/auth exec drizzle-kit drop
+	pnpm -C apps/identity exec drizzle-kit drop
 
 # ==========================================
 # Code Generation
@@ -150,7 +150,7 @@ swagger:
 sdk-types: swagger
 	pnpm exec swagger2openapi api/docs/swagger.json -o api/docs/openapi.json
 	pnpm -C packages/sdk exec openapi-typescript ../../api/docs/openapi.json -o src/api.d.ts
-	cp packages/sdk/src/api.d.ts apps/web/src/lib/api.d.ts
+	cp packages/sdk/src/api.d.ts apps/dashboard/src/lib/api.d.ts
 
 # ==========================================
 # Dev (Portless)
@@ -160,10 +160,10 @@ dev-api:
 	env $$(grep -v '^#' api/.env | xargs) portless api.zenv go run ./api/cmd/zenv-api
 
 dev-auth:
-	portless auth.zenv pnpm -C apps/auth run dev
+	portless auth.zenv pnpm -C apps/identity run dev
 
 dev-app:
-	portless app.zenv pnpm -C apps/web dev
+	portless app.zenv pnpm -C apps/dashboard dev
 
 dev:
 	@make -j 3 dev-api dev-auth dev-app

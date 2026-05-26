@@ -1,8 +1,8 @@
 // Package auth_client is the sole bridge between zenv-api and Better Auth.
 //
 // There is no Go Better Auth library in this module: every call is plain HTTP
-// to the apps/auth server. Route shapes and payloads follow the OpenAPI export
-// at apps/auth/api-1.json (Better Auth instance API reference).
+// to the apps/identity server. Route shapes and payloads follow the OpenAPI export
+// at apps/identity/api-1.json (Better Auth instance API reference).
 //
 // User profile fields for the dashboard (name, email by user id) come from
 // public.users in Postgres via internal/user_lookup — not from Better Auth admin routes.

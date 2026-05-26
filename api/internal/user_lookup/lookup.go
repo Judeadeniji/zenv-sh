@@ -1,6 +1,6 @@
 // Package user_lookup reads Better Auth user profile rows from public.users in the API database.
 // The zEnv API does not call Better Auth admin routes for identity display — same Postgres holds
-// the Drizzle/Better Auth schema (see apps/auth/drizzle).
+// the Drizzle/Better Auth schema (see apps/identity/drizzle).
 package user_lookup
 
 import (

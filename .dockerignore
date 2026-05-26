@@ -8,9 +8,9 @@ bin/
 
 # Build outputs
 **/dist
-apps/web/.output
-apps/web/.nitro
-apps/web/.vite
+apps/dashboard/.output
+apps/dashboard/.nitro
+apps/dashboard/.vite
 
 # Dev / local files
 .env

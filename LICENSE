@@ -7,8 +7,8 @@ This repository contains code under two licenses:
 1. AGPL-3.0 (see LICENSE-AGPL)
    Applies to:
    - api/          — HTTP API server
-   - apps/auth/    — Auth server
-   - apps/web/     — Dashboard
+   - apps/identity/    — Auth server
+   - apps/dashboard/     — Dashboard
 
 2. MIT (see LICENSE-MIT)
    Applies to everything else, including:

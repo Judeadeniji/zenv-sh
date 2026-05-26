@@ -13,7 +13,7 @@
 ### Invitation Flow (Better Auth)
 
 - [x] Rewrite `invite-member-dialog.tsx` — use `authClient.organization.inviteMember()` + show copyable invite link
-- [x] Add `sendInvitationEmail` stub to `apps/auth/src/auth.ts` organization plugin
+- [x] Add `sendInvitationEmail` stub to `apps/identity/src/auth.ts` organization plugin
 - [ ] Wire email provider (Resend/Postmark) — replace console.log stub in `sendInvitationEmail`
 
 ### Key Grants + Vault Sync (done)
@@ -93,7 +93,7 @@
 
 ### Auth server (standalone)
 
-- [x] Scaffold apps/auth/ — Hono + Drizzle on Postgres
+- [x] Scaffold apps/identity/ — Hono + Drizzle on Postgres
 - [x] Email/password auth enabled
 - [x] Admin plugin (user roles, admin dashboard)
 - [x] Organization plugin with afterCreate hooks syncing to zEnv tables
@@ -233,7 +233,7 @@
 
 ### Developer Dashboard (TanStack Start)
 
-- [x] Scaffold apps/web/ — TanStack Start + Tailwind + shadcn/ui
+- [x] Scaffold apps/dashboard/ — TanStack Start + Tailwind + shadcn/ui
 - [x] Auth flow — login, signup, vault setup, unlock (with PIN + passphrase)
 - [x] Protected layouts — `_authed` (session) + `_unlocked` (crypto keys in memory)
 - [x] Vault unlock gating — beforeLoad throws redirect; queries disabled until crypto present

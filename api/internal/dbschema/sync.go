@@ -1,4 +1,4 @@
-// Package dbschema applies Drizzle SQL migrations from apps/auth/drizzle.
+// Package dbschema applies Drizzle SQL migrations from apps/identity/drizzle.
 package dbschema
 
 import (
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// findDrizzleDir walks up from start until apps/auth/drizzle exists (works from repo root or any api/ subdir).
+// findDrizzleDir walks up from start until apps/identity/drizzle exists (works from repo root or any api/ subdir).
 func findDrizzleDir(start string) (string, error) {
 	dir := start
 	for {
@@ -21,13 +21,13 @@ func findDrizzleDir(start string) (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("apps/auth/drizzle not found (started from %s)", start)
+			return "", fmt.Errorf("apps/identity/drizzle not found (started from %s)", start)
 		}
 		dir = parent
 	}
 }
 
-// Sync applies sorted *.sql from apps/auth/drizzle. If the schema already exists (sessions table),
+// Sync applies sorted *.sql from apps/identity/drizzle. If the schema already exists (sessions table),
 // only additive patches run — same rules as API integration tests on reused containers.
 func Sync(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, "SELECT pg_advisory_lock(1234)"); err != nil {

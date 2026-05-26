@@ -15,7 +15,7 @@ importers:
         specifier: ^7.0.8
         version: 7.0.8
 
-  apps/auth:
+  apps/identity:
     dependencies:
       '@better-auth/redis-storage':
         specifier: ^1.6.11
@@ -80,7 +80,7 @@ importers:
         specifier: ^4.0.0
         version: 4.2.2
 
-  apps/web:
+  apps/dashboard:
     dependencies:
       '@base-ui/react':
         specifier: ^1.3.0

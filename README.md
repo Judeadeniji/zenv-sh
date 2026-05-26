@@ -188,8 +188,8 @@ make smoke          # Run smoke tests against live API
 | [cli/](cli/)                           | Go CLI tool            | [README](cli/README.md)                |
 | [packages/amnesia/](packages/amnesia/) | TypeScript crypto      | [README](packages/amnesia/README.md)   |
 | [packages/sdk/](packages/sdk/)         | TypeScript SDK         | [README](packages/sdk/README.md)       |
-| [apps/auth/](apps/auth/)               | Identity server (TS)   | —                                      |
-| [apps/web/](apps/web/)                 | TanStack Start dashboard | —                                    |
+| [apps/identity/](apps/identity/)               | Identity server (TS)   | —                                      |
+| [apps/dashboard/](apps/dashboard/)                 | TanStack Start dashboard | —                                    |
 | [apps/docs/](apps/docs/)               | Docs site (Astro)      | —                                      |
 
 ## License

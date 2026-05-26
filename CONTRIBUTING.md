@@ -29,8 +29,8 @@ make test
 - `cli/` — Go CLI (MIT)
 - `packages/amnesia/` — TypeScript crypto engine (MIT)
 - `packages/sdk/` — TypeScript SDK (MIT)
-- `apps/auth/` — Auth server (BSL)
-- `apps/web/` — Dashboard (BSL)
+- `apps/identity/` — Auth server (BSL)
+- `apps/dashboard/` — Dashboard (BSL)
 
 ## Development
 

@@ -1,6 +1,6 @@
 import createClient from "openapi-fetch"
-import type { paths } from "./api.d.ts"
-import { env } from "./env"
+import type { paths } from "./api"
+import { env } from "./env.ts"
 import { createIsomorphicFn } from "@tanstack/react-start"
 import { getRequestHeaders } from "@tanstack/react-start/server"
 

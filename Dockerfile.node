@@ -4,9 +4,9 @@
 FROM node:22-alpine AS deps
 WORKDIR /build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/auth/package.json ./apps/auth/
+COPY apps/identity/package.json ./apps/identity/
 COPY apps/docs/package.json ./apps/docs/
-COPY apps/web/package.json ./apps/web/
+COPY apps/dashboard/package.json ./apps/dashboard/
 COPY packages/amnesia/package.json ./packages/amnesia/
 COPY packages/sdk/package.json ./packages/sdk/
 RUN corepack enable pnpm && pnpm install --frozen-lockfile \
@@ -19,21 +19,21 @@ RUN corepack enable pnpm && pnpm install --frozen-lockfile \
 # Stage 2a — build auth
 # =============================================================================
 FROM deps AS builder-auth
-COPY apps/auth/ ./apps/auth/
-RUN cd apps/auth && pnpm build
+COPY apps/identity/ ./apps/identity/
+RUN cd apps/identity && pnpm build
 
 # =============================================================================
 # Stage 2b — build web
 # =============================================================================
 FROM deps AS builder-web
 COPY packages/amnesia/ ./packages/amnesia/
-COPY apps/web/ ./apps/web/
+COPY apps/dashboard/ ./apps/dashboard/
 ARG VITE_AUTH_URL
 ARG VITE_API_URL
 ENV VITE_AUTH_URL=${VITE_AUTH_URL}
 ENV VITE_API_URL=${VITE_API_URL}
 RUN cd packages/amnesia && pnpm build
-RUN cd apps/web && pnpm build
+RUN cd apps/dashboard && pnpm build
 
 # =============================================================================
 # Stage 3a — auth runtime
@@ -42,14 +42,14 @@ FROM node:22-alpine AS auth
 RUN apk add --no-cache tini
 WORKDIR /app
 COPY --from=builder-auth /build/node_modules ./node_modules
-COPY --from=builder-auth /build/apps/auth/node_modules ./apps/auth/node_modules
-COPY --from=builder-auth /build/apps/auth/dist ./apps/auth/dist
-COPY --from=builder-auth /build/apps/auth/package.json ./apps/auth/package.json
-COPY --from=builder-auth /build/apps/auth/drizzle ./apps/auth/drizzle
-COPY --from=builder-auth /build/apps/auth/drizzle.config.ts ./apps/auth/drizzle.config.ts
+COPY --from=builder-auth /build/apps/identity/node_modules ./apps/identity/node_modules
+COPY --from=builder-auth /build/apps/identity/dist ./apps/identity/dist
+COPY --from=builder-auth /build/apps/identity/package.json ./apps/identity/package.json
+COPY --from=builder-auth /build/apps/identity/drizzle ./apps/identity/drizzle
+COPY --from=builder-auth /build/apps/identity/drizzle.config.ts ./apps/identity/drizzle.config.ts
 # Install drizzle-kit CLI for runtime migrations
 RUN npm install -g drizzle-kit
-WORKDIR /app/apps/auth
+WORKDIR /app/apps/identity
 EXPOSE 3000
 ENTRYPOINT ["tini", "--"]
 CMD ["sh", "-c", "pnpm run db:generate && pnpm run db:migrate && node dist/index.js"]
@@ -60,7 +60,7 @@ CMD ["sh", "-c", "pnpm run db:generate && pnpm run db:migrate && node dist/index
 FROM node:22-alpine AS web
 RUN apk add --no-cache tini
 WORKDIR /app
-COPY --from=builder-web /build/apps/web/.output ./
+COPY --from=builder-web /build/apps/dashboard/.output ./
 EXPOSE 3000
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "server/index.mjs"]
