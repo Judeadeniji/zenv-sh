@@ -226,7 +226,7 @@ function PasswordRow() {
 
 function LinkedAccountsRow() {
 	const { data: accounts } = useQuery({
-		queryKey: ["auth", "accounts"],
+		queryKey: ["identity", "accounts"],
 		queryFn: async () => {
 			const result = await authClient.listAccounts()
 			if (result.error) return []

@@ -15,13 +15,13 @@ import (
 func findDrizzleDir(start string) (string, error) {
 	dir := start
 	for {
-		candidate := filepath.Join(dir, "apps", "auth", "drizzle")
+		candidate := filepath.Join(dir, "apps", "identity", "drizzle")
 		if st, err := os.Stat(candidate); err == nil && st.IsDir() {
 			return candidate, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("apps/identity/drizzle not found (started from %s)", start)
+			return "", fmt.Errorf("drizzle directory not found in %s or its parents", start)
 		}
 		dir = parent
 	}

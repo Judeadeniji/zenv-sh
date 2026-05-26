@@ -2,7 +2,7 @@
 
 export const queryKeys = {
 	auth: {
-		me: ["auth", "me"] as const,
+		me: ["identity", "me"] as const,
 	},
 	orgs: {
 		all: ["orgs"] as const,
@@ -51,16 +51,16 @@ export const queryKeys = {
 
 export const mutationKeys = {
 	auth: {
-		login: ["auth", "login"] as const,
-		signup: ["auth", "signup"] as const,
-		setupVault: ["auth", "setup-vault"] as const,
-		unlockVault: ["auth", "unlock-vault"] as const,
-		updateProfile: ["auth", "update-profile"] as const,
-		changePassword: ["auth", "change-password"] as const,
-		linkSocial: ["auth", "link-social"] as const,
-		toggleTwoFactor: ["auth", "toggle-2fa"] as const,
-		changeVaultKey: ["auth", "change-vault-key"] as const,
-		verifyMnemonic: ["auth", "verify-mnemonic"] as const,
+		login: ["identity", "login"] as const,
+		signup: ["identity", "signup"] as const,
+		setupVault: ["identity", "setup-vault"] as const,
+		unlockVault: ["identity", "unlock-vault"] as const,
+		updateProfile: ["identity", "update-profile"] as const,
+		changePassword: ["identity", "change-password"] as const,
+		linkSocial: ["identity", "link-social"] as const,
+		toggleTwoFactor: ["identity", "toggle-2fa"] as const,
+		changeVaultKey: ["identity", "change-vault-key"] as const,
+		verifyMnemonic: ["identity", "verify-mnemonic"] as const,
 	},
 	orgs: {
 		create: ["orgs", "create"] as const,
