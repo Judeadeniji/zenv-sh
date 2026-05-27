@@ -58,14 +58,14 @@ export function unwrapWithPrivateKey(
 ): Uint8Array {
 	const minSize = NACL_HEADER_SIZE + nacl.box.overheadLength
 	const unwrapSchema = z.object({
-		packed: z.instanceof(Uint8Array).refine(
-			(val) => val.length >= minSize,
-			{ message: `packed must be at least ${minSize} bytes` }
-		),
-		recipientPrivateKey: z.instanceof(Uint8Array).refine(
-			(val) => val.length === nacl.box.secretKeyLength,
-			{ message: `recipientPrivateKey must be ${nacl.box.secretKeyLength} bytes` }
-		),
+		packed: z.instanceof(Uint8Array).refine((val) => val.length >= minSize, {
+			message: `packed must be at least ${minSize} bytes`,
+		}),
+		recipientPrivateKey: z
+			.instanceof(Uint8Array)
+			.refine((val) => val.length === nacl.box.secretKeyLength, {
+				message: `recipientPrivateKey must be ${nacl.box.secretKeyLength} bytes`,
+			}),
 	})
 
 	try {
