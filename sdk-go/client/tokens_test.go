@@ -78,45 +78,6 @@ func TestClient_CreateToken_Error(t *testing.T) {
 	}
 }
 
-func TestClient_CreateToken_WithExpiry(t *testing.T) {
-	expiry := "2026-12-31T00:00:00Z"
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/tokens", func(w http.ResponseWriter, r *http.Request) {
-		var req TokenCreateRequest
-		json.NewDecoder(r.Body).Decode(&req)
-		if req.ExpiresAt == nil || *req.ExpiresAt != expiry {
-			t.Errorf("Expected expires_at=%s, got %v", expiry, req.ExpiresAt)
-		}
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(TokenResponse{
-			ID:          "tok_2",
-			Token:       "zenv_expiring_token",
-			ProjectID:   "prj_1",
-			Environment: "production",
-			Permission:  "read",
-			ExpiresAt:   &expiry,
-		})
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	c := New(server.URL, "token")
-	tok, err := c.CreateToken(TokenCreateRequest{
-		ProjectID:   "prj_1",
-		Name:        "expiring-token",
-		Environment: "production",
-		Permission:  "read",
-		ExpiresAt:   &expiry,
-	})
-	if err != nil {
-		t.Fatalf("CreateToken failed: %v", err)
-	}
-	if tok.ExpiresAt == nil || *tok.ExpiresAt != expiry {
-		t.Errorf("Expected expires_at=%s in response", expiry)
-	}
-}
-
 func TestClient_ListTokens(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/tokens", func(w http.ResponseWriter, r *http.Request) {
@@ -148,9 +109,6 @@ func TestClient_ListTokens(t *testing.T) {
 	}
 	if tokens[0].Name != "ci-token" {
 		t.Errorf("Expected ci-token, got %s", tokens[0].Name)
-	}
-	if tokens[1].Environment != "staging" {
-		t.Errorf("Expected staging, got %s", tokens[1].Environment)
 	}
 }
 

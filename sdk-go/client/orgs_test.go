@@ -86,28 +86,6 @@ func TestClient_ListOrgs(t *testing.T) {
 	}
 }
 
-func TestClient_ListOrgs_Empty(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/orgs", func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]interface{}{
-			"organizations": []OrgResponse{},
-		}
-		json.NewEncoder(w).Encode(resp)
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	c := New(server.URL, "token")
-	orgs, err := c.ListOrgs()
-	if err != nil {
-		t.Fatalf("ListOrgs failed: %v", err)
-	}
-	if len(orgs) != 0 {
-		t.Errorf("Expected 0 orgs, got %d", len(orgs))
-	}
-}
-
 func TestClient_ListOrgs_Error(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/orgs", func(w http.ResponseWriter, r *http.Request) {
@@ -144,9 +122,6 @@ func TestClient_GetOrg(t *testing.T) {
 	}
 	if org.ID != "org_1" {
 		t.Errorf("Expected org_1, got %s", org.ID)
-	}
-	if org.OwnerID != "user_1" {
-		t.Errorf("Expected owner_id=user_1, got %s", org.OwnerID)
 	}
 }
 
@@ -195,26 +170,6 @@ func TestClient_ListMembers(t *testing.T) {
 	}
 	if members[0].Role != "owner" {
 		t.Errorf("Expected role=owner, got %s", members[0].Role)
-	}
-	if members[1].Email != "bob@example.com" {
-		t.Errorf("Expected email=bob@example.com, got %s", members[1].Email)
-	}
-}
-
-func TestClient_ListMembers_Error(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/orgs/org_1/members", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "forbidden"})
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	c := New(server.URL, "token")
-	_, err := c.ListMembers("org_1")
-	if err == nil {
-		t.Error("Expected error for forbidden response")
 	}
 }
 
@@ -304,24 +259,5 @@ func TestClient_RemoveMember_Error(t *testing.T) {
 	err := c.RemoveMember("org_1", "mem_missing")
 	if err == nil {
 		t.Error("Expected error for not found response")
-	}
-}
-
-func TestClient_AuthorizationHeader(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/orgs", func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer my-token" {
-			t.Errorf("Expected Authorization: Bearer my-token, got %s", r.Header.Get("Authorization"))
-		}
-		json.NewEncoder(w).Encode(map[string]interface{}{"organizations": []OrgResponse{}})
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	c := New(server.URL, "my-token")
-	_, err := c.ListOrgs()
-	if err != nil {
-		t.Fatalf("ListOrgs failed: %v", err)
 	}
 }

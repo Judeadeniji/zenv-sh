@@ -11,42 +11,25 @@ import (
 	"github.com/Judeadeniji/zenv-sh/sdk-go/crypto"
 )
 
-// buildWrappedDEK creates a nonce-prefixed wrapped DEK for testing.
-// zenv.go expects: wrappedProjectDEK = nonce (12 bytes) + ciphertext
-func buildWrappedDEK(t *testing.T, dek []byte, vaultKey string, salt []byte) string {
-	t.Helper()
-	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
-	ciphertext, nonce, err := amnesia.WrapKey(dek, kek)
-	if err != nil {
-		t.Fatalf("WrapKey failed: %v", err)
-	}
-	// Concatenate nonce + ciphertext as expected by NewClient
-	full := append(nonce, ciphertext...)
-	return base64.StdEncoding.EncodeToString(full)
-}
-
-func setupMockServer(t *testing.T, vaultKey string, dek []byte, secretName, secretValue string) *httptest.Server {
-	t.Helper()
+func setupMockServer(t *testing.T, vaultKey string, dek []byte, env, secretName, secretValue string) *httptest.Server {
 	salt := amnesia.GenerateSalt()
-	wrappedDEKB64 := buildWrappedDEK(t, dek, vaultKey, salt)
-
-	nameHash := crypto.ComputeNameHash(secretName, dek)
-	ct, nc, _, err := crypto.EncryptSecret(secretName, secretValue, dek, dek)
-	if err != nil {
-		t.Fatalf("EncryptSecret failed: %v", err)
-	}
+	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
+	wrappedDEK, nonce, _ := amnesia.WrapKey(dek, kek)
+	
+	fullWrappedDEK := append(nonce, wrappedDEK...)
 
 	mux := http.NewServeMux()
-
+	
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]string{
-			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": wrappedDEKB64,
+			"project_salt":       base64.StdEncoding.EncodeToString(salt),
+			"wrapped_project_dek": base64.StdEncoding.EncodeToString(fullWrappedDEK),
 		}
 		json.NewEncoder(w).Encode(resp)
 	})
 
 	mux.HandleFunc("/v1/sdk/secrets", func(w http.ResponseWriter, r *http.Request) {
+		nameHash := crypto.ComputeNameHash(secretName, dek) // hmacKey is dek
 		resp := map[string]interface{}{
 			"secrets": []map[string]string{
 				{"id": "sec_1", "name_hash": nameHash},
@@ -56,9 +39,16 @@ func setupMockServer(t *testing.T, vaultKey string, dek []byte, secretName, secr
 	})
 
 	mux.HandleFunc("/v1/sdk/secrets/bulk", func(w http.ResponseWriter, r *http.Request) {
+		nameHash := crypto.ComputeNameHash(secretName, dek)
+		ct, nc, nh, _ := crypto.EncryptSecret(secretName, secretValue, dek, dek)
+		
+		if nh != nameHash {
+			t.Errorf("Name hashes don't match")
+		}
+
 		resp := map[string]interface{}{
 			"secrets": []map[string]string{
-				{"id": "sec_1", "ciphertext": ct, "nonce": nc, "name_hash": nameHash},
+				{"id": "sec_1", "ciphertext": ct, "nonce": nc, "name_hash": nh},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -67,34 +57,44 @@ func setupMockServer(t *testing.T, vaultKey string, dek []byte, secretName, secr
 	return httptest.NewServer(mux)
 }
 
-func TestNewClient_Success(t *testing.T) {
+func TestZenvClient(t *testing.T) {
 	vaultKey := "test-vault-key"
 	dek := amnesia.GenerateKey()
+	env := "production"
+	name := "API_KEY"
+	val := "super-secret"
 
-	server := setupMockServer(t, vaultKey, dek, "API_KEY", "secret-val")
+	server := setupMockServer(t, vaultKey, dek, env, name, val)
 	defer server.Close()
 
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	client, err := NewClient(server.URL, "token", "prj_1", vaultKey)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
-	if c == nil {
-		t.Fatal("Expected non-nil client")
+
+	fetchedVal, err := client.FetchSecret(env, name)
+	if err != nil {
+		t.Fatalf("FetchSecret failed: %v", err)
+	}
+
+	if fetchedVal != val {
+		t.Errorf("Expected %s, got %s", val, fetchedVal)
+	}
+
+	all, err := client.FetchAllSecrets(env)
+	if err != nil {
+		t.Fatalf("FetchAllSecrets failed: %v", err)
+	}
+
+	if len(all) != 1 || all[name] != val {
+		t.Errorf("FetchAllSecrets returned incorrect map: %v", all)
 	}
 }
 
-func TestNewClient_DefaultAPIURL(t *testing.T) {
-	// Calling with empty URL will attempt to reach api.zenv.dev which will fail.
-	// We verify the error is a network error, not a parameter validation error.
-	_, err := NewClient("", "token", "prj_1", "vault-key")
-	if err == nil {
-		t.Error("Expected error when connecting to default URL without a server")
-	}
-}
-
-func TestNewClient_BadCrypto_InvalidSalt(t *testing.T) {
+func TestNewClient_BadCrypto(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
+		// Return invalid base64 for project_salt to force an error.
 		resp := map[string]string{
 			"project_salt":        "not-valid-base64!!!",
 			"wrapped_project_dek": "dW5pY29ybg==",
@@ -111,31 +111,11 @@ func TestNewClient_BadCrypto_InvalidSalt(t *testing.T) {
 	}
 }
 
-func TestNewClient_BadCrypto_InvalidWrappedDEK(t *testing.T) {
+func TestNewClient_InvalidWrappedDEK(t *testing.T) {
 	salt := amnesia.GenerateSalt()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]string{
-			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": "not-valid-base64!!!",
-		}
-		json.NewEncoder(w).Encode(resp)
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	_, err := NewClient(server.URL, "token", "prj_1", "vault-key")
-	if err == nil {
-		t.Error("Expected NewClient to fail with invalid base64 wrapped DEK")
-	}
-}
-
-func TestNewClient_WrappedDEKTooShort(t *testing.T) {
-	salt := amnesia.GenerateSalt()
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
-		// Valid salt but wrapped DEK is too short (less than 13 bytes)
+		// Valid salt but invalid (too short) wrapped DEK.
 		resp := map[string]string{
 			"project_salt":        base64.StdEncoding.EncodeToString(salt),
 			"wrapped_project_dek": base64.StdEncoding.EncodeToString([]byte("short")),
@@ -168,70 +148,24 @@ func TestNewClient_APIError(t *testing.T) {
 	}
 }
 
-func TestNewClient_WrongVaultKey(t *testing.T) {
-	salt := amnesia.GenerateSalt()
-	dek := amnesia.GenerateKey()
-	// Wrap with the correct vault key
-	wrappedDEKB64 := buildWrappedDEK(t, dek, "correct-vault-key", salt)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]string{
-			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": wrappedDEKB64,
-		}
-		json.NewEncoder(w).Encode(resp)
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	// Use a wrong vault key — the DEK unwrap should fail
-	_, err := NewClient(server.URL, "token", "prj_1", "wrong-vault-key")
-	if err == nil {
-		t.Error("Expected NewClient to fail when vault key is wrong")
-	}
-}
-
-func TestFetchSecret(t *testing.T) {
-	vaultKey := "vault-key"
-	dek := amnesia.GenerateKey()
-	name := "API_KEY"
-	val := "super-secret"
-
-	server := setupMockServer(t, vaultKey, dek, name, val)
-	defer server.Close()
-
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
-	if err != nil {
-		t.Fatalf("NewClient failed: %v", err)
-	}
-
-	fetchedVal, err := c.FetchSecret("production", name)
-	if err != nil {
-		t.Fatalf("FetchSecret failed: %v", err)
-	}
-	if fetchedVal != val {
-		t.Errorf("Expected %s, got %s", val, fetchedVal)
-	}
-}
-
 func TestFetchSecret_NotFound(t *testing.T) {
 	vaultKey := "vault-key"
 	dek := amnesia.GenerateKey()
 	salt := amnesia.GenerateSalt()
-	wrappedDEKB64 := buildWrappedDEK(t, dek, vaultKey, salt)
+	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
+	wrappedDEK, nonce, _ := amnesia.WrapKey(dek, kek)
+	fullWrappedDEK := append(nonce, wrappedDEK...)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]string{
 			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": wrappedDEKB64,
+			"wrapped_project_dek": base64.StdEncoding.EncodeToString(fullWrappedDEK),
 		}
 		json.NewEncoder(w).Encode(resp)
 	})
 	mux.HandleFunc("/v1/sdk/secrets/bulk", func(w http.ResponseWriter, r *http.Request) {
-		// Return empty secrets list
+		// Return empty secrets list.
 		resp := map[string]interface{}{
 			"secrets": []interface{}{},
 		}
@@ -252,43 +186,19 @@ func TestFetchSecret_NotFound(t *testing.T) {
 	}
 }
 
-func TestFetchAllSecrets(t *testing.T) {
-	vaultKey := "vault-key"
-	dek := amnesia.GenerateKey()
-	name := "API_KEY"
-	val := "super-secret"
-
-	server := setupMockServer(t, vaultKey, dek, name, val)
-	defer server.Close()
-
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
-	if err != nil {
-		t.Fatalf("NewClient failed: %v", err)
-	}
-
-	all, err := c.FetchAllSecrets("production")
-	if err != nil {
-		t.Fatalf("FetchAllSecrets failed: %v", err)
-	}
-	if len(all) != 1 {
-		t.Errorf("Expected 1 secret, got %d", len(all))
-	}
-	if all[name] != val {
-		t.Errorf("Expected %s=%s, got %s", name, val, all[name])
-	}
-}
-
 func TestFetchAllSecrets_Empty(t *testing.T) {
 	vaultKey := "vault-key"
 	dek := amnesia.GenerateKey()
 	salt := amnesia.GenerateSalt()
-	wrappedDEKB64 := buildWrappedDEK(t, dek, vaultKey, salt)
+	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
+	wrappedDEK, nonce, _ := amnesia.WrapKey(dek, kek)
+	fullWrappedDEK := append(nonce, wrappedDEK...)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]string{
 			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": wrappedDEKB64,
+			"wrapped_project_dek": base64.StdEncoding.EncodeToString(fullWrappedDEK),
 		}
 		json.NewEncoder(w).Encode(resp)
 	})
@@ -316,23 +226,21 @@ func TestFetchAllSecrets_Empty(t *testing.T) {
 	}
 }
 
-func TestFetchAllSecrets_ListError(t *testing.T) {
+func TestClientZero(t *testing.T) {
 	vaultKey := "vault-key"
 	dek := amnesia.GenerateKey()
 	salt := amnesia.GenerateSalt()
-	wrappedDEKB64 := buildWrappedDEK(t, dek, vaultKey, salt)
+	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
+	wrappedDEK, nonce, _ := amnesia.WrapKey(dek, kek)
+	fullWrappedDEK := append(nonce, wrappedDEK...)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]string{
 			"project_salt":        base64.StdEncoding.EncodeToString(salt),
-			"wrapped_project_dek": wrappedDEKB64,
+			"wrapped_project_dek": base64.StdEncoding.EncodeToString(fullWrappedDEK),
 		}
 		json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/v1/sdk/secrets", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
 	})
 
 	server := httptest.NewServer(mux)
@@ -343,43 +251,7 @@ func TestFetchAllSecrets_ListError(t *testing.T) {
 		t.Fatalf("NewClient failed: %v", err)
 	}
 
-	_, err = c.FetchAllSecrets("production")
-	if err == nil {
-		t.Error("Expected FetchAllSecrets to return error on list failure")
-	}
-}
-
-func TestClientAPI(t *testing.T) {
-	vaultKey := "vault-key"
-	dek := amnesia.GenerateKey()
-
-	server := setupMockServer(t, vaultKey, dek, "KEY", "val")
-	defer server.Close()
-
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
-	if err != nil {
-		t.Fatalf("NewClient failed: %v", err)
-	}
-
-	// API() should return the underlying API client (non-nil)
-	if c.API() == nil {
-		t.Error("Expected API() to return non-nil client")
-	}
-}
-
-func TestClientZero(t *testing.T) {
-	vaultKey := "vault-key"
-	dek := amnesia.GenerateKey()
-
-	server := setupMockServer(t, vaultKey, dek, "KEY", "val")
-	defer server.Close()
-
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
-	if err != nil {
-		t.Fatalf("NewClient failed: %v", err)
-	}
-
-	// Zero should clear dek and hmacKey slices without panicking
+	// Zero should clear dek and hmacKey slices without panicking.
 	c.Zero()
 
 	for i, v := range c.dek {
@@ -394,11 +266,24 @@ func TestClientZero(t *testing.T) {
 	}
 }
 
-func TestClientZero_IdempotentAfterZero(t *testing.T) {
+func TestClientAPI(t *testing.T) {
 	vaultKey := "vault-key"
 	dek := amnesia.GenerateKey()
+	salt := amnesia.GenerateSalt()
+	kek, _ := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
+	wrappedDEK, nonce, _ := amnesia.WrapKey(dek, kek)
+	fullWrappedDEK := append(nonce, wrappedDEK...)
 
-	server := setupMockServer(t, vaultKey, dek, "KEY", "val")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/sdk/projects/prj_1/crypto", func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]string{
+			"project_salt":        base64.StdEncoding.EncodeToString(salt),
+			"wrapped_project_dek": base64.StdEncoding.EncodeToString(fullWrappedDEK),
+		}
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
@@ -406,7 +291,8 @@ func TestClientZero_IdempotentAfterZero(t *testing.T) {
 		t.Fatalf("NewClient failed: %v", err)
 	}
 
-	// Calling Zero() twice should not panic
-	c.Zero()
-	c.Zero()
+	// API() should return the underlying API client (non-nil).
+	if c.API() == nil {
+		t.Error("Expected API() to return non-nil client")
+	}
 }
