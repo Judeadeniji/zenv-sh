@@ -1,0 +1,44 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.zenv.sh
+  resources:
+  - zenvsecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.zenv.sh
+  resources:
+  - zenvsecrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.zenv.sh
+  resources:
+  - zenvsecrets/status
+  verbs:
+  - get
+  - patch
+  - update
