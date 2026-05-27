@@ -82,13 +82,30 @@ func TestInjectBuildKitSecrets(t *testing.T) {
 	}
 }
 
+func TestInjectBuildKitSecrets_SingleKey(t *testing.T) {
+	keys := []string{"MY_SECRET"}
+	args := []string{"docker", "build", "."}
+	result := injectBuildKitSecrets(args, keys)
+
+	expected := []string{"docker", "build", "--secret", "id=MY_SECRET,env=MY_SECRET", "."}
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("injectBuildKitSecrets() = %v, want %v", result, expected)
+	}
+}
+
 func TestInjectBuildKitSecrets_AdditionalTools(t *testing.T) {
 	keys := []string{"SECRET"}
 
 	tests := []struct {
+<<<<<<< HEAD
+		name    string
+		args    []string
+		wantInj bool // whether secrets should be injected
+=======
 		name     string
 		args     []string
 		wantInj  bool // whether secrets should be injected
+>>>>>>> origin/main
 	}{
 		{
 			name:    "podman build",
@@ -147,6 +164,8 @@ func TestInjectBuildKitSecrets_AdditionalTools(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
+=======
 func TestInjectBuildKitSecrets_SingleKey(t *testing.T) {
 	keys := []string{"MY_SECRET"}
 	args := []string{"docker", "build", "."}
@@ -158,6 +177,7 @@ func TestInjectBuildKitSecrets_SingleKey(t *testing.T) {
 	}
 }
 
+>>>>>>> origin/main
 func TestMergeEnv_OverridesWin(t *testing.T) {
 	base := []string{"FOO=original", "BAR=keep", "PATH=/usr/bin"}
 	overrides := map[string]string{
@@ -201,7 +221,11 @@ func TestMergeEnv_NoDuplicates(t *testing.T) {
 
 	count := 0
 	for _, kv := range result {
+<<<<<<< HEAD
+		if len(kv) >= 4 && kv[:4] == "KEY=" {
+=======
 		if len(kv) >= 3 && kv[:4] == "KEY=" {
+>>>>>>> origin/main
 			count++
 		}
 	}
@@ -254,6 +278,21 @@ func TestMergeEnv_EmptyOverrides(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
+func TestMergeEnv_ValueContainsEquals(t *testing.T) {
+	// Env vars like BASE64=abc=def= should be split only on the first '='
+	base := []string{"ENCODED=abc=def="}
+	overrides := map[string]string{}
+
+	result := mergeEnv(base, overrides)
+
+	if len(result) != 1 || result[0] != "ENCODED=abc=def=" {
+		t.Errorf("Expected ENCODED=abc=def= preserved intact, got %v", result)
+	}
+}
+
+=======
+>>>>>>> origin/main
 func TestZeroBytes(t *testing.T) {
 	b := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0xFF}
 	zeroBytes(b)
@@ -274,3 +313,14 @@ func TestZeroBytes_Nil(t *testing.T) {
 	// Should not panic on nil slice.
 	zeroBytes(nil)
 }
+<<<<<<< HEAD
+
+func TestZeroBytes_SingleByte(t *testing.T) {
+	b := []byte{0xFF}
+	zeroBytes(b)
+	if b[0] != 0 {
+		t.Errorf("Expected b[0]=0, got %d", b[0])
+	}
+}
+=======
+>>>>>>> origin/main

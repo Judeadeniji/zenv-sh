@@ -8,11 +8,25 @@ terraform {
 }
 
 provider "zenv" {
-  api_url   = "http://localhost:8080" # Pointing to local dev server
-  token     = "zenv_dev_token_123"    # Your service token
-  project   = "prj_0190123"           # Your project ID
+  api_url   = "http://localhost:8080"              # Or use ZENV_API_URL env var
+  token     = var.zenv_token                       # Pass via TF_VAR_zenv_token
+  project   = var.zenv_project                     # Pass via TF_VAR_zenv_project
   env       = "production"
-  vault_key = "my_secure_passphrase"
+  vault_key = var.zenv_vault_key                   # Pass via TF_VAR_zenv_vault_key
+}
+
+variable "zenv_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "zenv_project" {
+  type = string
+}
+
+variable "zenv_vault_key" {
+  type      = string
+  sensitive = true
 }
 
 # Fetch a single secret
