@@ -132,7 +132,7 @@ func getDEKAndHMACKey() (dek, hmacKey []byte, err error) {
 
 	// Derive Project KEK from ZENV_PROJECT_KEY + project salt
 	// Project Vault Key always uses passphrase params (it's a random key, not a PIN).
-	projectKEK, _ := amnesia.DeriveKeys(cfg.ProjectKey, projectSalt, amnesia.KeyTypePassphrase)
+	projectKEK, _ := amnesia.DeriveKeys([]byte(cfg.ProjectKey), projectSalt, amnesia.KeyTypePassphrase)
 
 	// Unwrap Project DEK: first 12 bytes = nonce, rest = ciphertext
 	if len(wrappedProjectDEK) < 13 {

@@ -169,22 +169,37 @@ func newProjectsCreateCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid base64 in --public-key: %w", err)
 			}
+			if len(pubKeyBytes) != 32 {
+				return fmt.Errorf("--public-key must be a 32-byte X25519 public key, got %d bytes", len(pubKeyBytes))
+			}
 
 			// Generate project crypto (matches dashboard create flow).
 			projectSalt := amnesia.GenerateSalt()
-			projectDEK := amnesia.GenerateKey()
-			projectVaultKeyBytes := amnesia.GenerateKey()
-			projectVaultKey := base64.StdEncoding.EncodeToString(projectVaultKeyBytes)
 
-			projectKEK, _ := amnesia.DeriveKeys(projectVaultKey, projectSalt, amnesia.KeyTypePassphrase)
+			projectDEK := amnesia.GenerateKey()
+			defer zeroBytes(projectDEK)
+
+			projectVaultKeyBytes := amnesia.GenerateKey()
+			// base64-encode for storage and user-facing display. The encoded string
+			// is what the user will enter as their "vault key" on unlock — so the
+			// KDF input must be []byte(projectVaultKey), not the raw bytes.
+			projectVaultKey := base64.StdEncoding.EncodeToString(projectVaultKeyBytes)
+			zeroBytes(projectVaultKeyBytes) // raw bytes no longer needed
+
+			projectKEK, authKey := amnesia.DeriveKeys([]byte(projectVaultKey), projectSalt, amnesia.KeyTypePassphrase)
+			defer zeroBytes(projectKEK)
+			defer zeroBytes(authKey)
 
 			wrappedCT, wrappedNonce, err := amnesia.WrapKey(projectDEK, projectKEK)
 			if err != nil {
 				return fmt.Errorf("wrap project DEK: %w", err)
 			}
-			wrappedProjectDEK := append(wrappedNonce, wrappedCT...)
+			// Allocate fresh — do not append into wrappedNonce's backing array.
+			wrappedProjectDEK := make([]byte, 0, len(wrappedNonce)+len(wrappedCT))
+			wrappedProjectDEK = append(wrappedProjectDEK, wrappedNonce...)
+			wrappedProjectDEK = append(wrappedProjectDEK, wrappedCT...)
 
-			// Wrap the Project Vault Key (base64 string) with the user's public key for the key grant.
+			// Wrap the project vault key with the user's public key for the key grant.
 			wrappedProjectVaultKey, err := amnesia.WrapWithPublicKey([]byte(projectVaultKey), pubKeyBytes)
 			if err != nil {
 				return fmt.Errorf("wrap project vault key: %w", err)
@@ -201,6 +216,8 @@ func newProjectsCreateCmd() *cobra.Command {
 				return err
 			}
 
+			// projectVaultKey is a string — cannot be zeroed (Go strings are immutable).
+			// It's stored here immediately and not used again after this point.
 			if err := config.SetForProject(p.ID, config.KeyProjectKey, projectVaultKey); err != nil {
 				return fmt.Errorf("save project_key: %w", err)
 			}
@@ -209,10 +226,10 @@ func newProjectsCreateCmd() *cobra.Command {
 			}
 
 			fmt.Println("Project created successfully.")
-			fmt.Println("")
+			fmt.Println()
 			fmt.Printf("  ID:   %s\n", p.ID)
 			fmt.Printf("  Name: %s\n", p.Name)
-			fmt.Println("")
+			fmt.Println()
 			if path, err := config.ProjectCredentialsPath(p.ID); err == nil {
 				fmt.Printf("  Project key saved: %s\n", path)
 			}

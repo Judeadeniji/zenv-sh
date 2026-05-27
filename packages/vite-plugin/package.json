@@ -1,0 +1,55 @@
+{
+	"name": "@zenv/vite-plugin",
+	"version": "0.0.1",
+	"description": "Vite plugin for zEnv — build-time secret injection with zero-knowledge encryption",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"dev": "tsc -p tsconfig.build.json --watch",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "pnpm run build"
+	},
+	"keywords": [
+		"vite",
+		"vite-plugin",
+		"secrets",
+		"zero-knowledge",
+		"encryption",
+		"environment-variables",
+		"zenv"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Judeadeniji/zenv-sh.git",
+		"directory": "packages/vite-plugin"
+	},
+	"license": "MIT",
+	"engines": {
+		"node": ">=18"
+	},
+	"sideEffects": false,
+	"peerDependencies": {
+		"vite": ">=5.0.0"
+	},
+	"dependencies": {
+		"@zenv/sdk": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^5",
+		"vite": "^6.0.0"
+	}
+}

@@ -1,11 +1,9 @@
 package commands
 
 import (
-	"bufio"
 	"encoding/base64"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +11,9 @@ import (
 	"github.com/Judeadeniji/zenv-sh/cli/internal/client"
 	"github.com/Judeadeniji/zenv-sh/cli/internal/config"
 )
+
+// gcmNonceSize is the AES-GCM nonce length prepended to all wrapped blobs.
+const gcmNonceSize = 12
 
 func newUnlockCmd() *cobra.Command {
 	return &cobra.Command{
@@ -30,18 +31,14 @@ Requires a saved service token (zenv login).`,
 			if cfg.Token == "" {
 				return fmt.Errorf("not authenticated.\nRun: zenv login")
 			}
-			reader := bufio.NewReader(os.Stdin)
-			if err := deriveProjectKey(api, reader); err != nil {
-				return err
-			}
-			return nil
+			return deriveProjectKey(api)
 		},
 	}
 }
 
 // deriveProjectKey fetches vault material and the key grant, prompts for the
 // vault key, and derives + saves the project key.
-func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
+func deriveProjectKey(apiClient *client.Client) error {
 	info, err := apiClient.Whoami()
 	if err != nil {
 		return fmt.Errorf("whoami: %w", err)
@@ -61,46 +58,50 @@ func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
 		return fmt.Errorf("decode salt: %w", err)
 	}
 
-	fmt.Fprint(os.Stderr, "Enter your Vault Key: ")
-	vaultKeyInput, err := reader.ReadString('\n')
+	vaultKey, err := PromptSecret("vault key")
 	if err != nil {
 		return fmt.Errorf("read vault key: %w", err)
 	}
-	vaultKey := strings.TrimSpace(vaultKeyInput)
-	if vaultKey == "" {
-		return fmt.Errorf("no vault key provided")
-	}
+	defer zeroBytes(vaultKey)
 
 	keyType := amnesia.KeyTypePassphrase
 	if vault.VaultKeyType == "pin" {
 		keyType = amnesia.KeyTypePIN
 	}
 
-	kek, _ := amnesia.DeriveKeys(vaultKey, salt, keyType)
+	kek, authKey := amnesia.DeriveKeys(vaultKey, salt, keyType)
+	defer zeroBytes(kek)
+	defer zeroBytes(authKey)
+
+	// TODO: Verify authKey hash actually unlocks vault from the api
 
 	wrappedDEK, err := base64.StdEncoding.DecodeString(vault.WrappedDEK)
 	if err != nil {
 		return fmt.Errorf("decode wrapped_dek: %w", err)
 	}
-	if len(wrappedDEK) < 13 {
+	if len(wrappedDEK) <= gcmNonceSize {
 		return fmt.Errorf("wrapped DEK too short")
 	}
-	dek, err := amnesia.UnwrapKey(wrappedDEK[12:], wrappedDEK[:12], kek)
+
+	dek, err := amnesia.UnwrapKey(wrappedDEK[gcmNonceSize:], wrappedDEK[:gcmNonceSize], kek)
 	if err != nil {
-		return fmt.Errorf("wrong Vault Key (unwrap DEK failed)")
+		return fmt.Errorf("unwrap DEK (wrong vault key?): %w", err)
 	}
+	defer zeroBytes(dek)
 
 	wrappedPrivateKey, err := base64.StdEncoding.DecodeString(vault.WrappedPrivateKey)
 	if err != nil {
 		return fmt.Errorf("decode wrapped_private_key: %w", err)
 	}
-	if len(wrappedPrivateKey) < 13 {
+	if len(wrappedPrivateKey) <= gcmNonceSize {
 		return fmt.Errorf("wrapped private key too short")
 	}
-	privateKey, err := amnesia.Decrypt(wrappedPrivateKey[12:], wrappedPrivateKey[:12], dek)
+
+	privateKey, err := amnesia.Decrypt(wrappedPrivateKey[gcmNonceSize:], wrappedPrivateKey[:gcmNonceSize], dek)
 	if err != nil {
 		return fmt.Errorf("unwrap private key: %w", err)
 	}
+	defer zeroBytes(privateKey)
 
 	grant, err := apiClient.GetKeyGrant(projectID)
 	if err != nil {
@@ -117,7 +118,10 @@ func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
 		return fmt.Errorf("unwrap project vault key: %w", err)
 	}
 
+	// config.SetForProject requires a string — this conversion is an acknowledged
+	// tradeoff; the []byte is zeroed immediately after.
 	projectKey := string(projectVaultKeyBytes)
+	zeroBytes(projectVaultKeyBytes)
 
 	if err := config.SetForProject(projectID, config.KeyProjectKey, projectKey); err != nil {
 		return fmt.Errorf("save project_key: %w", err)
@@ -132,8 +136,7 @@ func deriveProjectKey(apiClient *client.Client, reader *bufio.Reader) error {
 	}
 
 	credPath, _ := config.ProjectCredentialsPath(projectID)
-	fmt.Fprintf(os.Stderr, "Project key saved for this project:\n  %s\n", credPath)
-	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "Project key saved for this project:\n  %s\n\n", credPath)
 	fmt.Fprintln(os.Stderr, "Each project has its own credentials. Switch repos with:")
 	fmt.Fprintln(os.Stderr, "  zenv projects init <project-id>")
 	fmt.Fprintln(os.Stderr, "")

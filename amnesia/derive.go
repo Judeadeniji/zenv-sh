@@ -55,11 +55,11 @@ func ParamsForKeyType(kt KeyType) Argon2idParams {
 //
 // The Vault Key and salt are the only inputs. The Vault Key never leaves the client.
 // Argon2id is never run twice per unlock — one run, one output, split by fixed convention.
-func DeriveKeys(vaultKey string, salt []byte, keyType KeyType) (kek, authKey []byte) {
+func DeriveKeys(vaultKey []byte, salt []byte, keyType KeyType) (kek, authKey []byte) {
 	params := ParamsForKeyType(keyType)
 
 	derived := argon2.IDKey(
-		[]byte(vaultKey),
+		vaultKey,
 		salt,
 		params.Iterations,
 		params.Memory,
