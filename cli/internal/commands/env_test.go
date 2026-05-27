@@ -45,24 +45,14 @@ func TestEnvCmd(t *testing.T) {
 
 	// Setup a temporary workspace
 	tmpDir := t.TempDir()
-	os.Setenv("HOME", tmpDir)
-	os.Setenv("XDG_CONFIG_HOME", tmpDir+"/.config")
-	os.Setenv("ZENV_API_URL", server.URL)
-	os.Setenv("ZENV_TOKEN", "fake-token")
-	os.Setenv("ZENV_PROJECT", "12345678-1234-1234-1234-123456789012")
-	os.Setenv("ZENV_ENV", "env_1")
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir+"/.config")
+	t.Setenv("ZENV_API_URL", server.URL)
+	t.Setenv("ZENV_TOKEN", "fake-token")
+	t.Setenv("ZENV_PROJECT", "12345678-1234-1234-1234-123456789012")
+	t.Setenv("ZENV_ENV", "env_1")
 	// Skip vault unlocking for basic env tests if possible, or mock vault key
-	os.Setenv("ZENV_PROJECT_KEY", "fake-key")
-
-	defer func() {
-		os.Unsetenv("HOME")
-		os.Unsetenv("XDG_CONFIG_HOME")
-		os.Unsetenv("ZENV_API_URL")
-		os.Unsetenv("ZENV_TOKEN")
-		os.Unsetenv("ZENV_PROJECT")
-		os.Unsetenv("ZENV_ENV")
-		os.Unsetenv("ZENV_PROJECT_KEY")
-	}()
+	t.Setenv("ZENV_PROJECT_KEY", "fake-key")
 
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"env", "--format=dotenv"})
@@ -77,5 +67,9 @@ func TestEnvCmd(t *testing.T) {
 	// But we expect the command to reach the decryption phase.
 	if err == nil {
 		t.Fatalf("Expected error because of fake crypto, but got none")
+	} else if err.Error() != "cipher: message authentication failed" && err.Error() != "failed to decrypt keys" {
+		// Log the error to ensure we're failing for the right reason, or check specific substring
+		// Actually, since it's fake crypto, it will fail during AES-GCM Open.
+		t.Logf("Expected crypto error, got: %v", err)
 	}
 }

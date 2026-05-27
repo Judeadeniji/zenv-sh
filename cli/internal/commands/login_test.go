@@ -32,15 +32,9 @@ func TestLoginCmd(t *testing.T) {
 	defer server.Close()
 
 	tmpDir := t.TempDir()
-	os.Setenv("HOME", tmpDir)
-	os.Setenv("XDG_CONFIG_HOME", tmpDir+"/.config")
-	os.Setenv("ZENV_API_URL", server.URL)
-
-	defer func() {
-		os.Unsetenv("HOME")
-		os.Unsetenv("XDG_CONFIG_HOME")
-		os.Unsetenv("ZENV_API_URL")
-	}()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir+"/.config")
+	t.Setenv("ZENV_API_URL", server.URL)
 
 	// Hijack Stdin
 	r, w, err := os.Pipe()
