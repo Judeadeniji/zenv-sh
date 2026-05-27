@@ -52,6 +52,15 @@ func TestInjectBuildKitSecrets(t *testing.T) {
 			},
 		},
 		{
+			name: "make build (no-op)",
+			args: []string{"make", "build", "all"},
+			expected: []string{
+				"make",
+				"build",
+				"all",
+			},
+		},
+		{
 			name:     "empty keys (no-op)",
 			args:     []string{"docker", "build", "."},
 			expected: []string{"docker", "build", "."},
