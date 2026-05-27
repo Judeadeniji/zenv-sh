@@ -27,7 +27,7 @@ jobs:
         run: go test -v -count=1 -p 1 ./api/...
 
   ts-test:
-    name: TypeScript Tests
+    name: TypeScript Tests & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,22 +38,27 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test @zenv/amnesia
-        working-directory: packages/amnesia
-        run: bun test
+      - name: Lint Check
+        run: pnpm lint
 
-      - name: Build @zenv/amnesia
-        working-directory: packages/amnesia
-        run: pnpm run build
+      - name: Typecheck Packages
+        run: pnpm typecheck
 
-      - name: Typecheck @zenv/sdk
-        working-directory: packages/sdk
-        run: pnpm run typecheck
+      - name: Build Packages
+        run: pnpm build
+
+      - name: Run Tests (Vitest)
+        run: pnpm test
 
   cross-language-parity:
     name: Cross-Language Parity
@@ -71,7 +76,12 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
 
       - name: Install TS dependencies
         run: pnpm install --frozen-lockfile
@@ -84,7 +94,7 @@ jobs:
 
       - name: Run TS parity tests
         working-directory: packages/amnesia
-        run: bun test src/vectors.test.ts
+        run: pnpm run test src/vectors.test.ts
 
   build:
     name: Build Binaries

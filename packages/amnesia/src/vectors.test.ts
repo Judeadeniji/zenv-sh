@@ -5,7 +5,7 @@
  * and validates that TypeScript Amnesia produces byte-identical output.
  * If any vector fails, Go and TS have drifted — fix before merging.
  */
-import { describe, test } from "node:test";
+import { describe, test } from "vitest";
 import assert from "node:assert/strict";
 
 // Node.js ESM requires the `with { type: "json" }` attribute for JSON imports

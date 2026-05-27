@@ -34,17 +34,23 @@ make test
 
 ## Development
 
-- Go: standard library conventions, `log/slog`, errors returned not panicked
-- TypeScript: strict mode, ESM only
-- Tests: stdlib `testing` for Go, vitest for TS
-- Crypto: never add network/DB deps to `amnesia/`
+- **Go**: Standard library conventions, `log/slog`, errors returned not panicked.
+- **TypeScript**: Strict mode, ESM dual-build (via `tsup`), structured files.
+- **Tests**: stdlib `testing` for Go, `vitest` for TS. Run `pnpm test` for TS, `make test` for Go.
+- **Crypto**: Never add network/DB deps to `amnesia/`.
+
+### TypeScript File Conventions
+When contributing to TS packages, avoid monolithic files:
+- `@zenv/sdk`: Add validation/utils to `schema.ts` or `encoding.ts`. Define new error types in `errors.ts`.
+- `@zenv/vite-plugin`: Add secret fetching logic to `loader.ts`, polling logic to `watcher.ts`.
 
 ## Pull Requests
 
-1. Fork and create a branch from `main`
-2. Write tests for new functionality
-3. Run `make test` and `make lint` before submitting
-4. Keep PRs focused — one feature or fix per PR
+1. Fork and create a branch from `main`.
+2. Write tests for new functionality.
+3. Run `make test`, `make lint`, and `pnpm lint` before submitting.
+4. **Changesets**: If modifying a public `@zenv/*` package, run `pnpm changeset` and commit the generated markdown file. This tracks versions for our GitHub Packages release.
+5. Keep PRs focused — one feature or fix per PR.
 
 ## Reporting Bugs
 

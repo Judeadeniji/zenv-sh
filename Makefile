@@ -66,7 +66,7 @@ boot: setup dev-build dev-start
 
 all: build
 
-build: build-api build-cli build-app build-auth build-docs
+build: build-api build-cli build-app build-auth build-docs build-packages
 
 build-api:
 	go build -o $(BIN)/zenv-api ./api/cmd/zenv-api
@@ -82,6 +82,15 @@ build-app:
 
 build-docs:
 	pnpm -C apps/docs run build
+
+build-packages:
+	pnpm -r --filter './packages/*' run build
+
+typecheck-packages:
+	pnpm -r --filter './packages/*' run typecheck
+
+lint-ts:
+	pnpm lint
 
 # --- Test ---
 test:

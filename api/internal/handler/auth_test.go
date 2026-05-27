@@ -69,7 +69,7 @@ func TestSetupVault_Success(t *testing.T) {
 	// Generate real crypto material.
 	vaultKey := "test-setup-vault-key"
 	salt := amnesia.GenerateSalt()
-	kek, authKey := amnesia.DeriveKeys(vaultKey, salt, amnesia.KeyTypePassphrase)
+	kek, authKey := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
 
 	dek := amnesia.GenerateKey()
 	wrappedDEK, dekNonce, err := amnesia.WrapKey(dek, kek)
@@ -120,7 +120,7 @@ func TestSetupVault_Duplicate(t *testing.T) {
 
 	// Try to set up vault again.
 	salt := amnesia.GenerateSalt()
-	kek, authKey := amnesia.DeriveKeys("dup-key", salt, amnesia.KeyTypePassphrase)
+	kek, authKey := amnesia.DeriveKeys([]byte("dup-key"), salt, amnesia.KeyTypePassphrase)
 	dek := amnesia.GenerateKey()
 	wrappedDEK, dekNonce, _ := amnesia.WrapKey(dek, kek)
 	wrappedDEKFull := append(dekNonce, wrappedDEK...)
