@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
-import { zenvPlugin } from "./plugin"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import * as loader from "./loader"
+import { zenvPlugin } from "./plugin"
 
 vi.mock("./loader", async (importOriginal) => {
 	const mod = await importOriginal<typeof import("./loader")>()

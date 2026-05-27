@@ -37,7 +37,7 @@ import {
 	ZEnvStrictModeError,
 	ZEnvValidationError,
 } from "./errors.ts"
-import { type InferSchema, extractKeys, pickSchema, validateValues } from "./schema.ts"
+import { extractKeys, type InferSchema, pickSchema, validateValues } from "./schema.ts"
 import type { CryptoState, ZEnvConfig } from "./types.ts"
 
 const textEncoder = new TextEncoder()
@@ -61,8 +61,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
 
 		if (!config.token) {
 			throw new ZEnvConfigError(
-				"[zEnv] Missing ZENV_TOKEN. Set it in your environment:\n" +
-					"  export ZENV_TOKEN=ze_...",
+				"[zEnv] Missing ZENV_TOKEN. Set it in your environment:\n" + "  export ZENV_TOKEN=ze_...",
 			)
 		}
 		if (!config.projectKey) {
@@ -273,7 +272,11 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
 				missing.push(name)
 				continue
 			}
-			const plaintext = await decrypt(base64ToBytes(row.ciphertext!), base64ToBytes(row.nonce!), dek)
+			const plaintext = await decrypt(
+				base64ToBytes(row.ciphertext!),
+				base64ToBytes(row.nonce!),
+				dek,
+			)
 			decrypted[name] = JSON.parse(textDecoder.decode(plaintext)).value
 		}
 

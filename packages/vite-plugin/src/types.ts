@@ -91,7 +91,6 @@ export interface ZEnvPluginOptions {
 }
 
 /** Resolved options with all defaults applied. */
-export interface ResolvedZEnvPluginOptions
-	extends Required<Omit<ZEnvPluginOptions, "watch">> {
+export interface ResolvedZEnvPluginOptions extends Required<Omit<ZEnvPluginOptions, "watch">> {
 	watch: number
 }

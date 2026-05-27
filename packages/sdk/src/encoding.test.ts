@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { bytesToHex, bytesToBase64, base64ToBytes } from "./encoding"
+import { describe, expect, it } from "vitest"
+import { base64ToBytes, bytesToBase64, bytesToHex } from "./encoding"
 
 describe("encoding", () => {
 	it("bytesToHex correctly converts bytes to a hex string", () => {
