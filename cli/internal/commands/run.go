@@ -36,11 +36,13 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no command specified\nUsage: zenv run -- node server.js")
 	}
 
-	// Auto-detect Docker BuildKit usage
-	if len(cmdArgs) > 1 && cmdArgs[0] == "docker" && cmdArgs[1] == "build" {
-		useBuildKit = true
-	} else if len(cmdArgs) > 2 && cmdArgs[0] == "docker" && cmdArgs[1] == "buildx" && cmdArgs[2] == "build" {
-		useBuildKit = true
+	// Auto-detect Docker BuildKit usage only if flag wasn't explicitly set
+	if !cmd.Flags().Changed("buildkit") {
+		if len(cmdArgs) > 1 && cmdArgs[0] == "docker" && cmdArgs[1] == "build" {
+			useBuildKit = true
+		} else if len(cmdArgs) > 2 && cmdArgs[0] == "docker" && cmdArgs[1] == "buildx" && cmdArgs[2] == "build" {
+			useBuildKit = true
+		}
 	}
 
 	if err := requireConfig(); err != nil {
@@ -166,7 +168,11 @@ func injectBuildKitSecrets(args []string, keys []string) []string {
 	} else if len(args) > 2 && args[0] == "docker" && args[1] == "buildx" && args[2] == "build" {
 		insertIdx = 3
 	} else if len(args) > 1 && args[1] == "build" {
-		insertIdx = 2 // e.g., nerdctl build
+		// Only inject for known container build tools
+		tool := args[0]
+		if tool == "nerdctl" || tool == "podman" || tool == "buildah" {
+			insertIdx = 2
+		}
 	}
 
 	if insertIdx < 0 {

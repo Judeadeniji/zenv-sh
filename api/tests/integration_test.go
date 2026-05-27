@@ -39,7 +39,7 @@ func TestE2E_FullSecretLifecycle(t *testing.T) {
 
 	// 3. POST /v1/auth/setup-vault — store crypto material.
 	salt := amnesia.GenerateSalt()
-	kek, authKey := amnesia.DeriveKeys("e2e-vault-key", salt, amnesia.KeyTypePassphrase)
+	kek, authKey := amnesia.DeriveKeys([]byte("e2e-vault-key"), salt, amnesia.KeyTypePassphrase)
 	authKeyHash := amnesia.HashAuthKey(authKey)
 	dek := amnesia.GenerateKey()
 	wrappedDEK, dekNonce, _ := amnesia.WrapKey(dek, kek)

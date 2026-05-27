@@ -55,8 +55,6 @@ func (d *secretsDataSource) Configure(ctx context.Context, req datasource.Config
 func (d *secretsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data secretsDataSourceModel
 
-func (d *secretsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data secretsDataSourceModel
 
 	if d.client == nil || d.client.Client == nil {
 		resp.Diagnostics.AddError("Provider not configured", "The provider client is not initialized.")

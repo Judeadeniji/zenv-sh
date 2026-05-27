@@ -76,7 +76,7 @@ func TestCreateProject_Success(t *testing.T) {
 	// Generate project crypto material.
 	projectSalt := amnesia.GenerateSalt()
 	projectDEK := amnesia.GenerateKey()
-	projectKEK, _ := amnesia.DeriveKeys("project-vault-key", projectSalt, amnesia.KeyTypePassphrase)
+	projectKEK, _ := amnesia.DeriveKeys([]byte("project-vault-key"), projectSalt, amnesia.KeyTypePassphrase)
 	wrappedPDEK, pdNonce, err := amnesia.WrapKey(projectDEK, projectKEK)
 	if err != nil {
 		t.Fatalf("wrap project DEK: %v", err)
