@@ -67,7 +67,12 @@ func TestZenvClient(t *testing.T) {
 	server := setupMockServer(t, vaultKey, dek, env, name, val)
 	defer server.Close()
 
-	client, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	client, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -105,7 +110,12 @@ func TestNewClient_BadCrypto(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	_, err := NewClient(server.URL, "token", "prj_1", "vault-key")
+	_, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey("vault-key"),
+	)
 	if err == nil {
 		t.Error("Expected NewClient to fail with invalid base64 salt")
 	}
@@ -126,7 +136,12 @@ func TestNewClient_InvalidWrappedDEK(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	_, err := NewClient(server.URL, "token", "prj_1", "vault-key")
+	_, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey("vault-key"),
+	)
 	if err == nil {
 		t.Error("Expected NewClient to fail when wrapped DEK is too short")
 	}
@@ -142,7 +157,12 @@ func TestNewClient_APIError(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	_, err := NewClient(server.URL, "bad-token", "prj_1", "vault-key")
+	_, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("bad-token"),
+		WithProjectID("prj_1"),
+		WithVaultKey("vault-key"),
+	)
 	if err == nil {
 		t.Error("Expected NewClient to fail with unauthorized API response")
 	}
@@ -175,7 +195,12 @@ func TestFetchSecret_NotFound(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	c, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -212,7 +237,12 @@ func TestFetchAllSecrets_Empty(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	c, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -223,6 +253,35 @@ func TestFetchAllSecrets_Empty(t *testing.T) {
 	}
 	if len(all) != 0 {
 		t.Errorf("Expected empty map, got %v", all)
+	}
+}
+
+func TestNewClient_EnvFallback(t *testing.T) {
+	vaultKey := "correct-horse-battery-staple"
+	dek := []byte("12345678901234567890123456789012")
+	env := "dev"
+	name := "MY_SECRET"
+	val := "env-fallback-value"
+
+	server := setupMockServer(t, vaultKey, dek, env, name, val)
+	defer server.Close()
+
+	t.Setenv("ZENV_API_URL", server.URL)
+	t.Setenv("ZENV_TOKEN", "token")
+	t.Setenv("ZENV_PROJECT", "prj_1")
+	t.Setenv("ZENV_PROJECT_KEY", vaultKey)
+
+	client, err := NewClient()
+	if err != nil {
+		t.Fatalf("NewClient failed with env fallback: %v", err)
+	}
+
+	fetched, err := client.FetchSecret(env, name)
+	if err != nil {
+		t.Fatalf("FetchSecret failed: %v", err)
+	}
+	if fetched != val {
+		t.Errorf("Expected %s, got %s", val, fetched)
 	}
 }
 
@@ -246,7 +305,12 @@ func TestClientZero(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	c, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -286,7 +350,12 @@ func TestClientAPI(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	c, err := NewClient(server.URL, "token", "prj_1", vaultKey)
+	c, err := NewClient(
+		WithAPIURL(server.URL),
+		WithToken("token"),
+		WithProjectID("prj_1"),
+		WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
