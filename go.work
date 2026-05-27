@@ -4,6 +4,7 @@ use (
 	./amnesia
 	./api
 	./cli
+	./k8s
 	./sdk-go
 	./terraform-provider-zenv
 )
