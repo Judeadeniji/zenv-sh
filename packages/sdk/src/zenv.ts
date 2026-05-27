@@ -56,7 +56,7 @@ export class ZEnv<S extends Record<string, unknown> = Record<string, unknown>> {
 	constructor(config: ZEnvConfig<S>) {
 		// Browser ban — credentials must never reach the browser.
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		if (typeof (globalThis as any).window !== "undefined") {
+		if (typeof globalThis.window !== "undefined") {
 			throw new ZEnvBrowserError()
 		}
 

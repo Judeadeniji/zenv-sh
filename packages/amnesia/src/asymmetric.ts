@@ -7,6 +7,7 @@
  * Wire format: [24-byte nonce][32-byte ephemeral public key][sealed box]
  */
 import nacl from "tweetnacl"
+import { z } from "zod"
 import { NACL_HEADER_SIZE, NACL_NONCE_SIZE } from "./constants.ts"
 
 /**
@@ -56,7 +57,20 @@ export function unwrapWithPrivateKey(
 	recipientPrivateKey: Uint8Array,
 ): Uint8Array {
 	const minSize = NACL_HEADER_SIZE + nacl.box.overheadLength
-	if (packed.length < minSize) {
+	const unwrapSchema = z.object({
+		packed: z.instanceof(Uint8Array).refine((val) => val.length >= minSize, {
+			message: `packed must be at least ${minSize} bytes`,
+		}),
+		recipientPrivateKey: z
+			.instanceof(Uint8Array)
+			.refine((val) => val.length === nacl.box.secretKeyLength, {
+				message: `recipientPrivateKey must be ${nacl.box.secretKeyLength} bytes`,
+			}),
+	})
+
+	try {
+		unwrapSchema.parse({ packed, recipientPrivateKey })
+	} catch {
 		throw new Error("amnesia: asymmetric decryption failed")
 	}
 
