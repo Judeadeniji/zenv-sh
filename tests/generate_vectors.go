@@ -62,7 +62,7 @@ func main() {
 	// --- DeriveKeys vectors ---
 	// Use passphrase params (faster) for test vectors.
 	salt := unhex("0102030405060708091011121314151617181920212223242526272829303132")
-	kek, authKey := amnesia.DeriveKeys("test-passphrase", salt, amnesia.KeyTypePassphrase)
+	kek, authKey := amnesia.DeriveKeys([]byte("test-passphrase"), salt, amnesia.KeyTypePassphrase)
 	v.DeriveKeys = append(v.DeriveKeys, DeriveKeysVector{
 		VaultKey: "test-passphrase",
 		Salt:     h(salt),
@@ -72,7 +72,7 @@ func main() {
 	})
 
 	salt2 := unhex("aabbccddee112233445566778899001122334455667788990011223344556677")
-	kek2, authKey2 := amnesia.DeriveKeys("another-key", salt2, amnesia.KeyTypePassphrase)
+	kek2, authKey2 := amnesia.DeriveKeys([]byte("another-key"), salt2, amnesia.KeyTypePassphrase)
 	v.DeriveKeys = append(v.DeriveKeys, DeriveKeysVector{
 		VaultKey: "another-key",
 		Salt:     h(salt2),
