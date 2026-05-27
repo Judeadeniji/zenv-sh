@@ -3,13 +3,19 @@
 	"version": "0.0.1",
 	"description": "Vite plugin for zEnv — build-time secret injection with zero-knowledge encryption",
 	"type": "module",
-	"main": "./dist/index.js",
+	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
-			"types": "./dist/index.d.ts"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
 		}
 	},
 	"files": [
@@ -18,8 +24,8 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json",
-		"dev": "tsc -p tsconfig.build.json --watch",
+		"build": "tsup",
+		"dev": "tsup --watch",
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "pnpm run build"
 	},
@@ -43,13 +49,14 @@
 	},
 	"sideEffects": false,
 	"peerDependencies": {
-		"vite": ">=5.0.0"
+		"vite": ">=8.0.0"
 	},
 	"dependencies": {
 		"@zenv/sdk": "workspace:*"
 	},
 	"devDependencies": {
+		"tsup": "^8.0.0",
 		"typescript": "^5",
-		"vite": "^6.0.0"
+		"vite": "^8.0.0"
 	}
 }

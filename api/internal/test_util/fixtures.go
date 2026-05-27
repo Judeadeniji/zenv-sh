@@ -86,7 +86,7 @@ func CreateZenvUser(t *testing.T, db *sql.DB, identityID, email string) ZenvUser
 
 	vaultKey := "test-vault-key-" + uuid.New().String()[:8]
 	salt := amnesia.GenerateSalt()
-	kek, authKey := amnesia.DeriveKeys(vaultKey, salt, amnesia.KeyTypePassphrase)
+	kek, authKey := amnesia.DeriveKeys([]byte(vaultKey), salt, amnesia.KeyTypePassphrase)
 
 	authKeyHash := amnesia.HashAuthKey(authKey)
 
@@ -206,7 +206,7 @@ func CreateProject(t *testing.T, db *sql.DB, memberUserID uuid.UUID) (orgID, pro
 
 	projectSalt := amnesia.GenerateSalt()
 	projectDEK := amnesia.GenerateKey()
-	projectKEK, _ := amnesia.DeriveKeys("project-vault-key", projectSalt, amnesia.KeyTypePassphrase)
+	projectKEK, _ := amnesia.DeriveKeys([]byte("project-vault-key"), projectSalt, amnesia.KeyTypePassphrase)
 	wrappedPDEK, pdNonce, err := amnesia.WrapKey(projectDEK, projectKEK)
 	if err != nil {
 		t.Fatalf("wrap project DEK: %v", err)

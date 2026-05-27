@@ -1,9 +1,21 @@
 {
 	"name": "zenv-monorepo",
 	"private": true,
+	"scripts": {
+		"build": "pnpm -r --filter './packages/*' run build",
+		"typecheck": "pnpm -r --filter './packages/*' run typecheck",
+		"test": "pnpm -r --filter './packages/*' run test",
+		"lint": "biome check packages/",
+		"format": "biome format --write packages/",
+		"changeset": "changeset",
+		"version": "changeset version",
+		"release": "pnpm build && changeset publish"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",
-		"swagger2openapi": "^7.0.8"
+		"@changesets/cli": "^2.27.0",
+		"swagger2openapi": "^7.0.8",
+		"vitest": "^3.2.4"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
