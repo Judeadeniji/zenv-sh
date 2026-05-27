@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -1341,6 +1342,59 @@ func (h *ProjectsHandler) GetVaultMaterial(w http.ResponseWriter, r *http.Reques
 		WrappedPrivateKey: base64.StdEncoding.EncodeToString(user.WrappedPrivateKey),
 		PublicKey:         base64.StdEncoding.EncodeToString(user.PublicKey),
 	})
+}
+
+// VerifyVaultRequest represents a request to verify the vault key.
+type VerifyVaultRequest struct {
+	AuthKeyHash string `json:"auth_key_hash"`
+}
+
+// @Summary		Verify vault key
+// @Description	Verifies the user's Vault Key via the auth key hash without exposing it.
+// @Tags			sdk
+// @Accept		json
+// @Produce		json
+// @Param		body	body	VerifyVaultRequest	true	"Auth key hash"
+// @Success		200		"Vault key is correct"
+// @Failure		400		{object}	ErrorResponse
+// @Failure		401		{object}	ErrorResponse
+// @Failure		403		{object}	ErrorResponse "Wrong vault key"
+// @Security		BearerAuth
+// @Router			/sdk/vault/verify [post]
+func (h *ProjectsHandler) VerifyVaultKey(w http.ResponseWriter, r *http.Request) {
+	userID, err := tokenCreatorID(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var req VerifyVaultRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	submittedHash, err := decodeBase64Field(req.AuthKeyHash, "auth_key_hash")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid base64 in auth_key_hash"})
+		return
+	}
+
+	var user model.Identities
+	if err := SELECT(table.Identities.AuthKeyHash).
+		FROM(table.Identities).
+		WHERE(table.Identities.IdentityID.EQ(UUID(userID))).
+		Query(h.db, &user); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to verify vault key"})
+		return
+	}
+
+	if subtle.ConstantTimeCompare(user.AuthKeyHash, submittedHash) != 1 {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "Wrong Vault Key"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // --- Stats ---

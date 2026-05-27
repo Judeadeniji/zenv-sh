@@ -78,7 +78,12 @@ func (p *zenvProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 	env := data.Env.ValueString()
 	vaultKey := data.VaultKey.ValueString()
 
-	client, err := zenv.NewClient(apiUrl, token, project, vaultKey)
+	client, err := zenv.NewClient(
+		zenv.WithAPIURL(apiUrl),
+		zenv.WithToken(token),
+		zenv.WithProjectID(project),
+		zenv.WithVaultKey(vaultKey),
+	)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to configure zEnv Client",

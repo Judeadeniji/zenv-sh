@@ -37,4 +37,4 @@
  */
 
 export { zenvPlugin } from "./plugin.ts"
-export type { ZEnvPluginOptions, ResolvedZEnvPluginOptions } from "./types.ts"
+export type { ResolvedZEnvPluginOptions, ZEnvPluginOptions } from "./types.ts"

@@ -23,27 +23,23 @@
  * ```
  */
 
-// Core — vault class and factory
-export { ZEnv, zenv } from "./zenv.ts"
-
-// Types — all public interfaces
-export type { ZEnvConfig, CryptoState } from "./types.ts"
-export type { InferSchema } from "./schema.ts"
-
+export type { ApiClient, ClientConfig } from "./client.ts"
 // API client — for advanced/custom usage
 export { createApiClient } from "./client.ts"
-export type { ClientConfig, ApiClient } from "./client.ts"
-
+// Encoding — useful for consumers doing raw crypto operations
+export { base64ToBytes, bytesToBase64, bytesToHex } from "./encoding.ts"
 // Errors — typed error hierarchy for instanceof checks
 export {
-	ZEnvError,
-	ZEnvConfigError,
 	ZEnvBrowserError,
+	ZEnvConfigError,
+	ZEnvError,
 	ZEnvFetchError,
-	ZEnvValidationError,
 	ZEnvNotFoundError,
 	ZEnvStrictModeError,
+	ZEnvValidationError,
 } from "./errors.ts"
-
-// Encoding — useful for consumers doing raw crypto operations
-export { bytesToHex, bytesToBase64, base64ToBytes } from "./encoding.ts"
+export type { InferSchema } from "./schema.ts"
+// Types — all public interfaces
+export type { CryptoState, ZEnvConfig } from "./types.ts"
+// Core — vault class and factory
+export { ZEnv, zenv } from "./zenv.ts"

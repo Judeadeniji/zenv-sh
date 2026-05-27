@@ -62,9 +62,7 @@ export function startPolling(
 		} catch (err) {
 			// Don't crash the server if a single poll fails (e.g. network blip)
 			const { warn } = await import("./logger.ts")
-			warn(
-				`Failed to poll for secret updates: ${err instanceof Error ? err.message : String(err)}`,
-			)
+			warn(`Failed to poll for secret updates: ${err instanceof Error ? err.message : String(err)}`)
 		}
 	}, opts.watch * 1000)
 }

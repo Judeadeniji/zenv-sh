@@ -73,7 +73,10 @@ func deriveProjectKey(apiClient *client.Client) error {
 	defer zeroBytes(kek)
 	defer zeroBytes(authKey)
 
-	// TODO: Verify authKey hash actually unlocks vault from the api
+	authKeyHash := base64.StdEncoding.EncodeToString(amnesia.HashAuthKey(authKey))
+	if err := apiClient.VerifyVaultKey(authKeyHash); err != nil {
+		return fmt.Errorf("Wrong Vault Key: %w", err)
+	}
 
 	wrappedDEK, err := base64.StdEncoding.DecodeString(vault.WrappedDEK)
 	if err != nil {

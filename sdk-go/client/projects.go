@@ -121,6 +121,22 @@ func (c *Client) GetVaultMaterial() (*VaultMaterialResponse, error) {
 	return &resp, nil
 }
 
+type VerifyVaultRequest struct {
+	AuthKeyHash string `json:"auth_key_hash"`
+}
+
+func (c *Client) VerifyVaultKey(authKeyHash string) error {
+	req := VerifyVaultRequest{AuthKeyHash: authKeyHash}
+	body, status, err := c.post("/v1/sdk/vault/verify", req)
+	if err != nil {
+		return err
+	}
+	if status != 200 {
+		return parseError(body, status)
+	}
+	return nil
+}
+
 // --- Key Grant ---
 
 type KeyGrantResponse struct {

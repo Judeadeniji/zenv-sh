@@ -5,15 +5,10 @@
  *   bytes 0-31 → KEK
  *   bytes 32-63 → Auth Key
  */
-import { argon2id } from "hash-wasm";
-import {
-  KEY_SIZE,
-  DERIVED_KEY_SIZE,
-  PIN_PARAMS,
-  PASSPHRASE_PARAMS,
-} from "./constants.ts";
+import { argon2id } from "hash-wasm"
+import { DERIVED_KEY_SIZE, KEY_SIZE, PASSPHRASE_PARAMS, PIN_PARAMS } from "./constants.ts"
 
-export type KeyType = "pin" | "passphrase";
+export type KeyType = "pin" | "passphrase"
 
 /**
  * Derive KEK and Auth Key from a Vault Key + salt.
@@ -22,24 +17,24 @@ export type KeyType = "pin" | "passphrase";
  * Must produce byte-identical output to Go's amnesia.DeriveKeys().
  */
 export async function deriveKeys(
-  vaultKey: string,
-  salt: Uint8Array,
-  keyType: KeyType,
+	vaultKey: string,
+	salt: Uint8Array,
+	keyType: KeyType,
 ): Promise<{ kek: Uint8Array; authKey: Uint8Array }> {
-  const params = keyType === "pin" ? PIN_PARAMS : PASSPHRASE_PARAMS;
+	const params = keyType === "pin" ? PIN_PARAMS : PASSPHRASE_PARAMS
 
-  const output = await argon2id({
-    password: vaultKey,
-    salt,
-    parallelism: params.parallelism,
-    iterations: params.iterations,
-    memorySize: params.memorySize,
-    hashLength: DERIVED_KEY_SIZE,
-    outputType: "binary",
-  });
+	const output = await argon2id({
+		password: vaultKey,
+		salt,
+		parallelism: params.parallelism,
+		iterations: params.iterations,
+		memorySize: params.memorySize,
+		hashLength: DERIVED_KEY_SIZE,
+		outputType: "binary",
+	})
 
-  return {
-    kek: output.subarray(0, KEY_SIZE),
-    authKey: output.subarray(KEY_SIZE, DERIVED_KEY_SIZE),
-  };
+	return {
+		kek: output.subarray(0, KEY_SIZE),
+		authKey: output.subarray(KEY_SIZE, DERIVED_KEY_SIZE),
+	}
 }

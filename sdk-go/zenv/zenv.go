@@ -3,6 +3,7 @@ package zenv
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
 	"github.com/Judeadeniji/zenv-sh/sdk-go/client"
@@ -17,16 +18,69 @@ type Client struct {
 	hmacKey   []byte
 }
 
+type clientOptions struct {
+	apiURL    string
+	token     string
+	projectID string
+	vaultKey  string
+}
+
+// ClientOption configures the zEnv client.
+type ClientOption func(*clientOptions)
+
+// WithAPIURL configures a custom zEnv API URL (default: https://api.zenv.dev).
+func WithAPIURL(url string) ClientOption {
+	return func(o *clientOptions) { o.apiURL = url }
+}
+
+// WithToken configures the service token for authentication.
+func WithToken(token string) ClientOption {
+	return func(o *clientOptions) { o.token = token }
+}
+
+// WithProjectID configures the target project UUID.
+func WithProjectID(projectID string) ClientOption {
+	return func(o *clientOptions) { o.projectID = projectID }
+}
+
+// WithVaultKey configures the zero-knowledge vault key used to decrypt the project DEK.
+func WithVaultKey(vaultKey string) ClientOption {
+	return func(o *clientOptions) { o.vaultKey = vaultKey }
+}
+
 // NewClient initializes a zEnv SDK client, authenticates against the zEnv API,
 // and derives the cryptographic keys required for zero-knowledge decryption.
-func NewClient(apiURL, token, projectID, vaultKey string) (*Client, error) {
-	if apiURL == "" {
-		apiURL = "https://api.zenv.dev"
+// If options are not provided, it falls back to the ZENV_API_URL, ZENV_TOKEN, 
+// ZENV_PROJECT, and ZENV_PROJECT_KEY environment variables.
+func NewClient(opts ...ClientOption) (*Client, error) {
+	o := &clientOptions{
+		apiURL:    os.Getenv("ZENV_API_URL"),
+		token:     os.Getenv("ZENV_TOKEN"),
+		projectID: os.Getenv("ZENV_PROJECT"),
+		vaultKey:  os.Getenv("ZENV_PROJECT_KEY"),
 	}
-	apiClient := client.New(apiURL, token)
+	
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	if o.apiURL == "" {
+		o.apiURL = "https://api.zenv.dev"
+	}
+	if o.token == "" {
+		return nil, fmt.Errorf("zenv: missing token (provide via WithToken or ZENV_TOKEN)")
+	}
+	if o.projectID == "" {
+		return nil, fmt.Errorf("zenv: missing project ID (provide via WithProjectID or ZENV_PROJECT)")
+	}
+	if o.vaultKey == "" {
+		return nil, fmt.Errorf("zenv: missing vault key (provide via WithVaultKey or ZENV_PROJECT_KEY)")
+	}
+
+	apiClient := client.New(o.apiURL, o.token)
 
 	// Fetch project crypto
-	pc, err := apiClient.GetProjectCrypto(projectID)
+	pc, err := apiClient.GetProjectCrypto(o.projectID)
 	if err != nil {
 		return nil, fmt.Errorf("fetch project crypto: %w", err)
 	}
@@ -40,7 +94,7 @@ func NewClient(apiURL, token, projectID, vaultKey string) (*Client, error) {
 		return nil, fmt.Errorf("decode wrapped_project_dek: %w", err)
 	}
 
-	projectKEK, _ := amnesia.DeriveKeys([]byte(vaultKey), projectSalt, amnesia.KeyTypePassphrase)
+	projectKEK, _ := amnesia.DeriveKeys([]byte(o.vaultKey), projectSalt, amnesia.KeyTypePassphrase)
 
 	if len(wrappedProjectDEK) < 13 {
 		return nil, fmt.Errorf("wrapped project DEK too short")
@@ -55,7 +109,7 @@ func NewClient(apiURL, token, projectID, vaultKey string) (*Client, error) {
 
 	return &Client{
 		apiClient: apiClient,
-		projectID: projectID,
+		projectID: o.projectID,
 		dek:       projectDEK,
 		hmacKey:   projectDEK,
 	}, nil
