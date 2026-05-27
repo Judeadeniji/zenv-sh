@@ -17,11 +17,13 @@ func newRunCmd() *cobra.Command {
 		RunE:  runCmd,
 	}
 	cmd.Flags().Bool("allow-partial", false, "Continue even if some secrets fail to decrypt")
+	cmd.Flags().Bool("buildkit", false, "Inject secrets as Docker BuildKit --secret arguments")
 	return cmd
 }
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	allowPartial, _ := cmd.Flags().GetBool("allow-partial")
+	useBuildKit, _ := cmd.Flags().GetBool("buildkit")
 
 	// Require an explicit "--" separator so child command flags (e.g. node --inspect)
 	// are never misinterpreted by cobra.
@@ -32,6 +34,13 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := args[dashIdx:]
 	if len(cmdArgs) == 0 {
 		return fmt.Errorf("no command specified\nUsage: zenv run -- node server.js")
+	}
+
+	// Auto-detect Docker BuildKit usage
+	if len(cmdArgs) > 1 && cmdArgs[0] == "docker" && cmdArgs[1] == "build" {
+		useBuildKit = true
+	} else if len(cmdArgs) > 2 && cmdArgs[0] == "docker" && cmdArgs[1] == "buildx" && cmdArgs[2] == "build" {
+		useBuildKit = true
 	}
 
 	if err := requireConfig(); err != nil {
@@ -93,6 +102,14 @@ func runCmd(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(os.Stderr, "zenv: injected %d/%d secrets\n", injected, len(secrets))
 
+	if useBuildKit {
+		var secretNames []string
+		for name := range overrides {
+			secretNames = append(secretNames, name)
+		}
+		cmdArgs = injectBuildKitSecrets(cmdArgs, secretNames)
+	}
+
 	binary, err := exec.LookPath(cmdArgs[0])
 	if err != nil {
 		return fmt.Errorf("command not found: %s", cmdArgs[0])
@@ -129,4 +146,36 @@ func zeroBytes(b []byte) {
 	for i := range b {
 		b[i] = 0
 	}
+}
+
+// injectBuildKitSecrets splices Docker BuildKit --secret arguments into the command array.
+func injectBuildKitSecrets(args []string, keys []string) []string {
+	if len(keys) == 0 {
+		return args
+	}
+
+	var secretFlags []string
+	for _, key := range keys {
+		secretFlags = append(secretFlags, "--secret", fmt.Sprintf("id=%s,env=%s", key, key))
+	}
+
+	// Insert after `build` or `buildx build` to ensure valid Docker syntax.
+	insertIdx := -1
+	if len(args) > 1 && args[0] == "docker" && args[1] == "build" {
+		insertIdx = 2
+	} else if len(args) > 2 && args[0] == "docker" && args[1] == "buildx" && args[2] == "build" {
+		insertIdx = 3
+	} else if len(args) > 1 && args[1] == "build" {
+		insertIdx = 2 // e.g., nerdctl build
+	}
+
+	if insertIdx < 0 {
+		return args // Unrecognized build command, act as no-op
+	}
+
+	result := make([]string, 0, len(args)+len(secretFlags))
+	result = append(result, args[:insertIdx]...)
+	result = append(result, secretFlags...)
+	result = append(result, args[insertIdx:]...)
+	return result
 }
