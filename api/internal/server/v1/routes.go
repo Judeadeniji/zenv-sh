@@ -108,6 +108,7 @@ func Routes(r chi.Router, db *sql.DB, rdb *redis.Client, al *audit.Writer, ac *a
 
 		r.Get("/whoami", tokens.Whoami)
 		r.Get("/vault", projects.GetVaultMaterial)
+		r.Post("/vault/verify", projects.VerifyVaultKey)
 
 		// Projects
 		r.Get("/projects", projects.List)
