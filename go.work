@@ -5,4 +5,5 @@ use (
 	./api
 	./cli
 	./sdk-go
+	./terraform-provider-zenv
 )

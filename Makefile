@@ -74,6 +74,9 @@ build-api:
 build-cli:
 	go build -o $(BIN)/zenv ./cli/cmd/zenv
 
+build-tf:
+	go build -o $(BIN)/terraform-provider-zenv ./terraform-provider-zenv
+
 build-auth:
 	pnpm -C apps/identity run build
 
