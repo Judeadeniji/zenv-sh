@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Judeadeniji/zenv-sh/cli/internal/crypto"
+	"github.com/Judeadeniji/zenv-sh/sdk-go/crypto"
 	"github.com/spf13/cobra"
 )
 

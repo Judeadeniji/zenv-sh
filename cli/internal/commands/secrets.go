@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Judeadeniji/zenv-sh/cli/internal/crypto"
+	"github.com/Judeadeniji/zenv-sh/sdk-go/crypto"
 )
 
 func newSecretsCmd() *cobra.Command {

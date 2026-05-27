@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Judeadeniji/zenv-sh/amnesia"
-	"github.com/Judeadeniji/zenv-sh/cli/internal/client"
+	"github.com/Judeadeniji/zenv-sh/sdk-go/client"
 	"github.com/Judeadeniji/zenv-sh/cli/internal/config"
 )
 
