@@ -44,12 +44,10 @@ func TestInjectBuildKitSecrets(t *testing.T) {
 			},
 		},
 		{
-			name: "unknown command (fallback to index 1)",
+			name: "unknown command (no-op)",
 			args: []string{"mybuilder", "--some-flag"},
 			expected: []string{
 				"mybuilder",
-				"--secret", "id=API_KEY,env=API_KEY",
-				"--secret", "id=DB_URL,env=DB_URL",
 				"--some-flag",
 			},
 		},

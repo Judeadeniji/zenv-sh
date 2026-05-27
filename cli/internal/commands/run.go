@@ -160,13 +160,17 @@ func injectBuildKitSecrets(args []string, keys []string) []string {
 	}
 
 	// Insert after `build` or `buildx build` to ensure valid Docker syntax.
-	insertIdx := 1
+	insertIdx := -1
 	if len(args) > 1 && args[0] == "docker" && args[1] == "build" {
 		insertIdx = 2
 	} else if len(args) > 2 && args[0] == "docker" && args[1] == "buildx" && args[2] == "build" {
 		insertIdx = 3
 	} else if len(args) > 1 && args[1] == "build" {
 		insertIdx = 2 // e.g., nerdctl build
+	}
+
+	if insertIdx < 0 {
+		return args // Unrecognized build command, act as no-op
 	}
 
 	result := make([]string, 0, len(args)+len(secretFlags))
