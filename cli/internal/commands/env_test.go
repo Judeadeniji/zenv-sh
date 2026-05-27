@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -45,8 +44,7 @@ func TestEnvCmd(t *testing.T) {
 
 	// Setup a temporary workspace
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-	t.Setenv("XDG_CONFIG_HOME", tmpDir+"/.config")
+	t.Setenv("ZENV_CONFIG_DIR", tmpDir+"/.config/zenv")
 	t.Setenv("ZENV_API_URL", server.URL)
 	t.Setenv("ZENV_TOKEN", "fake-token")
 	t.Setenv("ZENV_PROJECT", "12345678-1234-1234-1234-123456789012")
@@ -55,7 +53,7 @@ func TestEnvCmd(t *testing.T) {
 	t.Setenv("ZENV_PROJECT_KEY", "fake-key")
 
 	cmd := NewRootCmd()
-	cmd.SetArgs([]string{"env", "--format=dotenv"})
+	cmd.SetArgs([]string{"env", "pull", "-o", "-"})
 	
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)

@@ -84,8 +84,11 @@ func ResolveProject(flagProject string) string {
 
 // --- Global file paths ---
 
-// Dir returns the global config directory: ~/.config/zenv
+// Dir returns the global config directory: ~/.config/zenv (or ZENV_CONFIG_DIR if set)
 func Dir() string {
+	if custom := os.Getenv("ZENV_CONFIG_DIR"); custom != "" {
+		return custom
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
