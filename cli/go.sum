@@ -1,3 +1,7 @@
+github.com/Judeadeniji/zenv-sh/amnesia v0.1.1 h1:KduuSXpYwEbaoQJTxzjgBzKu2YEhRuPlVyMiTc5m+kI=
+github.com/Judeadeniji/zenv-sh/amnesia v0.1.1/go.mod h1:/ROXGE0tdfFmJtIsxMbEkAXlwGgTpSD5U9Y7DGhglV4=
+github.com/Judeadeniji/zenv-sh/sdk-go v0.1.1 h1:g84upW65rhBnzbUYxWx0G6xhPPxoC7qQSY0BONviDKc=
+github.com/Judeadeniji/zenv-sh/sdk-go v0.1.1/go.mod h1:qAPgiE6DtUuYclqFtdI2kEgJUhCiigU+NbyENYnnnH0=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
