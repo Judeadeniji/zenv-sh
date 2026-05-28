@@ -1,5 +1,5 @@
-github.com/Judeadeniji/zenv-sh/amnesia v0.1.0 h1:7bB+Ib5uCa1iUeeqyFfZY9O61Pvqx2MpueekDthGktY=
-github.com/Judeadeniji/zenv-sh/amnesia v0.1.0/go.mod h1:/ROXGE0tdfFmJtIsxMbEkAXlwGgTpSD5U9Y7DGhglV4=
+github.com/Judeadeniji/zenv-sh/amnesia v0.1.1 h1:KduuSXpYwEbaoQJTxzjgBzKu2YEhRuPlVyMiTc5m+kI=
+github.com/Judeadeniji/zenv-sh/amnesia v0.1.1/go.mod h1:/ROXGE0tdfFmJtIsxMbEkAXlwGgTpSD5U9Y7DGhglV4=
 golang.org/x/crypto v0.36.0 h1:AnAEvhDddvBdpY+uR+MyHmuZzzNqXSe/GvuDeob5L34=
 golang.org/x/crypto v0.36.0/go.mod h1:Y4J0ReaxCR1IMaabaSMugxJES1EpwhBHhv2bDHklZvc=
 golang.org/x/sys v0.42.0 h1:omrd2nAlyT5ESRdCLYdm3+fMfNFE/+Rf4bDIQImRJeo=
