@@ -53,7 +53,7 @@ Go monorepo (go.work)
 ├── amnesia/              Pure cryptographic engine — Argon2id, AES-256-GCM, X25519 NaCl box
 ├── api/                  HTTP API server (Chi) — stores and retrieves ciphertext, never decrypts
 ├── cli/                  CLI tool (Cobra) — zenv command, uses Amnesia natively
-└── k8s/                  Kubernetes Operator — syncs ZEnvSecrets to v1.Secrets
+└── sdk-go/               Go SDK — strongly-typed client for the zEnv API
 
 TypeScript packages (pnpm workspaces)
 ├── packages/amnesia/     Pure TS reimplementation — byte-identical to Go, cross-language parity enforced
@@ -115,39 +115,18 @@ const secrets = await vault.load();
 // secrets.PORT → number (transformed)
 ```
 
-## Kubernetes Operator
+## Ecosystem Integrations
 
-zEnv includes a Kubernetes Operator (`k8s/` module) that continuously syncs your encrypted secrets from the zEnv API into native Kubernetes `v1.Secret` objects.
+zEnv supports first-party integrations for infrastructure orchestration. These are maintained in separate repositories:
 
-### Security Prerequisites
-
-> ⚠️ **CRITICAL WARNING**: Once synced, secrets reside as plaintext in `v1.Secret` objects within your Kubernetes cluster.
-> **You MUST enable [encryption-at-rest for etcd](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)** on your cluster. Otherwise, anyone with access to the cluster's etcd backups will have access to your raw secrets, bypassing zEnv's zero-knowledge guarantees.
-
-### Usage in Multi-tenant Clusters
-
-The `ZEnvSecret` custom resource requires a `credentialsRef` pointing to a local `v1.Secret` containing the `token` and `projectKey`:
-
-```yaml
-apiVersion: core.zenv.sh/v1alpha1
-kind: ZEnvSecret
-metadata:
-  name: my-app-secrets
-spec:
-  projectId: "proj_123"
-  environment: "production"
-  targetSecret: "my-app-db-credentials"
-  credentialsRef:
-    name: "zenv-project-credentials" # Contains `token` and `projectKey`
-```
-
-> ⚠️ **IMPORTANT**: While the operator supports fallback to global environment variables (`ZENV_TOKEN`, `ZENV_PROJECT_KEY`), **this is strictly for single-tenant or local development environments**. Using global credentials in a multi-tenant cluster is **unsuitable** and insecure, as it allows any namespace to sync secrets from the global zEnv project. Always use namespace-scoped `credentialsRef` in production.
+- ☸️ **[Kubernetes Operator](https://github.com/Judeadeniji/zenv-k8s-operator)**: Continuously syncs your encrypted zEnv secrets into native Kubernetes `v1.Secret` objects.
+- 🏗️ **[Terraform Provider](https://github.com/Judeadeniji/terraform-provider-zenv)**: Decrypts and injects secrets directly into your Terraform state and downstream resources.
 
 ## Project Structure
 
 ```
 zEnv/
-├── go.work                      Go workspace (3 modules)
+├── go.work                      Go workspace (4 modules)
 ├── Makefile                     Build, test, migrate, codegen
 ├── docker-compose.yml           Postgres 17 + Redis 7
 ├── amnesia/                     Pure Go crypto engine
@@ -164,6 +143,7 @@ zEnv/
 ├── cli/                         CLI tool
 │   ├── cmd/zenv/                Entrypoint
 │   └── internal/commands/       Cobra subcommands
+├── sdk-go/                      Go SDK (API Client + Crypto Wrapper)
 ├── packages/amnesia/            TypeScript crypto engine (Web Crypto API + hash-wasm)
 ├── packages/sdk/                @zenv/sdk (openapi-fetch + Standard Schema)
 ├── apps/
@@ -217,6 +197,7 @@ make smoke          # Run smoke tests against live API
 | [amnesia/](amnesia/)                   | Go crypto engine       | [README](amnesia/README.md)            |
 | [api/](api/)                           | Go HTTP API            | [README](api/README.md)                |
 | [cli/](cli/)                           | Go CLI tool            | [README](cli/README.md)                |
+| [sdk-go/](sdk-go/)                     | Go SDK                 | [README](sdk-go/README.md)             |
 | [packages/amnesia/](packages/amnesia/) | TypeScript crypto      | [README](packages/amnesia/README.md)   |
 | [packages/sdk/](packages/sdk/)         | TypeScript SDK         | [README](packages/sdk/README.md)       |
 | [apps/identity/](apps/identity/)               | Identity server (TS)   | —                                      |
