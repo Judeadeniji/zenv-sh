@@ -23,7 +23,8 @@ The server is a ciphertext warehouse.
 | Dashboard       | 🚧 In progress                                      |
 | Docs site       | 🚧 In progress                                      |
 | Security audit  | ❌ Not done — do not use for real secrets           |
-| Kubernetes Operator | 🚧 In progress                                    |
+| Kubernetes Operator | ✅ [View Repository](https://github.com/Judeadeniji/zenv-k8s-operator) |
+| Terraform Provider  | ✅ [View Repository](https://github.com/Judeadeniji/terraform-provider-zenv) |
 | OAuth           | ❌ Not done — dev login only                        |
 | Production deploy | ❌ Not done                                       |
 
