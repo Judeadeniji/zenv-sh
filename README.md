@@ -23,6 +23,7 @@ The server is a ciphertext warehouse.
 | Dashboard       | 🚧 In progress                                      |
 | Docs site       | 🚧 In progress                                      |
 | Security audit  | ❌ Not done — do not use for real secrets           |
+| Kubernetes Operator | 🚧 In progress                                    |
 | OAuth           | ❌ Not done — dev login only                        |
 | Production deploy | ❌ Not done                                       |
 
@@ -46,11 +47,12 @@ a security audit, and anything resembling stability guarantees.
 
 ## Architecture
 
-```
+```text
 Go monorepo (go.work)
 ├── amnesia/              Pure cryptographic engine — Argon2id, AES-256-GCM, X25519 NaCl box
 ├── api/                  HTTP API server (Chi) — stores and retrieves ciphertext, never decrypts
-└── cli/                  CLI tool (Cobra) — zenv command, uses Amnesia natively
+├── cli/                  CLI tool (Cobra) — zenv command, uses Amnesia natively
+└── k8s/                  Kubernetes Operator — syncs ZEnvSecrets to v1.Secrets
 
 TypeScript packages (pnpm workspaces)
 ├── packages/amnesia/     Pure TS reimplementation — byte-identical to Go, cross-language parity enforced
@@ -111,6 +113,34 @@ const secrets = await vault.load();
 // secrets.STRIPE_API_KEY → string
 // secrets.PORT → number (transformed)
 ```
+
+## Kubernetes Operator
+
+zEnv includes a Kubernetes Operator (`k8s/` module) that continuously syncs your encrypted secrets from the zEnv API into native Kubernetes `v1.Secret` objects.
+
+### Security Prerequisites
+
+> ⚠️ **CRITICAL WARNING**: Once synced, secrets reside as plaintext in `v1.Secret` objects within your Kubernetes cluster.
+> **You MUST enable [encryption-at-rest for etcd](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)** on your cluster. Otherwise, anyone with access to the cluster's etcd backups will have access to your raw secrets, bypassing zEnv's zero-knowledge guarantees.
+
+### Usage in Multi-tenant Clusters
+
+The `ZEnvSecret` custom resource requires a `credentialsRef` pointing to a local `v1.Secret` containing the `token` and `projectKey`:
+
+```yaml
+apiVersion: core.zenv.sh/v1alpha1
+kind: ZEnvSecret
+metadata:
+  name: my-app-secrets
+spec:
+  projectId: "proj_123"
+  environment: "production"
+  targetSecret: "my-app-db-credentials"
+  credentialsRef:
+    name: "zenv-project-credentials" # Contains `token` and `projectKey`
+```
+
+> ⚠️ **IMPORTANT**: While the operator supports fallback to global environment variables (`ZENV_TOKEN`, `ZENV_PROJECT_KEY`), **this is strictly for single-tenant or local development environments**. Using global credentials in a multi-tenant cluster is **unsuitable** and insecure, as it allows any namespace to sync secrets from the global zEnv project. Always use namespace-scoped `credentialsRef` in production.
 
 ## Project Structure
 
