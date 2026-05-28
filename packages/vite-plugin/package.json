@@ -3,6 +3,9 @@
 	"version": "0.0.1",
 	"description": "Vite plugin for zEnv — build-time secret injection with zero-knowledge encryption",
 	"type": "module",
+	"publishConfig": {
+		"access": "public"
+	},
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
