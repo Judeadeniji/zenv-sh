@@ -1,4 +1,4 @@
-import { wrapKey, unwrapKey } from "@zenv/amnesia"
+import { wrapKey, unwrapKey } from "@zenv-sh/amnesia"
 import { entropyToMnemonic, mnemonicToEntropy } from "@scure/bip39"
 import { wordlist } from "@scure/bip39/wordlists/english.js"
 

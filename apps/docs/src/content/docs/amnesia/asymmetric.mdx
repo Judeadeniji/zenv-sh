@@ -18,7 +18,7 @@ publicKey, privateKey, err := amnesia.GenerateKeypair()
 ### TypeScript
 
 ```ts
-import { generateKeypair } from "@zenv/amnesia";
+import { generateKeypair } from "@zenv-sh/amnesia";
 
 const { publicKey, privateKey } = generateKeypair();
 ```
@@ -38,7 +38,7 @@ sealed, err := amnesia.WrapWithPublicKey(payload, recipientPublicKey)
 ### TypeScript
 
 ```ts
-import { wrapWithPublicKey } from "@zenv/amnesia";
+import { wrapWithPublicKey } from "@zenv-sh/amnesia";
 
 const sealed = wrapWithPublicKey(payload, recipientPublicKey);
 ```
@@ -58,7 +58,7 @@ plaintext, err := amnesia.UnwrapWithPrivateKey(sealed, recipientPrivateKey)
 ### TypeScript
 
 ```ts
-import { unwrapWithPrivateKey } from "@zenv/amnesia";
+import { unwrapWithPrivateKey } from "@zenv-sh/amnesia";
 
 const plaintext = unwrapWithPrivateKey(sealed, recipientPrivateKey);
 ```

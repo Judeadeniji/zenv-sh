@@ -1,5 +1,5 @@
 /**
- * @zenv/sdk — binary encoding helpers.
+ * @zenv-sh/sdk — binary encoding helpers.
  *
  * Lightweight, cross-runtime implementations of hex/base64 encoding.
  * No Buffer, no Node-only APIs — works in Node, Deno, Bun, and edge runtimes.

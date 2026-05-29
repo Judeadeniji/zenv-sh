@@ -9,7 +9,7 @@ Load secrets in a server component or API route:
 
 ```typescript
 // lib/secrets.ts
-import { zenv } from '@zenv/sdk';
+import { zenv } from '@zenv-sh/sdk';
 import { z } from 'zod';
 
 const vault = zenv({
@@ -45,7 +45,7 @@ The SDK throws a hard error if `window` is defined — it will never run in the 
 
 ```typescript
 import express from 'express';
-import { zenv } from '@zenv/sdk';
+import { zenv } from '@zenv-sh/sdk';
 
 const vault = zenv({
   token: process.env.ZENV_TOKEN!,
@@ -73,7 +73,7 @@ Load secrets into Hono's context so every handler has type-safe access via `c.va
 ```typescript
 import { Hono } from 'hono';
 import { createMiddleware } from 'hono/factory';
-import { zenv } from '@zenv/sdk';
+import { zenv } from '@zenv-sh/sdk';
 import { z } from 'zod';
 
 const schema = z.object({

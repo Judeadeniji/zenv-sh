@@ -21,7 +21,7 @@ import { meQueryOptions, useUnlockVault } from "#/lib/queries/auth"
 import { authClient } from "#/lib/auth-client"
 import { api } from "#/lib/api-client"
 import { AlertCircle, Lock } from "lucide-react"
-import type { KeyType } from "@zenv/amnesia"
+import type { KeyType } from "@zenv-sh/amnesia"
 
 const searchSchema = z.object({
 	redirect: z.string().optional(),

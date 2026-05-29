@@ -14,7 +14,7 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
 		"paths": {
-			"@zenv/*": ["../*/src/index.ts"]
+			"@zenv-sh/*": ["../*/src/index.ts"]
 		}
 	},
 	"include": ["src"]

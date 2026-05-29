@@ -1,5 +1,5 @@
 {
-	"name": "@zenv/amnesia",
+	"name": "@zenv-sh/amnesia",
 	"version": "0.0.1",
 	"description": "Pure TypeScript cryptographic engine for zEnv — Argon2id, AES-256-GCM, X25519 NaCl box",
 	"type": "module",

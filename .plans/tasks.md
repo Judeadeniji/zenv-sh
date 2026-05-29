@@ -44,11 +44,11 @@
 - [ ] Deploy to Cloudflare Pages
 - [ ] Encryption API docs (after API is built)
 
-### @zenv/vite-plugin — build-time injection (Phase 2)
+### @zenv-sh/vite-plugin — build-time injection (Phase 2)
 
 - [ ] Scaffold packages/vite-plugin
 - [ ] Fetch + decrypt at build time via Amnesia TS
-- [ ] Generate virtual `@zenv/secrets` module
+- [ ] Generate virtual `@zenv-sh/secrets` module
 - [ ] Secret leak prevention (server-only TS enforcement, runtime guard, post-build scan)
 
 ## Done
@@ -159,7 +159,7 @@
 - [x] make sdk-types — convert to OpenAPI 3.0 + generate TypeScript types
 - [x] openapi-fetch client in SDK — fully typed from spec
 
-### @zenv/sdk — TypeScript SDK
+### @zenv-sh/sdk — TypeScript SDK
 
 - [x] Scaffold packages/sdk with openapi-fetch + openapi-typescript
 - [x] ZEnv class with load(), get(), set(), delete()

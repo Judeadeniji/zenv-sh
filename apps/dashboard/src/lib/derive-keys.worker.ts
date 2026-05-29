@@ -6,7 +6,7 @@
  *
  * Uses base64 for transferring Uint8Arrays across the worker boundary.
  */
-import { deriveKeys, type KeyType } from "@zenv/amnesia"
+import { deriveKeys, type KeyType } from "@zenv-sh/amnesia"
 
 interface DeriveRequest {
 	vaultKey: string

@@ -1,17 +1,17 @@
-# @zenv/sdk
+# @zenv-sh/sdk
 
-TypeScript SDK for zEnv. Fetches encrypted secrets from the API, decrypts them locally via [@zenv/amnesia](../amnesia/), validates with your schema, and returns typed results. Zero crypto logic in this package.
+TypeScript SDK for zEnv. Fetches encrypted secrets from the API, decrypts them locally via [@zenv-sh/amnesia](../amnesia/), validates with your schema, and returns typed results. Zero crypto logic in this package.
 
 ## Install
 
 ```bash
-pnpm add @zenv/sdk
+pnpm add @zenv-sh/sdk
 ```
 
 ## Usage
 
 ```typescript
-import { zenv } from "@zenv/sdk";
+import { zenv } from "@zenv-sh/sdk";
 import { z } from "zod";
 
 const vault = zenv({
@@ -124,7 +124,7 @@ schema: { PORT: {} }
 
 The SDK throws a hard error if `window` is defined. `ZENV_TOKEN` and `ZENV_PROJECT_KEY` are server credentials — they must never reach the browser.
 
-For browser/edge runtimes, use `@zenv/vite-plugin` which moves all crypto to build time.
+For browser/edge runtimes, use `@zenv-sh/vite-plugin` which moves all crypto to build time.
 
 ## How It Works
 

@@ -1,9 +1,9 @@
 /**
- * @zenv/sdk — Zero-knowledge secret manager SDK.
+ * @zenv-sh/sdk — Zero-knowledge secret manager SDK.
  *
  * @example
  * ```ts
- * import { zenv } from "@zenv/sdk"
+ * import { zenv } from "@zenv-sh/sdk"
  * import { z } from "zod"
  *
  * const vault = zenv({

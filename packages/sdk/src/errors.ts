@@ -1,12 +1,12 @@
 /**
- * @zenv/sdk — typed error hierarchy.
+ * @zenv-sh/sdk — typed error hierarchy.
  *
  * All SDK errors extend `ZEnvError`, so consumers can catch the base class
  * while still distinguishing specific failure modes with `instanceof`.
  *
  * @example
  * ```ts
- * import { ZEnvValidationError, ZEnvFetchError } from "@zenv/sdk"
+ * import { ZEnvValidationError, ZEnvFetchError } from "@zenv-sh/sdk"
  *
  * try {
  *   const secrets = await vault.load()
@@ -50,14 +50,14 @@ export class ZEnvConfigError extends ZEnvError {
 /**
  * Thrown when the SDK is instantiated in a browser environment.
  * `ZENV_TOKEN` and `ZENV_PROJECT_KEY` are server credentials and must never
- * reach the browser. Use `@zenv/vite-plugin` for build-time injection.
+ * reach the browser. Use `@zenv-sh/vite-plugin` for build-time injection.
  */
 export class ZEnvBrowserError extends ZEnvError {
 	constructor() {
 		super(
-			"[zEnv] @zenv/sdk detected a browser environment (window is defined). " +
+			"[zEnv] @zenv-sh/sdk detected a browser environment (window is defined). " +
 				"ZENV_TOKEN and ZENV_PROJECT_KEY are server credentials — they must never " +
-				"reach the browser. Use @zenv/vite-plugin for build-time injection instead.",
+				"reach the browser. Use @zenv-sh/vite-plugin for build-time injection instead.",
 		)
 		this.name = "ZEnvBrowserError"
 	}

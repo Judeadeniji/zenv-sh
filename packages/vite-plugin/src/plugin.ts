@@ -1,5 +1,5 @@
 /**
- * @zenv/vite-plugin — core plugin implementation.
+ * @zenv-sh/vite-plugin — core plugin implementation.
  *
  * Security model:
  *   - token and projectKey live entirely in Node (Vite's plugin host).

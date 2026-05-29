@@ -1,5 +1,5 @@
 {
-	"name": "@zenv/vite-plugin",
+	"name": "@zenv-sh/vite-plugin",
 	"version": "0.0.1",
 	"description": "Vite plugin for zEnv — build-time secret injection with zero-knowledge encryption",
 	"type": "module",
@@ -56,7 +56,7 @@
 		"vite": ">=8.0.0"
 	},
 	"dependencies": {
-		"@zenv/sdk": "workspace:*"
+		"@zenv-sh/sdk": "workspace:*"
 	},
 	"devDependencies": {
 		"tsup": "^8.0.0",

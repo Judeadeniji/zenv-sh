@@ -1,4 +1,4 @@
-# @zenv/amnesia
+# @zenv-sh/amnesia
 
 Pure TypeScript cryptographic engine for zEnv. Byte-identical reimplementation of the [Go Amnesia](../../amnesia/) package using Web Crypto API, hash-wasm, and tweetnacl.
 
@@ -41,7 +41,7 @@ generateKey() → Uint8Array    // 32 bytes
 ## Usage
 
 ```typescript
-import { deriveKeys, encrypt, decrypt, generateSalt, generateKey } from "@zenv/amnesia";
+import { deriveKeys, encrypt, decrypt, generateSalt, generateKey } from "@zenv-sh/amnesia";
 
 const salt = generateSalt();
 const { kek } = await deriveKeys("my-passphrase", salt, "passphrase");

@@ -96,33 +96,33 @@ import TabItem from '@components/TabItem.astro';
 
 ## Using the SDK
 
-For server-side TypeScript applications, use `@zenv/sdk` to load secrets at runtime.
+For server-side TypeScript applications, use `@zenv-sh/sdk` to load secrets at runtime.
 
 <Tabs>
   <TabItem label="npm">
     ```bash
-    npm install @zenv/sdk
+    npm install @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="pnpm">
     ```bash
-    pnpm add @zenv/sdk
+    pnpm add @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="yarn">
     ```bash
-    yarn add @zenv/sdk
+    yarn add @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="bun">
     ```bash
-    bun add @zenv/sdk
+    bun add @zenv-sh/sdk
     ```
   </TabItem>
 </Tabs>
 
 ```typescript
-import { zenv } from "@zenv/sdk";
+import { zenv } from "@zenv-sh/sdk";
 import { z } from "zod";
 
 const vault = zenv({

@@ -41,15 +41,15 @@ make test
 
 ### TypeScript File Conventions
 When contributing to TS packages, avoid monolithic files:
-- `@zenv/sdk`: Add validation/utils to `schema.ts` or `encoding.ts`. Define new error types in `errors.ts`.
-- `@zenv/vite-plugin`: Add secret fetching logic to `loader.ts`, polling logic to `watcher.ts`.
+- `@zenv-sh/sdk`: Add validation/utils to `schema.ts` or `encoding.ts`. Define new error types in `errors.ts`.
+- `@zenv-sh/vite-plugin`: Add secret fetching logic to `loader.ts`, polling logic to `watcher.ts`.
 
 ## Pull Requests
 
 1. Fork and create a branch from `main`.
 2. Write tests for new functionality.
 3. Run `make test`, `make lint`, and `pnpm lint` before submitting.
-4. **Changesets**: If modifying a public `@zenv/*` package, run `pnpm changeset` and commit the generated markdown file. This tracks versions for our GitHub Packages release.
+4. **Changesets**: If modifying a public `@zenv-sh/*` package, run `pnpm changeset` and commit the generated markdown file. This tracks versions for our GitHub Packages release.
 5. Keep PRs focused — one feature or fix per PR.
 
 ## Reporting Bugs

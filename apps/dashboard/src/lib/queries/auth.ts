@@ -9,7 +9,7 @@ import {
 	generateKey,
 	generateSalt,
 	type KeyType,
-} from "@zenv/amnesia"
+} from "@zenv-sh/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { useAuthStore } from "#/lib/stores/auth"

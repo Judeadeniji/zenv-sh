@@ -1,5 +1,5 @@
 /**
- * @zenv/sdk — shared type definitions.
+ * @zenv-sh/sdk — shared type definitions.
  *
  * All public interfaces and internal types live here so contributors
  * can find them without navigating a large class file.

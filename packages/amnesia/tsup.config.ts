@@ -10,6 +10,6 @@ export default defineConfig({
 	treeshake: true,
 	tsconfig: "tsconfig.build.json",
 	// hash-wasm and tweetnacl are runtime deps — don't bundle them.
-	// Consumers install them alongside @zenv/amnesia.
+	// Consumers install them alongside @zenv-sh/amnesia.
 	noExternal: [],
 })

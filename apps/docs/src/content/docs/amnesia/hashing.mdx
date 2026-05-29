@@ -20,7 +20,7 @@ ok := amnesia.VerifyNameHash("DATABASE_URL", hmacKey, hash)
 ### TypeScript
 
 ```ts
-import { hashName } from "@zenv/amnesia";
+import { hashName } from "@zenv-sh/amnesia";
 
 const hash = await hashName("DATABASE_URL", hmacKey);
 // hash: Uint8Array (32 bytes)
@@ -42,7 +42,7 @@ hash := amnesia.HashAuthKey(authKey)
 ### TypeScript
 
 ```ts
-import { hashAuthKey } from "@zenv/amnesia";
+import { hashAuthKey } from "@zenv-sh/amnesia";
 
 const hash = await hashAuthKey(authKey);
 ```

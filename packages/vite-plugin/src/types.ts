@@ -1,5 +1,5 @@
 /**
- * @zenv/vite-plugin — option types.
+ * @zenv-sh/vite-plugin — option types.
  */
 
 /**

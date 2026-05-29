@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install @zenv/sdk for server-side TypeScript applications.
+description: Install @zenv-sh/sdk for server-side TypeScript applications.
 ---
 
 import Tabs from '@components/Tabs.astro';
@@ -11,22 +11,22 @@ import TabItem from '@components/TabItem.astro';
 <Tabs>
   <TabItem label="npm">
     ```bash
-    npm install @zenv/sdk
+    npm install @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="pnpm">
     ```bash
-    pnpm add @zenv/sdk
+    pnpm add @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="yarn">
     ```bash
-    yarn add @zenv/sdk
+    yarn add @zenv-sh/sdk
     ```
   </TabItem>
   <TabItem label="bun">
     ```bash
-    bun add @zenv/sdk
+    bun add @zenv-sh/sdk
     ```
   </TabItem>
 </Tabs>
@@ -34,7 +34,7 @@ import TabItem from '@components/TabItem.astro';
 ## Requirements
 
 - **Node.js 18+** -- the SDK uses the Web Crypto API available in Node 18 and later.
-- **Server-only** -- the SDK throws a hard error if it detects a browser environment (`window` is defined). `ZENV_TOKEN` and `ZENV_VAULT_KEY` are server credentials that must never reach the client. For browser applications, use `@zenv/vite-plugin` for build-time injection instead.
+- **Server-only** -- the SDK throws a hard error if it detects a browser environment (`window` is defined). `ZENV_TOKEN` and `ZENV_VAULT_KEY` are server credentials that must never reach the client. For browser applications, use `@zenv-sh/vite-plugin` for build-time injection instead.
 
 ## Environment Variables
 
@@ -57,7 +57,7 @@ You will also need a project ID, typically set via `ZENV_PROJECT_ID` or passed d
 ## Verify
 
 ```typescript
-import { zenv } from "@zenv/sdk";
+import { zenv } from "@zenv-sh/sdk";
 
 const vault = zenv({
   token: process.env.ZENV_TOKEN!,

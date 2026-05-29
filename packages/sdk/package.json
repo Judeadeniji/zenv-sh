@@ -1,5 +1,5 @@
 {
-	"name": "@zenv/sdk",
+	"name": "@zenv-sh/sdk",
 	"version": "0.0.1",
 	"description": "Zero-knowledge secret manager SDK — fetch, decrypt, and validate secrets with type safety",
 	"type": "module",
@@ -57,7 +57,7 @@
 	},
 	"sideEffects": false,
 	"dependencies": {
-		"@zenv/amnesia": "workspace:*",
+		"@zenv-sh/amnesia": "workspace:*",
 		"openapi-fetch": "^0.17.0"
 	},
 	"devDependencies": {

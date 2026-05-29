@@ -5,7 +5,7 @@ import {
 	wrapWithPublicKey,
 	generateKey,
 	generateSalt,
-} from "@zenv/amnesia"
+} from "@zenv-sh/amnesia"
 import { deriveKeysAsync } from "#/lib/derive-keys"
 import { api } from "#/lib/api-client"
 import { toBase64, fromBase64, pack } from "#/lib/encoding"

@@ -71,7 +71,7 @@ importers:
       '@untitledui/file-icons':
         specifier: ^0.0.9
         version: 0.0.9(react@19.2.4)
-      '@zenv/amnesia':
+      '@zenv-sh/amnesia':
         specifier: workspace:*
         version: link:../../packages/amnesia
       better-auth:
@@ -297,7 +297,7 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@zenv/amnesia':
+      '@zenv-sh/amnesia':
         specifier: workspace:*
         version: link:../amnesia
       openapi-fetch:
@@ -319,7 +319,7 @@ importers:
 
   packages/vite-plugin:
     dependencies:
-      '@zenv/sdk':
+      '@zenv-sh/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:

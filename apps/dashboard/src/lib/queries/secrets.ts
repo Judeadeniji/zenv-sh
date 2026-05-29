@@ -5,7 +5,7 @@ import {
 	useQueryClient,
 	type QueryClient,
 } from "@tanstack/react-query"
-import { encrypt, decrypt, hashName } from "@zenv/amnesia"
+import { encrypt, decrypt, hashName } from "@zenv-sh/amnesia"
 import { api } from "#/lib/api-client"
 import { queryKeys, mutationKeys } from "#/lib/keys"
 import { toBase64, fromBase64 } from "#/lib/encoding"

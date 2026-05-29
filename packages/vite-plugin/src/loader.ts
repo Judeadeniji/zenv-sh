@@ -1,17 +1,17 @@
 /**
- * @zenv/vite-plugin — secret loader.
+ * @zenv-sh/vite-plugin — secret loader.
  *
  * Responsible for:
  *   - Resolving and validating plugin options (applying defaults)
  *   - Asserting that required credentials are present (fails fast with clear errors)
- *   - Fetching and decrypting secrets via `@zenv/sdk` (runs in Node, never browser)
+ *   - Fetching and decrypting secrets via `@zenv-sh/sdk` (runs in Node, never browser)
  *   - Building the Vite `define` map from a secrets snapshot
  *
  * All functions here are pure or side-effect-free (no Vite server references),
  * making them straightforward to unit-test in isolation.
  */
 
-import { ZEnv } from "@zenv/sdk"
+import { ZEnv } from "@zenv-sh/sdk"
 import type { ResolvedZEnvPluginOptions, ZEnvPluginOptions } from "./types.ts"
 
 /**

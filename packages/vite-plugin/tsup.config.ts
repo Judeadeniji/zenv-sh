@@ -11,6 +11,6 @@ export default defineConfig({
 	tsconfig: "tsconfig.build.json",
 	// Externalize everything that must not be bundled:
 	//   vite  — peer dep, resolved by the consumer's project
-	//   @zenv/sdk + @zenv/amnesia — workspace deps, not bundled
-	external: ["vite", "@zenv/sdk", "@zenv/amnesia"],
+	//   @zenv-sh/sdk + @zenv-sh/amnesia — workspace deps, not bundled
+	external: ["vite", "@zenv-sh/sdk", "@zenv-sh/amnesia"],
 })

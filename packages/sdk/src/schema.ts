@@ -1,5 +1,5 @@
 /**
- * Standard Schema support for @zenv/sdk.
+ * Standard Schema support for @zenv-sh/sdk.
  *
  * Accepts any Standard Schema compliant validator (Zod, Valibot, ArkType).
  * See: https://github.com/standard-schema/standard-schema

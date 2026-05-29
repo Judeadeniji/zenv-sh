@@ -63,7 +63,7 @@ Because Go workspaces manage modules independently, if you change the cryptograp
 
 ---
 
-## 3. Releasing the TypeScript Packages (`@zenv/sdk` or `amnesia`)
+## 3. Releasing the TypeScript Packages (`@zenv-sh/sdk` or `amnesia`)
 
 Your TypeScript packages use [Changesets](https://github.com/changesets/changesets). The deployment is handled entirely by `.github/workflows/publish.yml`.
 

@@ -19,7 +19,7 @@ plaintext, err := amnesia.Decrypt(ciphertext, nonce, key)
 ### TypeScript
 
 ```ts
-import { encrypt, decrypt } from "@zenv/amnesia";
+import { encrypt, decrypt } from "@zenv-sh/amnesia";
 
 const { ciphertext, nonce } = await encrypt(plaintext, key);
 const plaintext = await decrypt(ciphertext, nonce, key);
@@ -39,7 +39,7 @@ dek, err := amnesia.UnwrapKey(wrappedDEK, nonce, kek)
 ### TypeScript
 
 ```ts
-import { wrapKey, unwrapKey } from "@zenv/amnesia";
+import { wrapKey, unwrapKey } from "@zenv-sh/amnesia";
 
 const { ciphertext: wrappedDEK, nonce } = await wrapKey(dek, kek);
 const dek = await unwrapKey(wrappedDEK, nonce, kek);

@@ -10,8 +10,8 @@ zEnv — zero-knowledge secret manager. All encryption/decryption happens client
 - `api/` — Go HTTP API server (Chi). Stores and retrieves ciphertext. Never decrypts.
 - `cli/` — Go CLI (Cobra). Uses Amnesia natively for client-side crypto.
 - `packages/amnesia/` — Pure TypeScript reimplementation of Amnesia (Web Crypto API + hash-wasm + @noble/curves). Must produce byte-identical output to Go Amnesia — parity enforced via shared test vectors in CI.
-- `packages/sdk/` — @zenv/sdk (future). Thin wrapper: API calls + schema validation + packages/amnesia for crypto.
-- `packages/vite-plugin/` — @zenv/vite-plugin (future).
+- `packages/sdk/` — @zenv-sh/sdk (future). Thin wrapper: API calls + schema validation + packages/amnesia for crypto.
+- `packages/vite-plugin/` — @zenv-sh/vite-plugin (future).
 - `apps/` — TanStack Start dashboards (future).
 
 Three separate Go modules wired via `go.work`. Build all with:

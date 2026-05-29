@@ -1,5 +1,5 @@
 /**
- * @zenv/vite-plugin — terminal logger.
+ * @zenv-sh/vite-plugin — terminal logger.
  *
  * Centralised logging with ANSI colour codes so output is visually distinct
  * from Vite's own log lines. Contributors: add new log levels here, not inline.

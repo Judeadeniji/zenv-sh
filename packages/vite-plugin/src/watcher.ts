@@ -1,5 +1,5 @@
 /**
- * @zenv/vite-plugin — secret polling and diffing.
+ * @zenv-sh/vite-plugin — secret polling and diffing.
  *
  * Handles the background polling loop that checks for secret updates
  * while the Vite dev server is running.

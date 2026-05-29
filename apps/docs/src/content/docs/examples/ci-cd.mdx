@@ -75,7 +75,7 @@ Use this in any CI system to fail fast on missing secrets.
 If your build step needs secrets at runtime (e.g., database migrations):
 
 ```typescript
-import { zenv } from '@zenv/sdk';
+import { zenv } from '@zenv-sh/sdk';
 import { z } from 'zod';
 
 const vault = zenv({

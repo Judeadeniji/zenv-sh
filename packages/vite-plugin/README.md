@@ -1,4 +1,4 @@
-# @zenv/vite-plugin
+# @zenv-sh/vite-plugin
 
 Vite plugin for [zEnv](https://zenv.sh). Fetches encrypted secrets at build time, decrypts them in Node, and injects the values into `import.meta.env` — without ever exposing your credentials to the browser.
 
@@ -7,9 +7,9 @@ Vite plugin for [zEnv](https://zenv.sh). Fetches encrypted secrets at build time
 ```
 vite build / vite dev
   │
-  └─ @zenv/vite-plugin (Node, build host)
+  └─ @zenv-sh/vite-plugin (Node, build host)
        │
-       ├─ ZENV_TOKEN + ZENV_PROJECT_KEY → @zenv/sdk → decrypt secrets
+       ├─ ZENV_TOKEN + ZENV_PROJECT_KEY → @zenv-sh/sdk → decrypt secrets
        │                                                   (stays in Node)
        └─ plaintext values → Vite define API → import.meta.env.ZENV_*
                                                    (lands in bundle)
@@ -20,7 +20,7 @@ vite build / vite dev
 ## Install
 
 ```bash
-pnpm add -D @zenv/vite-plugin
+pnpm add -D @zenv-sh/vite-plugin
 ```
 
 ## Quick start
@@ -29,7 +29,7 @@ pnpm add -D @zenv/vite-plugin
 // vite.config.ts
 import { defineConfig } from "vite"
 import { z } from "zod"
-import { zenvPlugin } from "@zenv/vite-plugin"
+import { zenvPlugin } from "@zenv-sh/vite-plugin"
 
 export default defineConfig({
   plugins: [
@@ -155,12 +155,12 @@ The plugin ships an ambient declaration that makes `import.meta.env.ZENV_*` vali
 ```ts
 // src/vite-env.d.ts — already included by Vite scaffolding
 /// <reference types="vite/client" />
-/// <reference types="@zenv/vite-plugin" />
+/// <reference types="@zenv-sh/vite-plugin" />
 ```
 
-## vs. @zenv/sdk
+## vs. @zenv-sh/sdk
 
-| | `@zenv/sdk` | `@zenv/vite-plugin` |
+| | `@zenv-sh/sdk` | `@zenv-sh/vite-plugin` |
 |---|---|---|
 | **Runs in** | Node / server / edge | Vite build host (Node) |
 | **Secrets available** | At runtime (fetched on demand) | At build time (bundled as literals) |

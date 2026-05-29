@@ -1,5 +1,5 @@
 /**
- * @zenv/amnesia — Pure TypeScript cryptographic engine.
+ * @zenv-sh/amnesia — Pure TypeScript cryptographic engine.
  *
  * Mirrors the Go amnesia/ package exactly.
  * No network. No storage. No concept of users, projects, or secrets.

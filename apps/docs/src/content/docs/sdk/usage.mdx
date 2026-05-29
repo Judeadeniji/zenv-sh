@@ -1,12 +1,12 @@
 ---
 title: Usage
-description: Load, validate, and manage secrets with @zenv/sdk — schema validation, selective loading, and error handling.
+description: Load, validate, and manage secrets with @zenv-sh/sdk — schema validation, selective loading, and error handling.
 ---
 
 ## Basic setup
 
 ```typescript
-import { zenv } from "@zenv/sdk";
+import { zenv } from "@zenv-sh/sdk";
 
 const vault = zenv({
   token: process.env.ZENV_TOKEN!,
@@ -250,7 +250,7 @@ Application did not start. Fix the above and retry.
 **Browser detection:**
 
 ```
-[zEnv] @zenv/sdk detected a browser environment (window is defined).
+[zEnv] @zenv-sh/sdk detected a browser environment (window is defined).
 ZENV_TOKEN and ZENV_VAULT_KEY are server credentials — they must never
 reach the browser.
 ```

@@ -1,13 +1,13 @@
 /**
  * Offloads Argon2id key derivation to a Web Worker so the UI stays responsive.
  *
- * Drop-in replacement for `deriveKeys` from @zenv/amnesia — same signature,
+ * Drop-in replacement for `deriveKeys` from @zenv-sh/amnesia — same signature,
  * same return type, but runs off the main thread.
  *
  * Falls back to main-thread derivation on the server (SSR) or if workers
  * are unavailable.
  */
-import type { KeyType } from "@zenv/amnesia"
+import type { KeyType } from "@zenv-sh/amnesia"
 import { fromBase64, toBase64 } from "./encoding";
 
 export async function deriveKeysAsync(
@@ -17,7 +17,7 @@ export async function deriveKeysAsync(
 ): Promise<{ kek: Uint8Array; authKey: Uint8Array }> {
 	// SSR or no Worker support — fall back to main thread
 	if (typeof Worker === "undefined") {
-		const { deriveKeys } = await import("@zenv/amnesia")
+		const { deriveKeys } = await import("@zenv-sh/amnesia")
 		return deriveKeys(vaultKey, salt, keyType)
 	}
 

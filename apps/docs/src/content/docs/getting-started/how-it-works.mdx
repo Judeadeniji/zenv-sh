@@ -96,7 +96,7 @@ Benefits:
 The Amnesia engine ships in two implementations:
 
 - **Go** (`amnesia/`) -- used by the CLI and API server
-- **TypeScript** (`packages/amnesia/`) -- used by `@zenv/sdk` in Node.js
+- **TypeScript** (`packages/amnesia/`) -- used by `@zenv-sh/sdk` in Node.js
 
 Both implementations must produce **byte-identical output** for the same inputs. This is enforced by shared JSON test vectors that run in CI. If a TypeScript Amnesia encryption produces different bytes than Go Amnesia for the same key and plaintext, the build fails.
 

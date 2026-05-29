@@ -1,5 +1,5 @@
 {
-	"name": "@zenv/dashboard",
+	"name": "@zenv-sh/dashboard",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -31,7 +31,7 @@
 		"@tanstack/react-table": "^8.21.3",
 		"@untitledui/file-icons": "^0.0.9",
 		"@tanstack/router-plugin": "^1.132.0",
-		"@zenv/amnesia": "workspace:*",
+		"@zenv-sh/amnesia": "workspace:*",
 		"better-auth": "^1.5.5",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",

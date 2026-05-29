@@ -1,12 +1,12 @@
 /**
- * @zenv/sdk — ZEnv class and `zenv()` factory.
+ * @zenv-sh/sdk — ZEnv class and `zenv()` factory.
  *
- * Zero crypto logic here. `@zenv/amnesia` handles everything cryptographic.
+ * Zero crypto logic here. `@zenv-sh/amnesia` handles everything cryptographic.
  * This module owns: API calls, schema validation, typed returns.
  *
  * @example
  * ```ts
- * import { zenv } from "@zenv/sdk"
+ * import { zenv } from "@zenv-sh/sdk"
  * import { z } from "zod"
  *
  * const vault = zenv({
@@ -26,7 +26,7 @@
  * ```
  */
 
-import { decrypt, deriveKeys, encrypt, hashName, unwrapKey } from "@zenv/amnesia"
+import { decrypt, deriveKeys, encrypt, hashName, unwrapKey } from "@zenv-sh/amnesia"
 import { type ApiClient, createApiClient } from "./client.ts"
 import { base64ToBytes, bytesToBase64, bytesToHex } from "./encoding.ts"
 import {

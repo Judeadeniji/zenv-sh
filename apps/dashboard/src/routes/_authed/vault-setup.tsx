@@ -17,7 +17,7 @@ import { meQueryOptions, useSetupVault } from "#/lib/queries/auth"
 import { generateRecoveryEntropy, entropyToWords } from "#/lib/recovery"
 import { storageKeys } from "#/lib/keys"
 import { AlertCircle, Lock } from "lucide-react"
-import type { KeyType } from "@zenv/amnesia"
+import type { KeyType } from "@zenv-sh/amnesia"
 
 export const Route = createFileRoute("/_authed/vault-setup")({
 	component: VaultSetupPage,

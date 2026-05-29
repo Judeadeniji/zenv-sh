@@ -9,7 +9,7 @@ Goal: A developer can use zEnv for a real project end-to-end.
 - [x] API server — secrets CRUD, service tokens, projects, orgs, audit logs
 - [x] Auth server — standalone identity server (email/password, OAuth, 2FA, orgs)
 - [x] CLI — secrets, tokens, projects, orgs, login, whoami, config
-- [x] @zenv/sdk — TypeScript SDK with Standard Schema support
+- [x] @zenv-sh/sdk — TypeScript SDK with Standard Schema support
 - [x] Automated tests — Go (Amnesia, API handlers/middleware, E2E, CLI config) + Bun (`packages/amnesia`); CI diff-checks Go-generated crypto vectors against TS
 - [x] Developer dashboard (TanStack Start)
 - [x] DEK rotation — two-phase re-encryption (API + web UI)
@@ -23,7 +23,7 @@ Goal: A developer can use zEnv for a real project end-to-end.
 
 Goal: Developers choose zEnv over alternatives and integrate it into their pipeline.
 
-- [ ] @zenv/vite-plugin — build-time secret injection
+- [ ] @zenv-sh/vite-plugin — build-time secret injection
 - [ ] GitHub Actions integration — published Action on Marketplace
 - [ ] Webhooks — HMAC-signed delivery, retry on failure
 - [ ] Python SDK

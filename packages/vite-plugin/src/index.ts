@@ -1,5 +1,5 @@
 /**
- * @zenv/vite-plugin
+ * @zenv-sh/vite-plugin
  *
  * Vite plugin that fetches encrypted secrets from zEnv at build time,
  * decrypts them in Node, and injects the plaintext values into
@@ -13,7 +13,7 @@
  * // vite.config.ts
  * import { defineConfig } from "vite"
  * import { z } from "zod"
- * import { zenvPlugin } from "@zenv/vite-plugin"
+ * import { zenvPlugin } from "@zenv-sh/vite-plugin"
  *
  * export default defineConfig({
  *   plugins: [

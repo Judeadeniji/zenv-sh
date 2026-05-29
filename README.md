@@ -57,7 +57,7 @@ Go monorepo (go.work)
 
 TypeScript packages (pnpm workspaces)
 ├── packages/amnesia/     Pure TS reimplementation — byte-identical to Go, cross-language parity enforced
-├── packages/sdk/         @zenv/sdk — typed API client + schema validation, zero crypto logic
+├── packages/sdk/         @zenv-sh/sdk — typed API client + schema validation, zero crypto logic
 └── apps/
     ├── auth/             Identity layer (TS) — handles authn for both the API and dashboard
     ├── web/              TanStack Start dashboard — manage projects, environments, and secrets
@@ -95,7 +95,7 @@ export ZENV_ENV=development
 ## SDK Usage
 
 ```typescript
-import { zenv } from "@zenv/sdk";
+import { zenv } from "@zenv-sh/sdk";
 import { z } from "zod";
 
 const vault = zenv({
@@ -145,7 +145,7 @@ zEnv/
 │   └── internal/commands/       Cobra subcommands
 ├── sdk-go/                      Go SDK (API Client + Crypto Wrapper)
 ├── packages/amnesia/            TypeScript crypto engine (Web Crypto API + hash-wasm)
-├── packages/sdk/                @zenv/sdk (openapi-fetch + Standard Schema)
+├── packages/sdk/                @zenv-sh/sdk (openapi-fetch + Standard Schema)
 ├── apps/
 │   ├── auth/                        Identity server — separate authn layer for API + dashboard
 │   ├── web/                         TanStack Start dashboard

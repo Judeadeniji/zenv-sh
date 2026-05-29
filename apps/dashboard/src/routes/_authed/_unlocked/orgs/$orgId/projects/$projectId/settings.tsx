@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { wrapWithPublicKey } from "@zenv/amnesia"
+import { wrapWithPublicKey } from "@zenv-sh/amnesia"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Spinner } from "#/components/ui/spinner"
