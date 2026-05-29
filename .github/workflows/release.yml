@@ -89,16 +89,16 @@ jobs:
               cp bin/zenv-${goos}-${goarch} $PKG_DIR/bin/zenv
               chmod +x $PKG_DIR/bin/zenv
               
-              cat > $PKG_DIR/package.json <<EOF
-{
-  "name": "$PKG_NAME",
-  "version": "$VERSION",
-  "os": ["$goos"],
-  "cpu": ["$cpu"],
-  "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "git+https://github.com/Judeadeniji/zenv-sh.git" }
-}
-EOF
+              node -e "
+                require('fs').writeFileSync('$PKG_DIR/package.json', JSON.stringify({
+                  name: '$PKG_NAME',
+                  version: '$VERSION',
+                  os: ['$goos'],
+                  cpu: ['$cpu'],
+                  publishConfig: { access: 'public' },
+                  repository: { type: 'git', url: 'git+https://github.com/Judeadeniji/zenv-sh.git' }
+                }, null, 2));
+              "
               
               cd $PKG_DIR
               npm publish --access public --provenance
