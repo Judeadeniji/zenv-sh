@@ -1,0 +1,31 @@
+{
+	"name": "@zenv-sh/cli",
+	"version": "0.0.0",
+	"description": "The zEnv CLI",
+	"publishConfig": {
+		"access": "public"
+	},
+	"bin": {
+		"zenv": "./bin/zenv.js"
+	},
+	"keywords": [
+		"zenv",
+		"cli",
+		"secrets"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Judeadeniji/zenv-sh.git",
+		"directory": "npm-cli"
+	},
+	"license": "MIT",
+	"engines": {
+		"node": ">=18"
+	},
+	"optionalDependencies": {
+		"@zenv-sh/cli-linux-x64": "0.0.0",
+		"@zenv-sh/cli-linux-arm64": "0.0.0",
+		"@zenv-sh/cli-darwin-x64": "0.0.0",
+		"@zenv-sh/cli-darwin-arm64": "0.0.0"
+	}
+}

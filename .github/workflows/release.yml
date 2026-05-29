@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build:
@@ -64,3 +65,60 @@ jobs:
         run: gh release create ${{ github.ref_name }} bin/* --generate-notes --prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Publish Native NPM Packages
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          
+          for goos in linux darwin; do
+            for goarch in amd64 arm64; do
+              if [ "$goarch" = "amd64" ]; then
+                cpu="x64"
+              else
+                cpu="arm64"
+              fi
+              
+              PKG_NAME="@zenv-sh/cli-${goos}-${cpu}"
+              PKG_DIR="npm-pkg-${goos}-${cpu}"
+              
+              mkdir -p $PKG_DIR/bin
+              cp bin/zenv-${goos}-${goarch} $PKG_DIR/bin/zenv
+              chmod +x $PKG_DIR/bin/zenv
+              
+              cat > $PKG_DIR/package.json <<EOF
+              {
+                "name": "$PKG_NAME",
+                "version": "$VERSION",
+                "os": ["$goos"],
+                "cpu": ["$cpu"],
+                "publishConfig": { "access": "public" },
+                "repository": { "type": "git", "url": "git+https://github.com/Judeadeniji/zenv-sh.git" }
+              }
+              EOF
+              
+              cd $PKG_DIR
+              npm publish --access public --provenance
+              cd ..
+            done
+          done
+        env:
+          NPM_CONFIG_PROVENANCE: true
+
+      - name: Publish NPM CLI Wrapper
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd npm-cli
+          
+          npm pkg set version="$VERSION"
+          npm pkg set optionalDependencies.@zenv-sh/cli-linux-x64="$VERSION"
+          npm pkg set optionalDependencies.@zenv-sh/cli-linux-arm64="$VERSION"
+          npm pkg set optionalDependencies.@zenv-sh/cli-darwin-x64="$VERSION"
+          npm pkg set optionalDependencies.@zenv-sh/cli-darwin-arm64="$VERSION"
+          
+          npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
