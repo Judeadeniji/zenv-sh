@@ -6,7 +6,7 @@
 		"access": "public"
 	},
 	"bin": {
-		"zenv": "./bin/zenv.js"
+		"zenv": "bin/zenv.js"
 	},
 	"keywords": [
 		"zenv",

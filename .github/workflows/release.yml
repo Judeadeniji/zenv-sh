@@ -90,15 +90,15 @@ jobs:
               chmod +x $PKG_DIR/bin/zenv
               
               cat > $PKG_DIR/package.json <<EOF
-              {
-                "name": "$PKG_NAME",
-                "version": "$VERSION",
-                "os": ["$goos"],
-                "cpu": ["$cpu"],
-                "publishConfig": { "access": "public" },
-                "repository": { "type": "git", "url": "git+https://github.com/Judeadeniji/zenv-sh.git" }
-              }
-              EOF
+{
+  "name": "$PKG_NAME",
+  "version": "$VERSION",
+  "os": ["$goos"],
+  "cpu": ["$cpu"],
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/Judeadeniji/zenv-sh.git" }
+}
+EOF
               
               cd $PKG_DIR
               npm publish --access public --provenance
