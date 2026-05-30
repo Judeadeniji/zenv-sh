@@ -1,81 +1,148 @@
 # Release Guide
 
-zEnv is composed of several moving parts: the Go CLI/API, the core Go cryptographic modules, and the TypeScript packages. Because of the GitHub Actions workflows configured in the repository, releasing new versions is highly automated.
+zEnv is composed of several moving parts: the Go CLI/API, the core Go cryptographic modules, and the TypeScript packages. Releases are highly automated via GitHub Actions.
 
-Depending on what you have changed, follow the instructions below to trigger a release.
+> **⚠️ Pre-Alpha Notice:** zEnv is currently in pre-alpha. All releases **must** use pre-release versioning until the project is declared stable.
+
+---
+
+## Versioning Scheme
+
+We follow [Semantic Versioning 2.0](https://semver.org/) with **pre-release identifiers**.
+
+### Pre-Alpha Format
+
+```
+v0.0.<patch>-alpha.<build>
+```
+
+| Segment | Meaning | Example |
+|---------|---------|---------|
+| `0.0.x` | Pre-alpha baseline — no stability guarantees | `0.0.1` |
+| `-alpha.y` | Sequential build within a patch | `-alpha.1`, `-alpha.2` |
+
+**Examples:**
+- `v0.0.1-alpha.1` → First pre-alpha build
+- `v0.0.1-alpha.2` → Second build (bug fix or iteration)
+- `v0.0.2-alpha.1` → Next patch cycle begins
+
+### Rules
+
+1. **Never** use bare versions like `v1.0.0` or `v0.1.0` during pre-alpha.
+2. Increment the **build number** (`-alpha.y`) for small changes and fixes.
+3. Increment the **patch** (`0.0.x`) when starting a new batch of changes.
+4. npm will **not** install pre-release versions by default — users must explicitly opt in:
+   ```bash
+   npm install @zenv-sh/cli@0.0.1-alpha.1
+   ```
+
+### Graduating from Pre-Alpha
+
+When the project is ready:
+- **Alpha → Beta:** Switch to `v0.1.0-beta.1`
+- **Beta → RC:** Switch to `v0.1.0-rc.1`
+- **Stable:** Release `v0.1.0`
 
 ---
 
 ## 1. Releasing the CLI and API Binaries
 
-If you only made changes to the `cli/` or `api/` folders, releasing is as simple as pushing a root tag. The `.github/workflows/release.yml` GitHub Action will automatically intercept it, compile the binaries across all operating systems, and attach them to a new GitHub Release page.
+Changes to `cli/` or `api/` are released by pushing a version tag. The `.github/workflows/release.yml` workflow will:
 
-1. **Ensure you are on the `main` branch with all changes pushed:**
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
+1. Cross-compile binaries for `linux` and `darwin` (amd64 + arm64)
+2. Create a GitHub Release with the binaries attached
+3. Publish platform-specific npm packages (`@zenv-sh/cli-<os>-<cpu>`)
+4. Publish the npm wrapper package (`@zenv-sh/cli`)
 
-2. **Create a new version tag (must start with `v`):**
-   ```bash
-   git tag v0.1.1
-   ```
+### Steps
 
-3. **Push the tag to GitHub:**
-   ```bash
-   git push origin v0.1.1
-   ```
-*(That's it! GitHub will build and attach `linux` and `darwin` binaries to the release automatically).*
+```bash
+# 1. Ensure you are on main with all changes pushed
+git checkout main
+git pull origin main
+
+# 2. Create a pre-alpha tag
+git tag v0.0.1-alpha.1
+
+# 3. Push the tag to trigger the release
+git push origin v0.0.1-alpha.1
+```
+
+That's it. GitHub Actions handles the rest.
+
+### NPM Authentication
+
+The release workflow authenticates with npm using the `NPM_TOKEN` repository secret. This token must be configured in:
+
+**Settings → Secrets and variables → Actions → `NPM_TOKEN`**
+
+Generate a token at [npmjs.com → Access Tokens](https://www.npmjs.com/settings/~/tokens) with publish access to the `@zenv-sh` scope.
+
+### If a Release Fails Mid-Way
+
+If the workflow fails after creating the GitHub Release (e.g., npm publish errors), delete the release and re-push the tag:
+
+```bash
+# Delete the failed release and remote tag
+gh release delete v0.0.1-alpha.1 --yes --cleanup-tag
+
+# Delete local tag, recreate, and push
+git tag -d v0.0.1-alpha.1
+git tag v0.0.1-alpha.1
+git push origin v0.0.1-alpha.1
+```
 
 ---
 
 ## 2. Releasing the Core Go Modules (`amnesia` or `sdk-go`)
 
-Because Go workspaces manage modules independently, if you change the cryptographic engine (`amnesia/`) or the Go SDK (`sdk-go/`), you must explicitly tag those subdirectories so the global Go proxy can cache the new versions. Then, you bump the CLI/API to depend on them.
+Go modules in subdirectories require their own tags for the Go module proxy.
 
-1. **Tag the specific subdirectories:**
-   ```bash
-   git tag amnesia/v0.1.2
-   git tag sdk-go/v0.1.2
-   git push origin amnesia/v0.1.2 sdk-go/v0.1.2
-   ```
+```bash
+# 1. Tag the subdirectories
+git tag amnesia/v0.0.1-alpha.1
+git tag sdk-go/v0.0.1-alpha.1
+git push origin amnesia/v0.0.1-alpha.1 sdk-go/v0.0.1-alpha.1
 
-2. **Update the CLI and API module dependencies:**
-   Open `cli/go.mod` and `api/go.mod` and update the `require` blocks to point to the new `v0.1.2` versions.
-   ```bash
-   # Run go mod tidy to ensure everything is correct
-   cd cli && go mod tidy
-   cd ../api && go mod tidy
-   cd ..
-   ```
+# 2. Update CLI and API dependencies
+cd cli && go mod tidy
+cd ../api && go mod tidy
+cd ..
 
-3. **Commit the dependency bump:**
-   ```bash
-   git commit -am "chore: bump core dependencies to v0.1.2"
-   git push origin main
-   ```
+# 3. Commit and push the dependency bump
+git commit -am "chore: bump core dependencies to v0.0.1-alpha.1"
+git push origin main
 
-4. **Tag the root repo to build the new binaries:**
-   ```bash
-   git tag v0.1.2
-   git push origin v0.1.2
-   ```
+# 4. Tag the root repo to build new binaries
+git tag v0.0.1-alpha.1
+git push origin v0.0.1-alpha.1
+```
 
 ---
 
 ## 3. Releasing the TypeScript Packages (`@zenv-sh/sdk` or `amnesia`)
 
-Your TypeScript packages use [Changesets](https://github.com/changesets/changesets). The deployment is handled entirely by `.github/workflows/publish.yml`.
+TypeScript packages use [Changesets](https://github.com/changesets/changesets) and are deployed by `.github/workflows/publish.yml`.
 
 1. **Create a changeset during development:**
-   When working on a feature in a branch, run:
    ```bash
    pnpm changeset
    ```
-   Follow the CLI prompts to select which packages changed and whether it's a major, minor, or patch update. Commit the generated markdown file.
+   Follow the prompts to select packages and bump type. Commit the generated file.
 
-2. **Merge to Main:**
-   When you merge your feature branch into `main`, a GitHub Action bot will read the changeset file and automatically open a new "Version Packages" Pull Request.
+2. **Merge to main:**
+   A GitHub Action bot will open a "Version Packages" Pull Request.
 
-3. **Publishing:**
-   When you are ready to officially release the packages, simply merge the "Version Packages" Pull Request. The GitHub Action will automatically build the packages and publish them to the GitHub NPM Registry.
+3. **Publish:**
+   Merge the "Version Packages" PR. The workflow will build and publish to npm automatically.
+
+---
+
+## Quick Reference
+
+| What changed | Tag format | Workflow |
+|---|---|---|
+| CLI / API | `v0.0.x-alpha.y` | `release.yml` |
+| `amnesia/` (Go) | `amnesia/v0.0.x-alpha.y` | Go module proxy |
+| `sdk-go/` | `sdk-go/v0.0.x-alpha.y` | Go module proxy |
+| `@zenv-sh/*` (TS) | Managed by Changesets | `publish.yml` |
