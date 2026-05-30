@@ -1,6 +1,6 @@
 {
 	"name": "@zenv-sh/vite-plugin",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Vite plugin for zEnv — build-time secret injection with zero-knowledge encryption",
 	"type": "module",
 	"publishConfig": {
