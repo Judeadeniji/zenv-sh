@@ -1,49 +1,54 @@
-# Starlight Starter Kit: Basics
+# zEnv Documentation Site
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE-MIT)
 
+The official documentation website for **zEnv**. Built with [Astro](https://astro.build) and [Starlight](https://starlight.astro.build).
+
+## Development
+
+```bash
+# From the repo root
+pnpm install
+
+# Start the dev server
+cd apps/docs
+pnpm dev
 ```
-pnpm create astro@latest -- --template starlight
-```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The documentation site will be available at `http://localhost:4321`.
 
-## 🚀 Project Structure
+## Structure
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
-.
-├── public/
+```text
+apps/docs/
 ├── src/
-│   ├── assets/
 │   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+│   │   └── docs/          # Markdown and MDX pages
+│   ├── assets/            # Images and static assets
+│   └── components/        # Custom Astro/React components
+├── public/                # Static files served at the root
+└── astro.config.mjs       # Astro and Starlight configuration
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+## Adding Content
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+Documentation pages are written in standard Markdown (`.md`) or MDX (`.mdx`).
 
-Static assets, like favicons, can be placed in the `public/` directory.
+To add a new page:
+1. Create a file in `src/content/docs/`. The file path dictates the URL route.
+2. Add frontmatter to specify the title and metadata.
+3. Update the `sidebar` configuration in `astro.config.mjs` if necessary to feature the page in navigation.
 
-## 🧞 Commands
+See the [Starlight Documentation](https://starlight.astro.build/guides/pages/) for details on writing content and using Starlight components.
 
-All commands are run from the root of the project, from a terminal:
+## Building for Production
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
+```bash
+pnpm build
+```
 
-## 👀 Want to learn more?
+The generated static site will be placed in the `dist/` directory, ready to be deployed to any static host.
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+## License
+
+MIT — see [LICENSE](../../LICENSE-MIT).

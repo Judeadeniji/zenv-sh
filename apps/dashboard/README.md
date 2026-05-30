@@ -1,193 +1,78 @@
-Welcome to your new TanStack Start app! 
+# zEnv Dashboard
 
-# Getting Started
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](../../LICENSE-AGPL)
 
-To run this application:
+Web dashboard for **zEnv** — the zero-knowledge secret manager. Built with [TanStack Start](https://tanstack.com/start), React 19, and Tailwind CSS v4.
+
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | [TanStack Start](https://tanstack.com/start) (SSR + SPA) |
+| UI | React 19, [shadcn/ui](https://ui.shadcn.com), [Base UI](https://base-ui.com) |
+| Routing | [TanStack Router](https://tanstack.com/router) (file-based) |
+| Data | [TanStack Query](https://tanstack.com/query), [openapi-fetch](https://github.com/openapi-ts/openapi-fetch) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com) |
+| Forms | [React Hook Form](https://react-hook-form.com) + [Zod](https://zod.dev) |
+| Auth | [Better Auth](https://better-auth.com) (client) |
+| Crypto | [@zenv-sh/amnesia](../../packages/amnesia/) (client-side encryption) |
+| Server | [Nitro](https://nitro.build) |
+| Linting | [Biome](https://biomejs.dev) |
+| Testing | [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) |
+
+## Development
 
 ```bash
+# From the repo root
 pnpm install
+
+# Start the dashboard dev server
+cd apps/dashboard
 pnpm dev
 ```
 
-# Building For Production
+The dev server starts at `http://localhost:3000` by default.
 
-To build this application for production:
+### Environment Variables
+
+Create a `.env.dev` file (see `.env.dev` for reference):
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | zEnv API server URL |
+| `VITE_AUTH_URL` | Identity/auth server URL |
+
+## Building
 
 ```bash
 pnpm build
 ```
 
-## Testing
+Produces a Nitro server bundle in `.output/`.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+## Testing
 
 ```bash
 pnpm test
 ```
 
-## Styling
+## Project Structure
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `pnpm add @tailwindcss/vite tailwindcss --dev`
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
+```
+apps/dashboard/
+├── src/
+│   ├── routes/          # File-based routes (TanStack Router)
+│   ├── components/      # Shared UI components
+│   └── lib/             # Utilities, API client, auth
+├── public/              # Static assets
+├── vite.config.ts       # Vite + TanStack Start config
+└── components.json      # shadcn/ui configuration
 ```
 
-Then anywhere in your JSX you can use it like so:
+## Security
 
-```tsx
-<Link to="/about">About</Link>
-```
+All cryptographic operations (vault unlock, secret encrypt/decrypt, key derivation) happen **in the browser** using `@zenv-sh/amnesia`. The dashboard never sends plaintext secrets to the server.
 
-This will create a link that will navigate to the `/about` route.
+## License
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const getTime = useServerFn(getServerTime)
-  const { data: time } = useQuery({
-    queryKey: ['server-time'],
-    queryFn: getTime,
-  })
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+AGPL-3.0 — see [LICENSE](../../LICENSE-AGPL).
