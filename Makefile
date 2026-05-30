@@ -72,7 +72,7 @@ build-api:
 	go build -o $(BIN)/zenv-api ./api/cmd/zenv-api
 
 build-cli:
-	go build -o $(BIN)/zenv ./cli/cmd/zenv
+	go build -ldflags="-X github.com/Judeadeniji/zenv-sh/cli/internal/commands.Version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o $(BIN)/zenv ./cli/cmd/zenv
 
 build-tf:
 	go build -o $(BIN)/terraform-provider-zenv ./terraform-provider-zenv

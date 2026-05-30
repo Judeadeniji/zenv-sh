@@ -35,7 +35,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-        run: go build -ldflags="-s -w" -o bin/zenv-${{ matrix.goos }}-${{ matrix.goarch }} ./cli/cmd/zenv
+        run: go build -ldflags="-s -w -X github.com/Judeadeniji/zenv-sh/cli/internal/commands.Version=${GITHUB_REF_NAME#v}" -o bin/zenv-${{ matrix.goos }}-${{ matrix.goarch }} ./cli/cmd/zenv
 
       - name: Build API
         env:

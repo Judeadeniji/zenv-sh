@@ -14,6 +14,9 @@ import (
 )
 
 var (
+	// Version is set at build time via -ldflags.
+	Version = "dev"
+
 	flagProject string
 	flagEnv     string
 	flagVerbose bool
@@ -25,9 +28,10 @@ var (
 
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "zenv",
-		Short: "zEnv — zero-knowledge secret manager",
-		Long:  "zEnv is a zero-knowledge encrypted vault for storing and sharing sensitive data.\nEven we as the provider cannot read your data.",
+		Use:     "zenv",
+		Short:   "zEnv — zero-knowledge secret manager",
+		Long:    "zEnv is a zero-knowledge encrypted vault for storing and sharing sensitive data.\nEven we as the provider cannot read your data.",
+		Version: Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Set log level.
 			logLevel := slog.LevelWarn
