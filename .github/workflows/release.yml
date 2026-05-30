@@ -69,6 +69,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+          registry-url: https://registry.npmjs.org
 
       - name: Publish Native NPM Packages
         run: |
@@ -107,6 +108,7 @@ jobs:
           done
         env:
           NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish NPM CLI Wrapper
         run: |
@@ -122,3 +124,4 @@ jobs:
           npm publish --access public --provenance
         env:
           NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
